@@ -1,5 +1,5 @@
 %   Author: Aki Vehtari <Aki.Vehtari@aalto.fi>
-%   Last modified: 2016-10-25 11:42:52 EDT
+%   Last modified: 2016-10-25 11:45:20 EDT
 
 clear
 N=[10 20 30 50 70 100];
@@ -48,4 +48,4 @@ for ni=1:numel(N)
     end
     disp(squeeze(qps(ni,:,:)))
 end
-save bbtestmgp2 qps qmss
+save bbtestmgpt2 qps qmss
