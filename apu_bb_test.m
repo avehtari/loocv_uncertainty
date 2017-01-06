@@ -1,9 +1,11 @@
 %   Author: Aki Vehtari <Aki.Vehtari@aalto.fi>
-%   Last modified: 2016-10-24 22:07:59 EDT
+%   Last modified: 2016-11-03 09:44:18 EET
 
 
 clear
 N=[10 20 30 50 70 100];
+
+%% fixed variance %%
 
 %% unknown variance %%
 for ni=1:numel(N)
@@ -53,12 +55,27 @@ for ni=1:numel(N)
         setrandstream(1);
         qbbm(i1,:,7)=wmean(loos(i1,:)',dirrnd(.4*ones(1,n),10000)')*n;
     end
+    for i1=1:1000
+        x=loos(i1,:)';
+        dat=struct('N',n,'x',x-mean(x));
+        % init=struct('mu',0,'sigma',1,'l',0,'p',2,'q',50);
+        init=struct('mu',0,'sigma',std(x),'l',-.1,'p',2,'q',50);
+        fit = stan('file','sgt.stan','data',dat,'sample_file','sgt','file_overwrite',true,'verbose',false,'iter',2000);
+        fit.block()
+        s = fit.extract('permuted',true);
+        qsgtm(i1,:,1)=(s.mu+mean(x))*n;
+    end
     for i2=1:7
         qps(ni,:,i2)=[mean(mean(bsxfun(@ge,ltst0,qbbm(:,:,i2)),2)<0.05)...
                       mean(mean(bsxfun(@ge,ltst0,qbbm(:,:,i2)),2)>0.95)];
         qmss(ni,i2)=mean(std(qbbm(:,:,i2),[],2));
     end
+    for i2=1:7
+        qsgtps(ni,:,i2)=[mean(mean(bsxfun(@ge,ltst0,qsgtm(:,:,i2)),2)<0.05)...
+                         mean(mean(bsxfun(@ge,ltst0,qsgtm(:,:,i2)),2)>0.95)];
+    end
     disp(squeeze(qps(ni,:,:)))
+    disp(squeeze(qsgtps(ni,:,:)))
 end
 
 clrs=get(gca,'colororder');
@@ -225,6 +242,62 @@ qq=bsxfun(@times,q,q');qq=qq./(sqrt(bsxfun(@times,diag(qq),diag(qq)')));
 
 
 
+%% known  %%
+N=[10 20 30 50 70 100];
+for ni=1:numel(N)
+    n=N(ni);
+    fprintf('N=%d\n',n)
+    %load(sprintf('normal_n%d',n),'y','yt')
+ y=randn(1000,n);
+ yt=randn(1000,n);
+ ytt=randn(100000,n);
+mu=mean(y,2);
+sh=1;%std(y,0,2);
+s=1;
+ps=sqrt(1);
+ltrs=norm_lpdfs(y,0,1);
+ltr=sum(ltrs,2);
+ltsts=norm_lpdfs(yt,mu,ps);
+ltst=sum(ltsts,2);
+% for i1=1:1000
+%   ltst0(i1,1)=n*integral(@(wy) norm_pdfs(wy,0,1).*norm_lpdfs(wy,mu(i1),ps),-6,6);
+% end
+ltst0=n*integral(@(wy) norm_pdfs(wy,0,1).*norm_lpdfs(wy,0,1),-6,6);
+% ltst00=norm_lpdfs(ytt,0,1);
+% ltst0=mean(sum(ltst00,2),1);
+% smu=zeros(1000);
+% smu=bsxfun(@plus,mu,bsxfun(@times,randn(1000,1000),sh.*sqrt(1/n)));
+     clear loos pks
+ for i1=1:1000
+   % logliks=norm_lpdfs(y(i1,:),smu(i1,:),sh(i1));
+   % [~,loos(i1,:),pks(i1,:)]=psisloo(logliks);
+   loos(i1,:)=norm_lpdfs(y(i1,:),0,1);
+ end
+ loo=sum(loos,2);
+    ploo(:,ni)=sum(ltrs-loos,2);
+    for i1=1:1000
+        setrandstream(1);
+        qbbm(i1,:,1)=wmean(loos(i1,:)',dirrnd(1*ones(1,n),1000)')*n;
+        setrandstream(1);
+        qbbm(i1,:,2)=wmean(loos(i1,:)',dirrnd(.9*ones(1,n),1000)')*n;
+        setrandstream(1);
+        qbbm(i1,:,3)=wmean(loos(i1,:)',dirrnd(.8*ones(1,n),1000)')*n;
+        setrandstream(1);
+        qbbm(i1,:,4)=wmean(loos(i1,:)',dirrnd(.7*ones(1,n),1000)')*n;
+        setrandstream(1);
+        qbbm(i1,:,5)=wmean(loos(i1,:)',dirrnd(.6*ones(1,n),1000)')*n;
+        setrandstream(1);
+        qbbm(i1,:,6)=wmean(loos(i1,:)',dirrnd(.5*ones(1,n),1000)')*n;
+        setrandstream(1);
+        qbbm(i1,:,7)=wmean(loos(i1,:)',dirrnd(.4*ones(1,n),1000)')*n;
+    end
+    for i2=1:7
+        qps(ni,:,i2)=[mean(mean(bsxfun(@ge,ltst0,qbbm(:,:,i2)),2)<0.05)...
+                      mean(mean(bsxfun(@ge,ltst0,qbbm(:,:,i2)),2)>0.95)];
+        qmss(ni,i2)=mean(std(qbbm(:,:,i2),[],2));
+    end
+    disp(squeeze(qps(ni,:,:)))
+end
 
 
     bbm=bbmean(loos',1000)'*n;
