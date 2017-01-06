@@ -1,5 +1,6 @@
-library("rstan")
-library("loo")
+library(rstan)
+library(loo)
+library(matrixStats)
 rstan_options(auto_write = TRUE)
 ##stanmodel<-stan_model("linear_n_n.stan", verbose = FALSE)
 ##stanmodel<-stan_model("linear_tnu_n.stan", verbose = FALSE)
