@@ -25,7 +25,7 @@ myf<-function(truedist,modeldist,priordist) {
         set.seed(1)
         if (truedist=="n")
             yt <- as.array(rnorm(Nt))
-        else if (truedist=="nt")
+        else if (truedist=="t4")
             yt <- as.array(rt(Nt,4))
         else
             stop("Unknown true distribution")
@@ -46,7 +46,7 @@ myf<-function(truedist,modeldist,priordist) {
                 set.seed(i1)
                 if (truedist=="n")
                     y <- as.array(rnorm(n))
-                else if (truedist=="nt")
+                else if (truedist=="t4")
                     y <- as.array(rt(n,4))
                 else
                     stop("Unknown true distribution")
