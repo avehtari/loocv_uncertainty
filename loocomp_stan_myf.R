@@ -24,13 +24,18 @@ myf<-function(truedist,modeldist,priordist) {
         g2s<-vector("list",length(Ns))
         g3s<-vector("list",length(Ns))
         set.seed(1)
-        if (truedist=="n")
+        if (truedist=="n") {
             yt <- as.array(rnorm(Nt))
-        else if (truedist=="t4")
+            xt <- matrix(runif(p*Nt)*2-1,nrow=Nt,ncol=p)
+        } else if (truedist=="t4") {
             yt <- as.array(rt(Nt,4))
-        else
+            xt <- matrix(runif(p*Nt)*2-1,nrow=Nt,ncol=p)
+        } else if (truedist=="b") {
+            yt <- as.array(as.double(kronecker(matrix(1,1,Nt),t(c(0,1)))))
+            xt <- matrix(runif(p*Nt*2)*2-1,nrow=Nt*2,ncol=p)
+        } else {
             stop("Unknown true distribution")
-        xt <- matrix(runif(p*Nt)*2-1,nrow=Nt,ncol=p)
+        }
         for (ni in 1:length(Ns)) {
             n<-Ns[ni]
             ltrs[[ni]]<-matrix(nrow=n,ncol=1000)
@@ -45,15 +50,20 @@ myf<-function(truedist,modeldist,priordist) {
                 print(sprintf('%s%s%s p=%d n=%d i1=%d',
                               truedist,modeldist,priordist,p,n,i1))
                 set.seed(i1)
-                if (truedist=="n")
+                if (truedist=="n") {
                     y <- as.array(rnorm(n))
-                else if (truedist=="t4")
+                    x <- matrix(runif(p*n),nrow=n,ncol=p)
+                } else if (truedist=="t4") {
                     y <- as.array(rt(n,4))
-                else
+                    x <- matrix(runif(p*n),nrow=n,ncol=p)
+                } else if (truedist=="b") {
+                    y <- as.array(as.double(kronecker(matrix(1,1,n),t(c(0,1)))))
+                    x <- matrix(runif(p*n*2),nrow=n*2,ncol=p)
+                } else {
                     stop("Unknown true distribution")
-                x <- matrix(runif(p*n),nrow=n,ncol=p)
-                data<-list(N = length(y), p = ncol(x), x = x, y = y,
-                           Nt = length(yt), xt = xt, yt = yt)
+                }
+                data<-list(N = n, p = ncol(x), x = x, y = y,
+                           Nt = Nt, xt = xt, yt = yt)
                 output <- capture.output(
                     model1<-stan(modelname,data=data,iter=1000,refresh=-1,
                                  save_warmup = FALSE,
@@ -100,10 +110,17 @@ myf<-function(truedist,modeldist,priordist) {
                     print(which(loo1$pareto_k>0.7))
                 }
                 for (cvi in which(loo1$pareto_k>0.7)) {
-                    data<-list(N = length(y)-1, p = ncol(x),
-                               x = as.matrix(x[-cvi,]), y = y[-cvi],
-                               Nt = 1, xt = matrix(data=x[cvi,],nrow=1,ncol=p),
-                               yt= as.array(y[cvi]))
+                    if (truedist=="b") {
+                        data<-list(N = n-1, p = ncol(x),
+                                   x = as.matrix(x[-c(cvi*2-1,cvi*2),]), y = y[-c(cvi*2-1,cvi*2)],
+                                   Nt = 1, xt = matrix(data=x[c(cvi*2-1,cvi*2),],nrow=2,ncol=p),
+                                   yt= as.array(y[c(cvi*2-1,cvi*2)]))
+                    } else {
+                        data<-list(N = n-1, p = ncol(x),
+                                   x = as.matrix(x[-cvi,]), y = y[-cvi],
+                                   Nt = 1, xt = matrix(data=x[cvi,],nrow=1,ncol=p),
+                                   yt= as.array(y[cvi]))
+                    }
                     output <- capture.output(
                         modelcv<-stan(modelname,data=data,iter=1000,refresh=-1,
                                       save_warmup = FALSE,
