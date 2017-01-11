@@ -16,7 +16,7 @@ myf<-function(truedist,modeldist,priordist) {
     ## truedist<-"n"
     ## modeldist<-"n"
     ## priordist<-"n"
-    for (ppi in 2:length(Ps)) {
+    for (ppi in 1:length(Ps)) {
         p<-Ps[ppi]
         ltrs<-vector("list",length(Ns))
         loos<-vector("list",length(Ns))
