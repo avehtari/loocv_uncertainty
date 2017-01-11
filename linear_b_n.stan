@@ -23,7 +23,11 @@ model {
 generated quantities {
   vector[N] log_lik;
   vector[Nt] log_likt;
+  vector[N] mu;
+  vector[Nt] mut;
   if (p==0) {
+    mu = rep_vector(beta0, N);
+    mut = rep_vector(beta0, Nt);
     for (i in 1:N)
       log_lik[i] = bernoulli_logit_lpmf(y[i*2-1] | beta0) +
                    bernoulli_logit_lpmf(y[i*2] | beta0);
@@ -31,11 +35,13 @@ generated quantities {
       log_likt[i] = bernoulli_logit_lpmf(yt[i*2-1] | beta0) +
                     bernoulli_logit_lpmf(yt[i*2] | beta0);
   } else {
+    mu = beta0 + x*beta;
+    mut = beta0 + xt*beta;
     for (i in 1:N)
-      log_lik[i] = bernoulli_logit_lpmf(y[i*2-1] | beta0 + x[i*2-1] * beta) +
-                   bernoulli_logit_lpmf(y[i*2] | beta0 + x[i*2] * beta);
+      log_lik[i] = bernoulli_logit_lpmf(y[i*2-1] | mu[i*2-1]) +
+                   bernoulli_logit_lpmf(y[i*2] | mu[i*2]);
     for (i in 1:Nt)
-      log_likt[i] = bernoulli_logit_lpmf(yt[i*2-1] | beta0 + xt[i*2-1] * beta) +
-                    bernoulli_logit_lpmf(yt[i*2] | beta0 + xt[i*2] * beta);
+      log_likt[i] = bernoulli_logit_lpmf(yt[i*2-1] | mut[i*2-1]) +
+                    bernoulli_logit_lpmf(yt[i*2] | mut[i*2]);
   }
 }
