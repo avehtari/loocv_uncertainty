@@ -5,7 +5,6 @@ rstan_options(auto_write = TRUE)
 stanmodel<-stan_model("linear_n_n.stan", verbose = FALSE)
 stanmodel<-stan_model("linear_t4_n.stan", verbose = FALSE)
 stanmodel<-stan_model("linear_tnu_n.stan", verbose = FALSE)
-
 stanmodel<-stan_model("linear_hs_n.stan", verbose = TRUE)
 
 myf<-function(ppi) {
