@@ -23,8 +23,8 @@ model {
 generated quantities {
   vector[N] log_lik;
   vector[Nt] log_likt;
-  vector[N] mu;
-  vector[Nt] mut;
+  vector[N*2] mu;
+  vector[Nt*2] mut;
   if (p==0) {
     mu = rep_vector(beta0, N);
     mut = rep_vector(beta0, Nt);
