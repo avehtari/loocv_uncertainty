@@ -5,13 +5,12 @@ rstan_options(auto_write = TRUE)
 ##stanmodel<-stan_model("linear_n_n.stan", verbose = FALSE)
 ##stanmodel<-stan_model("linear_tnu_n.stan", verbose = FALSE)
 
-myf<-function(truedist,modeldist,priordist) {
-    Niter=1000
+myf<-function(truedist,modeldist,priordist,Niter) {
     modelname<-sprintf("linear_%s_%s.stan",modeldist,priordist)
     Ns<-c(10, 20, 30, 40, 60, 80, 100)
     Ps<-c(0, 1, 2, 5, 10)
     if (priordist=="hs") {
-        Ps<-c(10,100)
+        Ps<-c(10,50,100)
     }
     Nt<-10000
     ## truedist<-"n"
@@ -166,9 +165,9 @@ myf<-function(truedist,modeldist,priordist) {
                         mbetas[,cvi]=mean(qqm[-cvi,cvi]);
                     }
                     gamma=mean(gammas);
-                    gammam=mean(gammas);
+                    gammam=mean(gammams);
                     gamma2=mean(colVars(qq));
-                    gammam2=mean(colVars(qq));
+                    gammam2=mean(colVars(qqm));
                     gamma3=mean(colVars(qqq));
                     bs[[ni]][,i1]=sum(betas)
                     gs[[ni]][,i1]=gamma
@@ -203,7 +202,7 @@ myf<-function(truedist,modeldist,priordist) {
                     mulooks[[ni]][cvi,i1]=colMeans(mucv)
                 }
             }
-            save(truedist,modeldist,priordist, loos, looks, pks, tls, tes, lls, muloos, mutrs, mulooks, muts, gs, g2s, g3s, ltrs, bs, file=sprintf("%s%s%s%d.RData",truedist,modeldist,priordist,p))
+            save(truedist,modeldist,priordist, loos, looks, pks, tls, tes, ets, es, lls, muloos, mutrs, mulooks, muts, gs, g2s, g3s, gms, gm2s, ltrs, bs, file=sprintf("%s%s%s%d.RData",truedist,modeldist,priordist,p))
         }
     }
 }
