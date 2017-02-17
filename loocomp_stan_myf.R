@@ -7,7 +7,7 @@ rstan_options(auto_write = TRUE)
 
 myf<-function(truedist,modeldist,priordist,Niter) {
     modelname<-sprintf("linear_%s_%s.stan",modeldist,priordist)
-    Ns<-c(10, 20, 30, 40, 60, 80, 100)
+    Ns<-c(10, 20, 40, 60, 100, 140, 200)
     Ps<-c(0, 1, 2, 5, 10)
     if (priordist=="hs") {
         Ps<-c(10,50,100)
