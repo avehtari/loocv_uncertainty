@@ -212,8 +212,13 @@ loocomp_fun_one = function(truedist, modeldist, priordist, n, p, Niter) {
                 )
                 out$looks[cvi, i1] = log(colMeans(exp(
                     extract_log_lik(modelcv, parameter_name="log_likt"))))
-                out$mulooks[cvi, i1] = colMeans(
-                    extract_log_lik(modelcv, parameter_name="mut"))
+                if (truedist=="b") {
+                    out$mulooks[((cvi-1)*2+1):((cvi-1)*2+2), i1] = colMeans(
+                        extract_log_lik(modelcv, parameter_name="mut"))
+                } else {
+                    out$mulooks[cvi, i1] = colMeans(
+                        extract_log_lik(modelcv, parameter_name="mut"))
+                }
                 # free memory
                 rm(modelcv, output)
                 gc()
