@@ -1,10 +1,12 @@
 library(ggplot2)
 library(matrixStats)
+library(grid)
 library(gridExtra)
 library(reshape)
 library(extraDistr)
 library(bayesboot)
 source('gg_qq.R')
+source('plot_known_viol.R')
 
 # possible parameters
 dists = list(
@@ -17,19 +19,18 @@ dists = list(
 Ns<-c(10, 20, 40, 60, 100, 140, 200)
 Ps<-c(1, 2, 5, 10)
 
-# ---------------------------------------------------
-# select params
-
 Niter = 1000
-p = 2
 
+# ==============================================================================
+# load results data
+
+# select params
+p_i = 2
 truedist = 'n'; modeldist = 'n'; priordist = 'n'
 # truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
 # truedist = 'b'; modeldist = 'b'; priordist = 'n'
 # truedist = 'n'; modeldist = 'tnu'; priordist = 'n'
 # truedist = 't4'; modeldist = 'n'; priordist = 'n'
-
-# ---------------------------------------------------
 
 # load data for all n
 outs = vector('list', length(Ns))
@@ -37,7 +38,7 @@ for (ni in 1:length(Ns)) {
     n = Ns[ni]
     # load data in variable out
     load(sprintf('res/%s_%s_%s_%d_%d.RData',
-        truedist, modeldist, priordist, p, n))
+        truedist, modeldist, priordist, Ps[p_i], n))
     # modify 1d matrices into vectors in out
     out$peff = out$peff[1,]
     out$tls = out$tls[1,]
@@ -56,6 +57,7 @@ for (ni in 1:length(Ns)) {
 
 
 # ==============================================================================
+# some plots for selected n
 
 # select n
 ni = 5
@@ -106,236 +108,42 @@ mean(pnorm(
     sd = (sqrt(colVars(loos)+n*0*g3s)*sqrt(n))
 ) < 0.05)
 
-# ==============================================================================
-## accuracy as a function of n
-
-quantiles = c(0.05, 0.10, 0.90, 0.95)
-accs_g2s = matrix(0, length(Ns), length(quantiles))
-accs_g3s = matrix(0, length(Ns), length(quantiles))
-accs_g2s_05 = matrix(0, length(Ns), length(quantiles))
-accs_g2s_95 = matrix(0, length(Ns), length(quantiles))
-accs_g3s_05 = matrix(0, length(Ns), length(quantiles))
-accs_g3s_95 = matrix(0, length(Ns), length(quantiles))
-# manual violin
-vgrid_n = 50
-accs_g2s_viol = array(0, c(length(Ns), length(quantiles), 2, vgrid_n))
-accs_g3s_viol = array(0, c(length(Ns), length(quantiles), 2, vgrid_n))
-
-for (ni in 1:length(Ns)) {
-    n = Ns[ni]
-    # populate local environment with the named stored variables in selected out
-    list2env(outs[[ni]], envir=environment())
-
-    t_g2s = pnorm(
-        tls-colSums(loos),
-        mean = 0,
-        sd = sqrt(colVars(loos) + n*g2s)*sqrt(n)
-    )
-    t_g3s = pnorm(
-        tls-colSums(loos),
-        mean = 0,
-        sd = sqrt(colVars(loos) + n*0*g3s)*sqrt(n)
-    )
-    for (qi in 1:length(quantiles)) {
-        # g2s
-        c = sum(t_g2s < quantiles[qi])
-        accs_g2s[ni,qi] = c/Niter
-        accs_g2s_05[ni,qi] = qbeta(0.05, c+1, Niter-c+1)
-        accs_g2s_95[ni,qi] = qbeta(0.95, c+1, Niter-c+1)
-        accs_g2s_viol[ni,qi,1,] = seq(
-            qbeta(0.01, c+1, Niter-c+1),
-            qbeta(0.99, c+1, Niter-c+1),
-            length=vgrid_n)
-        accs_g2s_viol[ni,qi,2,] = dbeta(accs_g2s_viol[ni,qi,1,], c+1, Niter-c+1)
-        # g3s
-        c = sum(t_g3s < quantiles[qi])
-        accs_g3s[ni,qi] = c/Niter
-        accs_g3s_05[ni,qi] = qbeta(0.05, c+1, Niter-c+1)
-        accs_g3s_95[ni,qi] = qbeta(0.95, c+1, Niter-c+1)
-        accs_g3s_viol[ni,qi,1,] = seq(
-            qbeta(0.01, c+1, Niter-c+1),
-            qbeta(0.99, c+1, Niter-c+1),
-            length=vgrid_n)
-        accs_g3s_viol[ni,qi,2,] = dbeta(accs_g3s_viol[ni,qi,1,], c+1, Niter-c+1)
-    }
-}
-
-# g2s
-vscale = 0.1
-qi = 2
-plotd = data.frame(
-    x=Ns, y=accs_g2s[,qi], ymin=accs_g2s_05[,qi], ymax=accs_g2s_95[,qi]
-)
-# setup violin dataframes
-plotdv = vector("list", length(Ns))
-for (ni in 1:length(Ns)) {
-    plotdv[[ni]] = data.frame(
-        x = Ns[ni] + vscale*c(
-            -accs_g2s_viol[ni,qi,2,], rev(accs_g2s_viol[ni,qi,2,])),
-        y = c(accs_g2s_viol[ni,qi,1,], rev(accs_g2s_viol[ni,qi,1,]))
-    )
-}
-# construct plot
-g = ggplot(plotd)
-for (ni in 1:length(Ns)) {
-    g = g + geom_polygon(data=plotdv[[ni]], aes(x=x, y=y))
-}
-g = g +
-    geom_point(aes(x=x, y=y), color='red') +
-    geom_abline(intercept=quantiles[qi], slope=0) +
-    coord_cartesian(ylim=c(
-        min(quantiles[qi], 0.99*min(accs_g2s_05[,qi])),
-        max(quantiles[qi], 1.01*max(accs_g2s_95[,qi]))
-    )) +
-    ggtitle(sprintf("g2s %g", quantiles[qi]))
-g
-
-# g3s
-qi = 2
-plotd = data.frame(
-    x=Ns, y=accs_g3s[,qi], ymin=accs_g3s_05[,qi], ymax=accs_g3s_95[,qi]
-)
-# setup violin dataframes
-plotdv = vector("list", length(Ns))
-for (ni in 1:length(Ns)) {
-    plotdv[[ni]] = data.frame(
-        x = Ns[ni] + vscale*c(
-            -accs_g3s_viol[ni,qi,2,], rev(accs_g3s_viol[ni,qi,2,])),
-        y = c(accs_g3s_viol[ni,qi,1,], rev(accs_g3s_viol[ni,qi,1,]))
-    )
-}
-# construct plot
-g = ggplot(plotd)
-for (ni in 1:length(Ns)) {
-    g = g + geom_polygon(data=plotdv[[ni]], aes(x=x, y=y))
-}
-g = g +
-    geom_point(aes(x=x, y=y), color='red') +
-    geom_abline(intercept=quantiles[qi], slope=0) +
-    coord_cartesian(ylim=c(
-        min(quantiles[qi], 0.99*min(accs_g3s_05[,qi])),
-        max(quantiles[qi], 1.01*max(accs_g3s_95[,qi]))
-    )) +
-    ggtitle(sprintf("g3s %g", quantiles[qi]))
-g
 
 # ==============================================================================
+## normal approximation accuracy with some quantiles as a function of n
+# ... in loo_calibration_i
 
-# plot peformance of mean and variance terms
-# pm1 = matrix(0, length(Ns), 3)
-# pm2 = matrix(0, length(Ns), 3)
-# pm3 = matrix(0, length(Ns), 3)
-pv1 = matrix(0, length(Ns), 3)
-pv2 = matrix(0, length(Ns), 3)
-pv3 = matrix(0, length(Ns), 3)
-bbsamples = 1000
-for (ni in 1:length(Ns)) {
-    n = Ns[ni]
-    # populate local environment with the named stored variables in selected out
-    list2env(outs[[ni]], envir=environment())
-
-    # # mean ##### for MSEs, need to be fixed !!!!!!!!!!!!!!
-    # pmz = sd(t(tls-colSums(muloos)))
-    # colvars_muloos = colVars(muloos)
-    # pm[ni,1] = sqrt(mean(colvars_muloos*n + 0*gms*n*n)) / pmz
-    # pm[ni,2] = sqrt(mean(colvars_muloos*n + gms*n*n)) / pmz
-    # pm[ni,3] = sqrt(mean(colvars_muloos*n + gm2s*n*n)) / pmz
-    # pm[ni,1:3] = pm[ni,1:3]*n/(n-1)
-    # pm[ni,4] = n
-    # pmq[ni,1:4] = sqrt(quantile(colvars_muloos, c(0.05, 0.1, 0.9, 0.95))) / pmz
-    # pmq[ni,5] = n
-
-
-    ## variance
-    pvz = sd(t(tls-colSums(loos)))
-    colvars_loos_n = colVars(loos)*n
-    # gs
-    t = colvars_loos_n + 0*gs*n*n
-    pv1[ni,1] = sqrt(mean(t)) / pvz
-    tbb = bayesboot(t, mean, R=bbsamples)
-    pv1[ni,2:3] = sqrt(quantile(tbb$V1, c(0.05, 0.95))) / pvz # quantiles
-    # g2s
-    t = colvars_loos_n + g2s*n*n
-    pv2[ni,1] = sqrt(mean(t)) / pvz
-    tbb = bayesboot(t, mean, R=bbsamples)
-    pv2[ni,2:3] = sqrt(quantile(tbb$V1, c(0.05, 0.95))) / pvz # quantiles
-    # g3s
-    t = colvars_loos_n + g3s*n*n
-    pv3[ni,1] = sqrt(mean(t)) / pvz
-    tbb = bayesboot(t, mean, R=bbsamples)
-    pv3[ni,2:3] = sqrt(quantile(tbb$V1, c(0.05, 0.95))) / pvz # quantiles
-
-}
-
-
-# # var
-# pv = data.frame(pv)
-# colnames(pv)[4] = "n"
-# pvm = melt(pv, id = "n")
-
-## var
-plotd = data.frame(
-    x=Ns,
-    y1=pv1[,1], ymin1=pv1[,2], ymax1=pv1[,3],
-    y2=pv2[,1], ymin2=pv2[,2], ymax2=pv2[,3],
-    y3=pv3[,1], ymin3=pv3[,2], ymax3=pv3[,3])
-ggplot(plotd) +
-    geom_pointrange(aes(x=x, y=y1, ymin=ymin1, ymax=ymax1), color='red') +
-    geom_pointrange(aes(x=x, y=y2, ymin=ymin2, ymax=ymax2), color='green') +
-    geom_pointrange(aes(x=x, y=y3, ymin=ymin3, ymax=ymax3), color='blue') +
-    geom_hline(yintercept=1)
-
+# ==============================================================================
+# peformance of mean and variance terms
+# ... in loo_calibration_i
 
 # ==============================================================================
 ## Analytic variance for Bayesian bootstrap (thanks to Juho)
-
-# select n
-ni = 4
-n = Ns[ni]
-# populate local environment with the named stored variables in selected out
-list2env(outs[[ni]], envir=environment())
-
-
-alpha = 1
-# alpha = 1 - 6/n
-qplot(sqrt(1/(n*(n*alpha+1))*(colSums(loos^2) - n*colMeans(loos)^2))*n)
-
-## Gaussian approximation
-qplot(
-    sqrt((colVars(loos)*n + g2s*n*n)) * n/n*n/(n-1)
-)
-## Gaussian approximation
-qplot(
-    sqrt((colVars(loos)*n + 0*g2s*n*n))
-)
-## Gaussian approximation with extra variance
-qplot(
-    sqrt((colVars(loos)*n + g2s*n*n))
-)
-
+# ... in loo_calibration_i
 
 # ==============================================================================
 ## Empirical variance for Bayesian bootstrap
+# ... in loo_calibration_i
 
-# select n
-ni = 4
-n = Ns[ni]
-# populate local environment with the named stored variables in selected out
-list2env(outs[[ni]], envir=environment())
 
-n_emp = 80
+# ==============================================================================
+# run loo_calibration_i to save all the plots for current results data
+source("loo_calibration_i_tuomas.R")
 
-alpha=1
-# alpha = 1 - 6/n
-dw = rdirichlet(n_emp, rep(alpha, n))
-sds = apply(loos, 2, function(loos_i) sd(rowSums(t(t(dw)*loos_i))*n))
-qplot(sds)
 
+
+
+
+
+
+
+
+# TODO below
 
 # ==============================================================================
 ## Calibration for Bayesian bootstrap
 
-dw=rdirichlet(n_emp,matrix(1-6/n,1,n))
+dw=rdirichlet(n_emp, matrix(1-6/n,1,n))
 #dw=rdirichlet(n_emp,matrix(1,1,n))
 #dw=rdirichlet(n_emp,matrix(1-6/20,1,n))
 qp=matrix(0,100,1)
