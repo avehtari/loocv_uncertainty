@@ -60,7 +60,7 @@ for (ni in 1:length(Ns)) {
 # some plots for selected n
 
 # select n
-ni = 5
+ni = 4
 n = Ns[ni]
 # populate local environment with the named stored variables in selected out
 list2env(outs[[ni]], envir=environment())
@@ -128,7 +128,7 @@ mean(pnorm(
 
 # ==============================================================================
 # run loo_calibration_i to save all the plots for current results data
-source("loo_calibration_i_tuomas.R")
+# source("loo_calibration_i_tuomas.R")
 
 
 
@@ -143,12 +143,12 @@ source("loo_calibration_i_tuomas.R")
 # ==============================================================================
 ## Calibration for Bayesian bootstrap
 
-dw=rdirichlet(n_emp, matrix(1-6/n,1,n))
-#dw=rdirichlet(n_emp,matrix(1,1,n))
-#dw=rdirichlet(n_emp,matrix(1-6/20,1,n))
-qp=matrix(0,100,1)
-qw=matrix(0,n_emp,100)
-for (i1 in 1:100) {
+dw=rdirichlet(bbsamples, matrix(1-6/n,1,n))
+#dw=rdirichlet(bbsamples,matrix(1,1,n))
+#dw=rdirichlet(bbsamples,matrix(1-6/20,1,n))
+qp=matrix(0,Niter,1)
+qw=matrix(0,bbsamples,Niter)
+for (i1 in 1:Niter) {
     qw[,i1]=rowSums(t(t(as.matrix(dw))*as.vector(loos[,i1])))*n
     qp[i1]=mean(qw[,i1]<=tls[i1])
 }
@@ -160,10 +160,10 @@ qplot(x=colSums(loos),y=t(tls))+geom_abline(intercept=0,slope=1)
 
 ## Calibration for Bayesian double bootstrap
 ni=4
-dw=rdirichlet(n_emp,matrix(1,1,n))
-qww=matrix(0,n_emp,100)
+dw=rdirichlet(bbsamples,matrix(1,1,n))
+qww=matrix(0,bbsamples,Niter)
 n=n
-for (i1 in 1:100) {
+for (i1 in 1:Niter) {
     log_lik1=lls[[i1]]
     psis1=psislw(-log_lik1)
     qq<-matrix(nrow=n,ncol=n)
@@ -174,12 +174,12 @@ for (i1 in 1:100) {
     for (cvi in 1:n) {
         qqw[-cvi,cvi]<-(qq[-cvi,cvi]-mean(qq[-cvi,cvi]))+qq[cvi,cvi]
     }
-    for (i2 in 1:n_emp) {
+    for (i2 in 1:bbsamples) {
         qww[i2,i1]=sum(   t(t(rdirichlet(n,matrix(1,1,n)))*as.vector(rdirichlet(1,matrix(1,1,n))))*qqw)*n
     }
 }
-qpp=matrix(0,100,1)
-for (i1 in 1:100) {
+qpp=matrix(0,Niter,1)
+for (i1 in 1:Niter) {
     qpp[i1]=mean(qww[,i1]<=tls[i1])
 }
 qplot(qpp)
@@ -189,11 +189,11 @@ qplot(sort(rowSums(t(t(as.matrix(dw))*as.vector(loos[,i1])))*n),sort(qww[,1]))+g
 
 ##RMSE test code
 ni=5
-dw=rdirichlet(n_emp,matrix(1-6/n,1,n))
-#dw=rdirichlet(n_emp,matrix(1,1,n))
-#dw=rdirichlet(n_emp,matrix(1-6/20,1,n))
+dw=rdirichlet(bbsamples,matrix(1-6/n,1,n))
+#dw=rdirichlet(bbsamples,matrix(1,1,n))
+#dw=rdirichlet(bbsamples,matrix(1-6/20,1,n))
 qmp=matrix(0,100,1)
-qmw=matrix(0,n_emp,100)
+qmw=matrix(0,bbsamples,100)
     truedist="n"
 for (i1 in 1:100) {
     psis1=psislw(-lls[[i1]])

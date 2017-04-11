@@ -4,7 +4,7 @@ library(grid)
 library(gridExtra)
 library(reshape)
 library(extraDistr)
-library(bayesboot)
+# library(bayesboot)
 source('gg_qq.R')
 source('plot_known_viol.R')
 

@@ -25,30 +25,29 @@ for (ni in 1:length(Ns)) {
     )
     for (qi in 1:length(quantiles)) {
         # g2s
-        q = quantiles[qi]
         c = sum(t_g2s < quantiles[qi])
-        alpha = c+1
-        beta = Niter-c+1
-        accs_m[1,ni,qi] = alpha / (alpha + beta)
+        b_alpha = c+1
+        b_beta = Niter-c+1
+        accs_m[1,ni,qi] = b_alpha / (b_alpha + b_beta)
         accs_q[1,ni,qi,] = qbeta(
-            c(0.025, 0.25, 0.5, 0.75, 0.975), alpha, beta)
+            c(0.025, 0.25, 0.5, 0.75, 0.975), b_alpha, b_beta)
         accs_viol[1,ni,qi,1,] = seq(
-            qbeta(0.01, alpha, beta),
-            qbeta(0.99, alpha, beta),
+            qbeta(0.01, b_alpha, b_beta),
+            qbeta(0.99, b_alpha, b_beta),
             length=viol_grid_n)
-        accs_viol[1,ni,qi,2,] = dbeta(accs_viol[1,ni,qi,1,], alpha, beta)
+        accs_viol[1,ni,qi,2,] = dbeta(accs_viol[1,ni,qi,1,], b_alpha, b_beta)
         # g3s
         c = sum(t_g3s < quantiles[qi])
-        alpha = c+1
-        beta = Niter-c+1
-        accs_m[2,ni,qi] = alpha / (alpha + beta)
+        b_alpha = c+1
+        b_beta = Niter-c+1
+        accs_m[2,ni,qi] = b_alpha / (b_alpha + b_beta)
         accs_q[2,ni,qi,] = qbeta(
-            c(0.025, 0.25, 0.5, 0.75, 0.975), alpha, beta)
+            c(0.025, 0.25, 0.5, 0.75, 0.975), b_alpha, b_beta)
         accs_viol[2,ni,qi,1,] = seq(
-            qbeta(0.01, alpha, beta),
-            qbeta(0.99, alpha, beta),
+            qbeta(0.01, b_alpha, b_beta),
+            qbeta(0.99, b_alpha, b_beta),
             length=viol_grid_n)
-        accs_viol[2,ni,qi,2,] = dbeta(accs_viol[2,ni,qi,1,], alpha, beta)
+        accs_viol[2,ni,qi,2,] = dbeta(accs_viol[2,ni,qi,1,], b_alpha, b_beta)
 
     }
 }
@@ -67,10 +66,10 @@ gs = vector('list', length(Ns))
 for (qi in 1:length(quantiles)) {
     g = plot_known_viol(
         Ns, accs_viol[gis,,qi,1,], accs_viol[gis,,qi,2,],
-        # range1 = accs_q[gis,,qi,c(1,5)],
-        # range2 = accs_q[gis,,qi,c(2,4)],
-        line = accs_q[gis,,qi,3],
-        point = accs_m[gis,,qi],
+        # range1 = accs_q[gis,,qi,c(1,5)],  # 95 % interval
+        # range2 = accs_q[gis,,qi,c(2,4)],  # 50 % interval
+        line = accs_q[gis,,qi,3],  # median
+        # point = accs_m[gis,,qi],  # mean
         colors='blue'
     )
     g = g +
@@ -93,11 +92,11 @@ pdf(
 )
 grid.arrange(
     gs[[1]], gs[[2]], gs[[3]], gs[[4]], nrow=1,
-    top=sprintf(
+    top = sprintf(
         "norm approx accuracy with quantiles (model: %s_%s_%s_%i)\ng%is",
         truedist, modeldist, priordist, Ps[p_i],
         if (gis == 1) 2 else 3),
-    bottom="number of samples")
+    bottom = "number of samples")
 dev.off()
 
 # <<<<<< -------------------------------------
@@ -111,21 +110,12 @@ rm(accs_q, accs_m, accs_viol, quantiles, gs)
 # ==============================================================================
 # peformance of mean and variance terms
 
-bbsamples = 4000
-
-# >>>>>> -------------------------------------
-for (alpha_i in c(1,2)) {
-# >>>>>> -------------------------------------
-
-# alpha_i = 1
-# -------------------------------------
-
 ## calc
-alphas = c(1, 1 - 6/n)
-alphas_str = c("1", "1 - 6/n")
-alpha = alphas[alpha_i]
+bbsamples_perf = 4000
+bbalpha = 1
+
 pvs = array(0, c(3, length(Ns)))
-bbs = array(0, c(3, length(Ns), bbsamples))
+bbs = array(0, c(3, length(Ns), bbsamples_perf))
 for (ni in 1:length(Ns)) {
     n = Ns[ni]
     # populate local environment with the named stored variables in selected out
@@ -149,18 +139,21 @@ for (ni in 1:length(Ns)) {
     # gs
     t = colvars_loos_n + 0*gs*n*n
     pvs[1,ni] = sqrt(mean(t)) / pvz
-    # bbs[1,] = sqrt(bayesboot(t, function(d, w) sum(d*w), R=bbsamples, use.weights=TRUE)$V1) / pvz
-    bbs[1,ni,] = sqrt(rdirichlet(bbsamples, rep(alpha, length(t))) %*% t) / pvz
+    # bbs[1,] = sqrt(bayesboot(t, function(d, w) sum(d*w), R=bbsamples_perf, use.weights=TRUE)$V1) / pvz
+    bbs[1,ni,] = sqrt(
+        rdirichlet(bbsamples_perf, rep(bbalpha, length(t))) %*% t) / pvz
     # g2s
     t = colvars_loos_n + g2s*n*n
     pvs[2,ni] = sqrt(mean(t)) / pvz
-    # bbs[2,] = sqrt(bayesboot(t, function(d, w) sum(d*w), R=bbsamples, use.weights=TRUE)$V1) / pvz
-    bbs[2,ni,] = sqrt(rdirichlet(bbsamples, rep(alpha, length(t))) %*% t) / pvz
+    # bbs[2,] = sqrt(bayesboot(t, function(d, w) sum(d*w), R=bbsamples_perf, use.weights=TRUE)$V1) / pvz
+    bbs[2,ni,] = sqrt(
+        rdirichlet(bbsamples_perf, rep(bbalpha, length(t))) %*% t) / pvz
     # g3s
     t = colvars_loos_n + g3s*n*n
     pvs[3,ni] = sqrt(mean(t)) / pvz
-    # bbs[3,] = sqrt(bayesboot(t, function(d, w) sum(d*w), R=bbsamples, use.weights=TRUE)$V1) / pvz
-    bbs[3,ni,] = sqrt(rdirichlet(bbsamples, rep(alpha, length(t))) %*% t) / pvz
+    # bbs[3,] = sqrt(bayesboot(t, function(d, w) sum(d*w), R=bbsamples_perf, use.weights=TRUE)$V1) / pvz
+    bbs[3,ni,] = sqrt(
+        rdirichlet(bbsamples_perf, rep(bbalpha, length(t))) %*% t) / pvz
 
 }
 
@@ -187,45 +180,61 @@ g = g +
     xlab("number of samples") +
     ylab("") +
     ggtitle(sprintf(
-        "peformance of variance terms (model: %s_%s_%s_%i)\nalpha=%s, bbsamples=%i",
+        "peformance of variance terms (model: %s_%s_%s_%i)\nbbsamples=%i",
         truedist, modeldist, priordist, Ps[p_i],
-        alphas_str[alpha_i],
-        bbsamples
+        bbsamples_perf
     ))
 # g
 ggsave(
     plot=g, width=8, height=5,
     filename = sprintf(
-        "figs/p2_%s_%s_%s_%i--%i.pdf",
-        truedist, modeldist, priordist, Ps[p_i], alpha_i
+        "figs/p2_%s_%s_%s_%i.pdf",
+        truedist, modeldist, priordist, Ps[p_i]
     )
 )
-
-# <<<<<< -------------------------------------
-}
-# <<<<<< -------------------------------------
 
 # clear
 rm(pvs, bbs)
 
 
 # ==============================================================================
+## Get bb samples for each ni
+
+bbsamples = 10000
+alphas = c(function(n) 1, function(n) 1 - 6/n)
+alphas_str = c("1", "1 - 6/n")
+# dws = array(vector('list'), c(length(alphas), length(Ns)))
+qws = array(vector('list'), c(length(alphas), length(Ns)))
+for (alpha_i in 1:length(alphas)) {
+    for (ni in 1:length(Ns)) {
+        n = Ns[ni]
+        alpha = alphas[[alpha_i]](n)
+        # dws[[alpha_i, ni]] = rdirichlet(bbsamples, rep(alpha, n))
+        dw = rdirichlet(bbsamples, rep(alpha, n))
+
+        # populate local environment with the named stored variables in selected out
+        list2env(outs[[ni]], envir=environment())
+
+        qws[[alpha_i, ni]] = (dw%*%loos)*n
+    }
+}
+
+
+# ==============================================================================
 ## Analytic variance for Bayesian bootstrap (thanks to Juho)
 
 # >>>>>> -------------------------------------
-for (alpha_i in c(1,2)) {
+for (alpha_i in 1:length(alphas)) {
 # >>>>>> -------------------------------------
 
 # alpha_i = 1
 # -------------------------------------
 
 ## calc
-alphas = c(1, 1 - 6/n)
-alphas_str = c("1", "1 - 6/n")
-alpha = alphas[alpha_i]
 avs = array(0, c(2, length(Ns), Niter))
 for (ni in 1:length(Ns)) {
     n = Ns[ni]
+    alpha = alphas[[alpha_i]](n)
     # populate local environment with the named stored variables in selected out
     list2env(outs[[ni]], envir=environment())
 
@@ -284,30 +293,27 @@ rm(avs)
 # ==============================================================================
 ## Empirical variance for Bayesian bootstrap
 
-bbsamples = 4000
-
 # >>>>>> -------------------------------------
-for (alpha_i in c(1,2)) {
+for (alpha_i in 1:length(alphas)) {
 # >>>>>> -------------------------------------
 
 # alpha_i = 1
 # -------------------------------------
 
 ## calc
-alphas = c(1, 1 - 6/n)
-alphas_str = c("1", "1 - 6/n")
-alpha = alphas[alpha_i]
 evs = array(0, c(length(Ns), Niter))
-dws = vector('list', length(Ns))
 for (ni in 1:length(Ns)) {
     n = Ns[ni]
+    alpha = alphas[[alpha_i]](n)
     # populate local environment with the named stored variables in selected out
     list2env(outs[[ni]], envir=environment())
 
-    dw = rdirichlet(bbsamples, rep(alpha, n))
-    dws[[ni]] = dw
-    # evs[ni,] = apply(loos, 2, function(loos_i) sd(rowSums(t(t(dw)*loos_i))*n))
-    evs[ni,] = colSds((dw%*%loos)*n)
+    # dw = dws[[alpha_i, ni]]
+    # # evs[ni,] = apply(loos, 2, function(loos_i) sd(rowSums(t(t(dw)*loos_i))*n))
+    # evs[ni,] = colSds((dw%*%loos)*n)
+
+    qw = qws[[alpha_i, ni]]
+    evs[ni,] = colSds(qw)
 }
 
 ## plot
@@ -346,3 +352,98 @@ ggsave(
 
 # clear
 rm(evs)
+
+
+# ==============================================================================
+## Calibration for Bayesian bootstrap
+
+# >>>>>> -------------------------------------
+for (alpha_i in 1:length(alphas)) {
+# >>>>>> -------------------------------------
+
+# alpha_i = 1
+# -------------------------------------
+
+quantiles = c(0.05, 0.10, 0.90, 0.95)
+viol_grid_n = 50
+accs_q = array(0, c(length(Ns), length(quantiles), 5))
+accs_m = array(0, c(length(Ns), length(quantiles)))
+accs_viol = array(0, c(length(Ns), length(quantiles), 2, viol_grid_n))
+
+## calc
+# qps = array(0, c(length(Ns), Niter))
+for (ni in 1:length(Ns)) {
+    n = Ns[ni]
+    alpha = alphas[[alpha_i]](n)
+    # populate local environment with the named stored variables in selected out
+    list2env(outs[[ni]], envir=environment())
+
+    qw = qws[[alpha_i, ni]]
+    qp = colMeans(t(t(qw) <= tls))
+    # qps[ni,] = qp
+
+    for (qi in 1:length(quantiles)) {
+        c = sum(qp < quantiles[qi])
+        b_alpha = c+1
+        b_beta = Niter-c+1
+        accs_m[ni,qi] = b_alpha / (b_alpha + b_beta)
+        accs_q[ni,qi,] = qbeta(
+            c(0.025, 0.25, 0.5, 0.75, 0.975), b_alpha, b_beta)
+        accs_viol[ni,qi,1,] = seq(
+            qbeta(0.01, b_alpha, b_beta),
+            qbeta(0.99, b_alpha, b_beta),
+            length=viol_grid_n)
+        accs_viol[ni,qi,2,] = dbeta(accs_viol[ni,qi,1,], b_alpha, b_beta)
+
+    }
+
+}
+
+
+# plot
+gs = vector('list', length(Ns))
+for (qi in 1:length(quantiles)) {
+    g = plot_known_viol(
+        Ns, accs_viol[,qi,1,], accs_viol[,qi,2,],
+        # range1 = accs_q[,qi,c(1,5)],  # 95 % interval
+        # range2 = accs_q[,qi,c(2,4)],  # 50 % interval
+        line = accs_q[,qi,3],  # median
+        # point = accs_m[,qi],  # mean
+        colors='blue'
+    )
+    g = g +
+        geom_hline(yintercept=quantiles[qi]) +
+        coord_cartesian(ylim=c(
+            min(quantiles[qi], min(accs_viol[,qi,1,])),
+            max(quantiles[qi], max(accs_viol[,qi,1,]))
+        )) +
+        ggtitle(sprintf("quantile %g", quantiles[qi])) +
+        xlab("") +
+        ylab("")
+    gs[[qi]] = g
+}
+pdf(
+    file = sprintf(
+        "figs/p5_%s_%s_%s_%i--%i.pdf",
+        truedist, modeldist, priordist, Ps[p_i], alpha_i
+    ),
+    width=15, height=5
+)
+grid.arrange(
+    gs[[1]], gs[[2]], gs[[3]], gs[[4]], nrow=1,
+    top = sprintf(
+        "Calibrated BB accuracy (model: %s_%s_%s_%i)\nalpha=%s, bbsamples=%i",
+        truedist, modeldist, priordist, Ps[p_i],
+        alphas_str[alpha_i],
+        bbsamples
+    ),
+    bottom = "number of samples")
+dev.off()
+
+
+# <<<<<< -------------------------------------
+}
+# <<<<<< -------------------------------------
+
+# clear
+rm(accs_q, accs_m, accs_viol, quantiles, gs)

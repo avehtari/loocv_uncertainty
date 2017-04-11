@@ -43,6 +43,7 @@ loocomp_fun_one = function(truedist, modeldist, priordist, n, p, Niter) {
         ets = matrix(nrow=1, ncol=Niter),
         es = matrix(nrow=1, ncol=Niter),
         tes = matrix(nrow=1, ncol=Niter),
+        lls = vector("list", length(Niter)),
         mutrs =
             if (truedist=="b") matrix(nrow=n*2, ncol=Niter)
             else matrix(nrow=n, ncol=Niter),
@@ -86,6 +87,7 @@ loocomp_fun_one = function(truedist, modeldist, priordist, n, p, Niter) {
                 open_progress=FALSE)
         )
         log_lik1 = extract_log_lik(model1)
+        out$lls[[i1]] = log_lik1
         psis1 = psislw(-log_lik1)
         mu1 = extract_log_lik(model1, parameter_name="mu")
         out$mutrs[,i1] = colMeans(mu1)

@@ -61,7 +61,7 @@ myf<-function(truedist,modeldist,priordist,Niter) {
             ets[[ni]]<-matrix(nrow=1,ncol=Niter)
             es[[ni]]<-matrix(nrow=1,ncol=Niter)
             tes[[ni]]<-matrix(nrow=1,ncol=Niter)
-            lls[[ni]]<-vector("list",length(Niter))
+            lls[[ni]]<-vector("list", length(Niter))
             if (truedist=="b") {
                 mutrs[[ni]]<-matrix(nrow=n*2,ncol=Niter)
                 muloos[[ni]]<-matrix(nrow=n*2,ncol=Niter)
