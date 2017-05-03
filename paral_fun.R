@@ -8,8 +8,13 @@ options(mc.cores=1, loo.cores=1)
 # truedist = 'n'
 # modeldist = 'n'
 # priordist = 'n'
+
+# truedist = 'b'
+# modeldist = 'b'
+# priordist = 'n'
+
 # n = 10
-# p = 1
+# p = 2
 # Niter = 4
 
 loocomp_fun_one = function(truedist, modeldist, priordist, n, p, Niter) {
@@ -43,7 +48,7 @@ loocomp_fun_one = function(truedist, modeldist, priordist, n, p, Niter) {
         ets = matrix(nrow=1, ncol=Niter),
         es = matrix(nrow=1, ncol=Niter),
         tes = matrix(nrow=1, ncol=Niter),
-        lls = vector("list", length(Niter)),
+        # lls = vector("list", length(Niter)),
         mutrs =
             if (truedist=="b") matrix(nrow=n*2, ncol=Niter)
             else matrix(nrow=n, ncol=Niter),
@@ -58,7 +63,9 @@ loocomp_fun_one = function(truedist, modeldist, priordist, n, p, Niter) {
         gms = matrix(nrow=1, ncol=Niter),
         g2s = matrix(nrow=1, ncol=Niter),
         gm2s = matrix(nrow=1, ncol=Niter),
-        g3s = matrix(nrow=1, ncol=Niter)
+        g3s = matrix(nrow=1, ncol=Niter),
+        # tuomas added
+        tqq = array(NaN, c(n, n, Niter))
     )
 
     # iterate
@@ -87,7 +94,7 @@ loocomp_fun_one = function(truedist, modeldist, priordist, n, p, Niter) {
                 open_progress=FALSE)
         )
         log_lik1 = extract_log_lik(model1)
-        out$lls[[i1]] = log_lik1
+        # out$lls[[i1]] = log_lik1
         psis1 = psislw(-log_lik1)
         mu1 = extract_log_lik(model1, parameter_name="mu")
         out$mutrs[,i1] = colMeans(mu1)
@@ -125,17 +132,17 @@ loocomp_fun_one = function(truedist, modeldist, priordist, n, p, Niter) {
         rm(model1, output, loo1, log_lik2, mut)
         gc()
 
-        qq = matrix(nrow=n, ncol=n)
+        # qq = matrix(nrow=n, ncol=n)
         qqm = matrix(nrow=n, ncol=n)
         for (cvi in 1:n) {
-            qq[cvi,]<-log(colSums(exp(log_lik1+psis1$lw_smooth[,cvi])))
+            out$tqq[cvi,,i1] = log(colSums(exp(log_lik1+psis1$lw_smooth[,cvi])))
             if (truedist=="b") {
                 qqm[cvi,] = as.numeric(xor(
                     colSums(mu1[,seq(1,n*2,2)]*exp(psis1$lw_smooth[,cvi])) > 0,
                     y[seq(1,n*2,2)]
                 ))
                 qqm[cvi,] = qqm[cvi,] + as.numeric(xor(
-                    colSums(mu1[,seq(1,n*2,2)]*exp(psis1$lw_smooth[,cvi])) > 0,
+                    colSums(mu1[,seq(2,n*2,2)]*exp(psis1$lw_smooth[,cvi])) > 0,
                     y[seq(2,n*2,2)]
                 ))
                 qqm[cvi,] = 0.5 * qqm[cvi,]
@@ -143,6 +150,8 @@ loocomp_fun_one = function(truedist, modeldist, priordist, n, p, Niter) {
                 qqm[cvi,] = (y-colSums(mu1*exp(psis1$lw_smooth[,cvi])))^2
             }
         }
+        qq = out$tqq[,,i1]
+
         qqq = matrix(nrow=n,ncol=n)
         for (ii1 in 1:n) {
             for (ii2 in 1:n) {

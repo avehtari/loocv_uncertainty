@@ -1,7 +1,7 @@
 source('paral_fun.R')
 
 # config iterations per run
-Niter = 100
+Niter = 2000
 
 # possible parameters
 dists = list(
@@ -11,10 +11,10 @@ dists = list(
     c('n', 'tnu', 'n'),
     c('t4', 'n', 'n')
 )
-Ns<-c(10, 20, 40, 60, 100, 140, 200)
-Ps<-c(1, 2, 5, 10)
+Ns<-c(10, 20, 40, 60, 100, 140, 200, 260)
+Ps<-c(1, 2, 5, 10, 20)
 
-# number of jobs (140)
+# number of jobs (200)
 num_job = length(dists) * length(Ns) * length(Ps)
 
 # get job number [0, num_job-1] as command line argument

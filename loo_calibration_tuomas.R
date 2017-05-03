@@ -19,7 +19,7 @@ dists = list(
 Ns<-c(10, 20, 40, 60, 100, 140, 200)
 Ps<-c(1, 2, 5, 10)
 
-Niter = 1000
+Niter = 100
 
 # ==============================================================================
 # load results data
@@ -138,54 +138,6 @@ mean(pnorm(
 
 
 
-# TODO below
-
-# ==============================================================================
-## Calibration for Bayesian bootstrap
-
-dw=rdirichlet(bbsamples, matrix(1-6/n,1,n))
-#dw=rdirichlet(bbsamples,matrix(1,1,n))
-#dw=rdirichlet(bbsamples,matrix(1-6/20,1,n))
-qp=matrix(0,Niter,1)
-qw=matrix(0,bbsamples,Niter)
-for (i1 in 1:Niter) {
-    qw[,i1]=rowSums(t(t(as.matrix(dw))*as.vector(loos[,i1])))*n
-    qp[i1]=mean(qw[,i1]<=tls[i1])
-}
-qplot(qp)
-c(mean(qp<0.05), mean(qp<0.1), mean(qp<0.9), mean(qp<0.95))
-
-c(mean(colSums(loos)),mean(t(tls)))
-qplot(x=colSums(loos),y=t(tls))+geom_abline(intercept=0,slope=1)
-
-## Calibration for Bayesian double bootstrap
-ni=4
-dw=rdirichlet(bbsamples,matrix(1,1,n))
-qww=matrix(0,bbsamples,Niter)
-n=n
-for (i1 in 1:Niter) {
-    log_lik1=lls[[i1]]
-    psis1=psislw(-log_lik1)
-    qq<-matrix(nrow=n,ncol=n)
-    for (cvi in 1:n) {
-        qq[cvi,]<-log(colSums(exp(log_lik1+psis1$lw_smooth[,cvi])))
-    }
-    qqw<-qq
-    for (cvi in 1:n) {
-        qqw[-cvi,cvi]<-(qq[-cvi,cvi]-mean(qq[-cvi,cvi]))+qq[cvi,cvi]
-    }
-    for (i2 in 1:bbsamples) {
-        qww[i2,i1]=sum(   t(t(rdirichlet(n,matrix(1,1,n)))*as.vector(rdirichlet(1,matrix(1,1,n))))*qqw)*n
-    }
-}
-qpp=matrix(0,Niter,1)
-for (i1 in 1:Niter) {
-    qpp[i1]=mean(qww[,i1]<=tls[i1])
-}
-qplot(qpp)
-c(mean(qpp<0.05), mean(qpp<0.1), mean(qpp<0.9), mean(qpp<0.95))
-
-qplot(sort(rowSums(t(t(as.matrix(dw))*as.vector(loos[,i1])))*n),sort(qww[,1]))+geom_abline()
 
 ##RMSE test code
 ni=5
