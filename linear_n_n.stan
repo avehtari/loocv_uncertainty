@@ -30,7 +30,7 @@ generated quantities {
   if (p==0) {
     mu = rep_vector(beta0, N);
     mut = rep_vector(beta0, Nt);
-    for (i in 1:N) 
+    for (i in 1:N)
       log_lik[i] = normal_lpdf(y[i] | beta0, sigma);
     for (i in 1:Nt)
       log_likt[i] = normal_lpdf(yt[i] | beta0, sigma);

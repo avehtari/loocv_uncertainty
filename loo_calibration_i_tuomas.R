@@ -26,7 +26,7 @@ for (alpha_i in 1:length(alphas)) {
 # peformance of mean and variance terms
 
 ## calc
-bbsamples_perf = 4000
+bbsamples_perf = 2000
 bbalpha = 1
 
 pvs = array(0, c(4, length(Ns)))
@@ -36,7 +36,7 @@ for (ni in 1:length(Ns)) {
     # populate local environment with the named stored variables in selected out
     list2env(outs[[ni]], envir=environment())
 
-    # # mean ##### for MSEs, need to be fixed !!!!!!!!!!!!!!
+    # # MSE ##### for MSEs, need to be fixed !!!!!!!!!!!!!!
     # pmz = sd(t(tls-colSums(muloos)))
     # colvars_muloos = colVars(muloos)
     # pm[ni,1] = sqrt(mean(colvars_muloos*n + 0*gms*n*n)) / pmz
@@ -211,7 +211,7 @@ for (ni in 1:length(Ns)) {
     # # evs[ni,] = apply(loos, 2, function(loos_i) sd(rowSums(t(t(dw)*loos_i))*n))
     # evs[ni,] = colSds((dw%*%loos)*n)
 
-    qw = 0[[alpha_i, ni]]
+    qw = qws[[alpha_i, ni]]
     evs[ni,] = colSds(qw)
 }
 

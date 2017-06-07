@@ -22,10 +22,10 @@ dists = list(
     c('n', 'tnu', 'n'),
     c('t4', 'n', 'n')
 )
-Ns<-c(10, 20, 40, 60, 100)
+Ns<-c(10, 20, 40, 60, 100, 140, 200, 260)
 Ps<-c(1, 2, 5, 10)
 
-Niter = 4000
+Niter = 2000
 
 # select params (cmd arg)
 jobi = as.numeric(commandArgs(trailingOnly = TRUE)[1])
@@ -41,9 +41,6 @@ if (jobi == 0) {
 } else if (jobi == 3) {
     p_i = 4
     truedist = 'n'; modeldist = 'n'; priordist = 'n'
-} else if (jobi == 4) {
-    p_i = 3
-    truedist = 'b'; modeldist = 'b'; priordist = 'n'
 } else {
     stop(sprintf("Invalid jobi"))
 }

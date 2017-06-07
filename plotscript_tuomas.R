@@ -16,10 +16,10 @@ dists = list(
     c('n', 'tnu', 'n'),
     c('t4', 'n', 'n')
 )
-Ns<-c(10, 20, 40, 60, 100, 140, 200)
+Ns<-c(10, 20, 40, 60, 100, 140, 200, 260)
 Ps<-c(1, 2, 5, 10)
 
-Niter = 1000
+Niter = 2000
 
 # ==============================================================================
 # select model
@@ -32,18 +32,18 @@ jobi = as.numeric(commandArgs(trailingOnly = TRUE)[1])
 if (jobi >= num_job)
     stop(sprintf("Jobi must be smaller than %d", num_job))
 
-    # convert jobi to parameters
-    # (there should be a function to calc quotient and remainder at the same time)
-    p_i = jobi %% length(Ps)
-    dist_i = jobi %/% length(Ps)
+# convert jobi to parameters
+# (there should be a function to calc quotient and remainder at the same time)
+p_i = jobi %% length(Ps)
+dist_i = jobi %/% length(Ps)
 
-    truedist = dists[[dist_i+1]][1]
-    modeldist = dists[[dist_i+1]][2]
-    priordist = dists[[dist_i+1]][3]
-    p_i = p_i + 1
+truedist = dists[[dist_i+1]][1]
+modeldist = dists[[dist_i+1]][2]
+priordist = dists[[dist_i+1]][3]
+p_i = p_i + 1
 
-    sprintf('jobi=%d', jobi)
-    sprintf('%s, %s, %s, %d', truedist, modeldist, priordist, Ps[p_i])
+sprintf('jobi=%d', jobi)
+sprintf('%s, %s, %s, %d', truedist, modeldist, priordist, Ps[p_i])
 
 # ==============================================================================
 # load results data

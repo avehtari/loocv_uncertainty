@@ -39,4 +39,4 @@ sprintf('jobi=%d', jobi)
 sprintf('%s, %s, %s, %d, %d', truedist, modeldist, priordist, n, p)
 
 # run the function
-loocomp_fun_one(truedist, modeldist, priordist, n, p, Niter)
+loo_fun_one(truedist, modeldist, priordist, n, p, Niter)

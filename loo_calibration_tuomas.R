@@ -4,7 +4,7 @@ library(grid)
 library(gridExtra)
 library(reshape)
 library(extraDistr)
-library(bayesboot)
+# library(bayesboot)
 source('gg_qq.R')
 source('plot_known_viol.R')
 
@@ -16,16 +16,16 @@ dists = list(
     c('n', 'tnu', 'n'),
     c('t4', 'n', 'n')
 )
-Ns<-c(10, 20, 40, 60, 100, 140, 200)
+Ns<-c(10, 20, 40, 60, 100, 140, 200, 260)
 Ps<-c(1, 2, 5, 10)
 
-Niter = 100
+Niter = 2000
 
 # ==============================================================================
 # load results data
 
 # select params
-p_i = 2
+p_i = 1
 truedist = 'n'; modeldist = 'n'; priordist = 'n'
 # truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
 # truedist = 'b'; modeldist = 'b'; priordist = 'n'
@@ -129,40 +129,3 @@ mean(pnorm(
 # ==============================================================================
 # run loo_calibration_i to save all the plots for current results data
 # source("loo_calibration_i_tuomas.R")
-
-
-
-
-
-
-
-
-
-
-##RMSE test code
-ni=5
-dw=rdirichlet(bbsamples,matrix(1-6/n,1,n))
-#dw=rdirichlet(bbsamples,matrix(1,1,n))
-#dw=rdirichlet(bbsamples,matrix(1-6/20,1,n))
-qmp=matrix(0,100,1)
-qmw=matrix(0,bbsamples,100)
-    truedist="n"
-for (i1 in 1:100) {
-    psis1=psislw(-lls[[i1]])
-    loomu=colSums(mus[[i1]]*exp(psis1$lw_smooth))
-    set.seed(i1)
-
-                if (truedist=="n") {
-                    y <- as.array(rnorm(n))
-                } else if (truedist=="t4") {
-                    y <- as.array(rt(n,4))
-                } else if (truedist=="b") {
-                    y <- as.array(as.double(kronecker(matrix(1,1,n),t(c(0,1)))))
-                } else {
-                    stop("Unknown true distribution")
-                }
-    qmw[,i1]=1-rowSums(t(t(as.matrix(dw))*as.vector(y-loomu)^2))/var(y)
-    qmp[i1]=mean(qw[,i1]>0)
-}
-qplot(qp)
-c(mean(qp<0.05), mean(qp<0.1), mean(qp<0.9), mean(qp<0.95))

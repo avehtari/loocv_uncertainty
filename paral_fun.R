@@ -17,7 +17,7 @@ options(mc.cores=1, loo.cores=1)
 # p = 2
 # Niter = 4
 
-loocomp_fun_one = function(truedist, modeldist, priordist, n, p, Niter) {
+loo_fun_one = function(truedist, modeldist, priordist, n, p, Niter) {
 
     # config
     modelname = sprintf("linear_%s_%s.stan",modeldist,priordist)
@@ -64,8 +64,8 @@ loocomp_fun_one = function(truedist, modeldist, priordist, n, p, Niter) {
         g2s = matrix(nrow=1, ncol=Niter),
         gm2s = matrix(nrow=1, ncol=Niter),
         g3s = matrix(nrow=1, ncol=Niter),
-        # tuomas added
-        tqq = array(NaN, c(n, n, Niter))
+        # tuomas added for dbb (memory expensive)
+        # tqq = array(NaN, c(n, n, Niter))
     )
 
     # iterate
@@ -132,10 +132,10 @@ loocomp_fun_one = function(truedist, modeldist, priordist, n, p, Niter) {
         rm(model1, output, loo1, log_lik2, mut)
         gc()
 
-        # qq = matrix(nrow=n, ncol=n)
+        qq = matrix(nrow=n, ncol=n)
         qqm = matrix(nrow=n, ncol=n)
         for (cvi in 1:n) {
-            out$tqq[cvi,,i1] = log(colSums(exp(log_lik1+psis1$lw_smooth[,cvi])))
+            qq[cvi,] = log(colSums(exp(log_lik1+psis1$lw_smooth[,cvi])))
             if (truedist=="b") {
                 qqm[cvi,] = as.numeric(xor(
                     colSums(mu1[,seq(1,n*2,2)]*exp(psis1$lw_smooth[,cvi])) > 0,
@@ -150,7 +150,7 @@ loocomp_fun_one = function(truedist, modeldist, priordist, n, p, Niter) {
                 qqm[cvi,] = (y-colSums(mu1*exp(psis1$lw_smooth[,cvi])))^2
             }
         }
-        qq = out$tqq[,,i1]
+        # out$tqq[,,i1] = qq
 
         qqq = matrix(nrow=n,ncol=n)
         for (ii1 in 1:n) {
