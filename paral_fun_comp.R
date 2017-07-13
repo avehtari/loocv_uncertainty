@@ -44,6 +44,8 @@ loocomp_fun_one = function(
     out = list(
         # ==== shared general
         beta = beta,
+        bbsamples = bbsamples,
+        bbalpha = bbalpha,
         # ==== for model 0 and 1 and for each beta
         ltrs = array(NaN, c(n, Niter, 2)),
         loos = array(NaN, c(n, Niter, 2)),
@@ -59,6 +61,8 @@ loocomp_fun_one = function(
         ets = array(NaN, c(Niter, 2)),
         es = array(NaN, c(Niter, 2)),
         tes = array(NaN, c(Niter, 2)),
+        # ==== for model 1
+        beta_pos = array(NaN, c(Niter)),
         # ==== compares
         # comp = array(NaN, c(Niter)),  # added in the end
         compt = array(NaN, c(Niter))
@@ -171,6 +175,14 @@ loocomp_fun_one = function(
                     mean((yt-colMeans(mut))^2)/var(yt))
             }
 
+            if (m_i == 2) {
+                # inspect posterior probability for positive slope of p+1
+                samp_b = extract(model, pars='beta')$beta
+                out$beta_pos[i1] = mean(samp_b[,p1] > 0)
+                rm(samp_b)
+            }
+
+            # clear some memory
             rm(model, output, log_lik, loo, mu, psis, log_likt, mut)
             gc()
         }

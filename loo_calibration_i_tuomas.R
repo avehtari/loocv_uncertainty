@@ -136,7 +136,7 @@ for (ni in 1:length(Ns)) {
     # populate local environment with the named stored variables in selected out
     list2env(outs[[ni]], envir=environment())
 
-    avs[1,ni,] = sqrt(1/(n*(n*alpha+1))*(colSums(loos^2) - n*colMeans(loos)^2))*n
+    avs[1,ni,] = sqrt(1/(n*(n*alpha+1))*(colSums(loos^2) - colSums(loos)^2/n))*n
     ## Gaussian approximation
     colVarsLoos = colVars(loos)
     # avs[2,ni,] = sqrt((colVarsLoos*n + g2s*n*n)) * n/n*n/(n-1)
