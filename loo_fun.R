@@ -18,14 +18,14 @@ options(mc.cores=1, loo.cores=1)
 # p = 2
 # Niter = 4
 
-loo_fun_one = function(truedist, modeldist, priordist, n, p, Niter, Nt) {
+loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n) {
     #' @param truedist true distribution identifier
     #' @param modeldist model distribution identifier
     #' @param priordist prior distribution identifier
-    #' @param n number of datapoints
-    #' @param p number of input dimensions in M_0 (M_1 has p+1 dim)
     #' @param Niter number of trials
     #' @param Nt number of test points
+    #' @param p number of input dimensions in M_0 (M_1 has p+1 dim)
+    #' @param n number of datapoints
 
     # config
     modelname = sprintf("models/linear_%s_%s.stan",modeldist,priordist)
@@ -48,7 +48,7 @@ loo_fun_one = function(truedist, modeldist, priordist, n, p, Niter, Nt) {
     out = list(
         ltrs = matrix(nrow=n, ncol=Niter),
         loos = matrix(nrow=n, ncol=Niter),
-        looks = matrix(nrow=n, ncol=Niter),
+        # looks = matrix(nrow=n, ncol=Niter),
         peff = matrix(nrow=1, ncol=Niter),
         pks = matrix(nrow=n, ncol=Niter),
         tls = matrix(nrow=1, ncol=Niter),
@@ -62,9 +62,9 @@ loo_fun_one = function(truedist, modeldist, priordist, n, p, Niter, Nt) {
         muloos =
             if (truedist=="b") matrix(nrow=n*2, ncol=Niter)
             else matrix(nrow=n, ncol=Niter),
-        mulooks =
-            if (truedist=="b") matrix(nrow=n*2, ncol=Niter)
-            else matrix(nrow=n, ncol=Niter),
+        # mulooks =
+        #     if (truedist=="b") matrix(nrow=n*2, ncol=Niter)
+        #     else matrix(nrow=n, ncol=Niter),
         bs = matrix(nrow=1, ncol=Niter),
         gs = matrix(nrow=1, ncol=Niter),
         gms = matrix(nrow=1, ncol=Niter),
@@ -130,7 +130,9 @@ loo_fun_one = function(truedist, modeldist, priordist, n, p, Niter, Nt) {
             out$tes[,i1] = mean((yt-colMeans(mut))^2)/var(yt)
         }
 
+        # find in which points pareto k exeeds treshold
         kexeeds = which(loo1$pareto_k > 0.7)
+        out$kexeeds = kexeeds
 
         # free memory
         rm(model1, output, loo1, log_lik2, mut)
@@ -193,10 +195,17 @@ loo_fun_one = function(truedist, modeldist, priordist, n, p, Niter, Nt) {
         rm(log_lik1, psis1, mu1)
         gc()
 
-        if (length(kexeeds) > 0) {
+        n_kexeeds = length(kexeeds)
+        if (n_kexeeds > 0) {
             print("k>0.7")
             print(kexeeds)
-            for (cvi in kexeeds) {
+            # reprocess probelmatic points
+            out$looks = matrix(nrow=n_kexeeds, ncol=Niter)
+            out$mulooks =
+                if (truedist=="b") matrix(nrow=n_kexeeds*2, ncol=Niter)
+                else matrix(nrow=n_kexeeds, ncol=Niter),
+            for (ki in 1:n_kexeeds) {
+                cvi = kexeeds[ki]
                 if (truedist == "b") {
                     data <- list(
                         N = n-1,
@@ -223,13 +232,13 @@ loo_fun_one = function(truedist, modeldist, priordist, n, p, Niter, Nt) {
                         modelname, data=data, iter=1000, refresh=-1,
                         save_warmup = FALSE, open_progress = FALSE)
                 )
-                out$looks[cvi, i1] = log(colMeans(exp(
+                out$looks[ki, i1] = log(colMeans(exp(
                     extract_log_lik(modelcv, parameter_name="log_likt"))))
                 if (truedist=="b") {
-                    out$mulooks[((cvi-1)*2+1):((cvi-1)*2+2), i1] = colMeans(
+                    out$mulooks[((ki-1)*2+1):((ki-1)*2+2), i1] = colMeans(
                         extract_log_lik(modelcv, parameter_name="mut"))
                 } else {
-                    out$mulooks[cvi, i1] = colMeans(
+                    out$mulooks[ki, i1] = colMeans(
                         extract_log_lik(modelcv, parameter_name="mut"))
                 }
                 # free memory

@@ -25,15 +25,15 @@ options(mc.cores=1, loo.cores=1)
 
 
 loocomp_fun = function(
-        truedist, modeldist, priordist, n, p, Niter, Nt, betas, beta_i,
+        truedist, modeldist, priordist, Niter, Nt, p, n, betas, beta_i,
         bbsamples, bbalpha) {
     #' @param truedist true distribution identifier
     #' @param modeldist model distribution identifier
     #' @param priordist prior distribution identifier
-    #' @param n number of datapoints
-    #' @param p number of input dimensions in M_0 (M_1 has p+1 dim)
     #' @param Niter number of trials
     #' @param Nt number of test points
+    #' @param p number of input dimensions in M_0 (M_1 has p+1 dim)
+    #' @param n number of datapoints
     #' @param betas array of slope coefficients beta_{p+1}
     #' @param beta_i the index of the current beta
     #' @param bbsamples number of bayesian bootstrap samples

@@ -1,30 +1,31 @@
 source('loocomp_fun.R')
 
+# ==============================================================================
+# setup
+
 # trials per run
 Niter = 200
 # num of test samples
 Nt = 10000
+
+# bayesian bootstrap
+bbsamples = 2000
+bbalpha = 1.0
+
+truedist = 'n'; modeldist = 'n'; priordist = 'n'
+# truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
+# truedist = 'b'; modeldist = 'b'; priordist = 'n'
+# truedist = 'n'; modeldist = 'tnu'; priordist = 'n'
+# truedist = 't4'; modeldist = 'n'; priordist = 'n'
+
+# ---- variables
+Ps<-c(0, 1, 2, 5, 10, 20)
+Ns<-c(10, 20, 40, 60, 100, 140, 200)
 # array of slope coefficients beta_{p+1}
 betas = 2^seq(-6, 2)
 
-# bayesian bootstrap
-bbsamples = 4000
-bbalpha = 1.0
-
-
-# possible parameters
-dists = list(
-    c('n', 'n', 'n'),
-    c('t4', 'tnu', 'n'),
-    c('b', 'b', 'n'),
-    c('n', 'tnu', 'n'),
-    c('t4', 'n', 'n')
-)
-Ns<-c(10, 20, 40, 60, 100, 140, 200, 260)
-Ps<-c(0, 1, 2, 5, 10, 20)
-
-# number of jobs (240)
-num_job = length(dists) * length(Ns) * length(Ps) * length(betas)
+# number of jobs (378)
+num_job = length(Ps) * length(Ns) * length(betas)
 
 # get job number [0, num_job-1] as command line argument
 jobi = as.numeric(commandArgs(trailingOnly = TRUE)[1])
@@ -33,25 +34,19 @@ if (jobi >= num_job)
 
 # convert jobi to parameters
 # (there should be a function to calc quotient and remainder at the same time)
-beta_i = jobi %% length(betas)
+beta_i = (jobi %% length(betas)) + 1
 quo = jobi %/% length(betas)
-p_i = quo %% length(Ps)
-quo = quo %/% length(Ps)
-n_i = quo %% length(Ns)
-dist_i = quo %/% length(Ns)
+n_i = (quo %% length(Ns)) + 1
+p_i = (quo %/% length(Ns)) + 1
 
-truedist = dists[[dist_i+1]][1]
-modeldist = dists[[dist_i+1]][2]
-priordist = dists[[dist_i+1]][3]
-n = Ns[n_i+1]
-p = Ps[p_i+1]
-beta_i = beta_i + 1
+n = Ns[n_i]
+
 
 message(sprintf('jobi=%d', jobi))
 message(sprintf(
-    'truedist=%s, modeldist=%s, priordist=%s,\nn=%d, p=%d, Niter=%d, Nt=%d, beta_i=%d',
-    truedist, modeldist, priordist, n, p, Niter, Nt, beta_i))
+    'truedist=%s, modeldist=%s, priordist=%s,\nNiter=%d, Nt=%d, p=%d, n=%d, beta_i=%d',
+    truedist, modeldist, priordist, Niter, Nt, Ps[p_i], n, beta_i))
 # sprintf('%s', betas)
 
 # run the function
-loocomp_fun_one(truedist, modeldist, priordist, n, p, Niter, Nt, betas, beta_i, bbsamples, bbalpha)
+loocomp_fun_one(truedist, modeldist, priordist, Ps[p_i], n, Niter, Nt, betas, beta_i, bbsamples, bbalpha)

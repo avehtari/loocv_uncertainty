@@ -17,11 +17,12 @@ truedist = 'n'; modeldist = 'n'; priordist = 'n'
 # truedist = 'n'; modeldist = 'tnu'; priordist = 'n'
 # truedist = 't4'; modeldist = 'n'; priordist = 'n'
 
-Ns = c(10, 20, 40, 60, 100, 140, 200, 260)
-Ps = c(1, 2, 5, 10, 20)
+# ---- variables
+Ps = c(1, 2, 5, 10)
+Ns = c(10, 20, 40, 60, 100, 140, 200)
 
-# number of jobs (32)
-num_job = length(Ns) * length(Ps)
+# number of jobs (28)
+num_job = length(Ps) * length(Ns)
 
 # get job number [0, num_job-1] as command line argument
 jobi = as.numeric(commandArgs(trailingOnly = TRUE)[1])
@@ -30,12 +31,13 @@ if (jobi >= num_job)
 
 # convert jobi to parameters
 # (there should be a function to calc quotient and remainder at the same time)
-p_i = (jobi %% length(Ps)) + 1
-n_i = (jobi %/% length(Ps)) + 1
+n_i = (jobi %% length(Ns)) + 1
+p_i = (jobi %/% length(Ns)) + 1
+
 n = Ns[n_i]
 
 cat(sprintf('jobi=%d\n', jobi))
-cat(sprintf('%s, %s, %s, %d, %d\n', truedist, modeldist, priordist, n, Ps[p_i]))
+cat(sprintf('%s_%s_%s_%d_%d\n', truedist, modeldist, priordist, Ps[p_i], n))
 
 
 # ==============================================================================
@@ -65,12 +67,20 @@ Niter = dim(loos)[2]
 # sample array
 sigma2s = array(0, c(stansamples, Niter))
 
-# progress bar
+# ---- progress bar
+progressbar_length = 40
 cat(sprintf('Niter: %d\n', Niter))
 cat('sampling...\n')
-cat(sprintf('0%% |%s| 100%%\n   |', paste(rep('-', 40), collapse='')))
+cat(sprintf(
+    '0%% |%s| 100%%\n   |',
+    paste(rep('-', progressbar_length), collapse='')
+))
 progressbar_cur = 0
-progressbar_scale = 40 / Niter
+progressbar_scale = progressbar_length / Niter
+# ---- time estimator
+time_estim_start_time = Sys.time()
+time_estim_activate_at = c(1, 10, 20, 100)
+time_estim_i = 1
 
 # iterate for all trials
 for (i in 1:Niter) {
@@ -85,11 +95,24 @@ for (i in 1:Niter) {
     )
     sigma2s[,i] = (extract(sgt_loo_fit, 'sigma')$sigma)^2
 
-    # progress bar
+    # ---- progress bar
     progressbar_new = floor(i * progressbar_scale)
     if (progressbar_cur < progressbar_new) {
-        cat(paste(rep('.', progressbar_new - progressbar_cur), collapse=''))
+        cat(paste(rep('#', progressbar_new - progressbar_cur), collapse=''))
         progressbar_cur = progressbar_new
+    }
+    # ---- time estimator
+    if (time_estim_i <= length(time_estim_activate_at) &&
+            i == time_estim_activate_at[time_estim_i]) {
+        time_estim_i = time_estim_i + 1
+        cat(sprintf(
+            '\n   | based on %d iters, estimated total runtime is %.2g h\n',
+            i,
+            ((Sys.time() - time_estim_start_time) * Niter / i) / 3600
+        ))
+        # resume progressbar
+        cat('   |')
+        cat(paste(rep('#', progressbar_cur), collapse=''))
     }
 }
 cat('|\nsampling done\n')

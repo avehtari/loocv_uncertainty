@@ -1,9 +1,10 @@
 
+library(ggplot2)
 library(matrixStats)
 library(extraDistr)
 
 
-Ns = c(10, 20, 40, 60, 100, 140, 200, 260)
+Ns = c(10, 20, 40, 60, 100, 140, 200)
 Ps = c(1, 2, 5, 10)
 
 truedist = 'n'; modeldist = 'n'; priordist = 'n'
@@ -12,7 +13,7 @@ truedist = 'n'; modeldist = 'n'; priordist = 'n'
 # truedist = 'n'; modeldist = 'tnu'; priordist = 'n'
 # truedist = 't4'; modeldist = 'n'; priordist = 'n'
 
-p_i = 1
+p_i = 2
 
 # ==============================================================================
 # peformance of variance terms
@@ -25,8 +26,11 @@ bbalpha_perf = 1
 pvs = array(0, c(4, length(Ns)))
 bbs = array(0, c(4, length(Ns), bbsamples_perf))
 
+cat('processing n=')
 for (ni in 1:length(Ns)) {
     n = Ns[ni]
+    cat(sprintf('%d,', n))
+
     # load data in variable out
     load(sprintf('res_loo/%s_%s_%s_%d_%d.RData',
         truedist, modeldist, priordist, Ps[p_i], n))
@@ -78,3 +82,73 @@ for (ni in 1:length(Ns)) {
     # bbs[3,] = sqrt(bayesboot(t, function(d, w) sum(d*w), R=bbsamples_perf, use.weights=TRUE)$V1) / pvz
     bbs[4,ni,] = sqrt(
         rdirichlet(bbsamples_perf, rep(bbalpha_perf, length(t))) %*% t) / pvz
+}
+cat('\ndone processing\n')
+
+
+## plot ------------------------------------------------------
+g = ggplot()
+fillcats = c("basic", "g2s", "sgt", "x2")
+for (fi in 1:length(fillcats)) {
+    for (ni in 1:length(Ns)) {
+        g = g + geom_violin(
+            data = data.frame(
+                y = bbs[fi,ni,],
+                x = Ns[ni],
+                fill = fillcats[fi]
+            ),
+            aes(x=x, y=y, fill=fill),
+            width = 8,
+            alpha = 0.5
+        )
+    }
+}
+g = g +
+    geom_hline(yintercept=1) +
+    scale_fill_manual(values=c("green", "red", "blue", "gray")) +
+    xlab("number of samples") +
+    ylab("") +
+    ggtitle(sprintf(
+        "peformance of variance terms (model: %s_%s_%s_%i)\nbbsamples=%i",
+        truedist, modeldist, priordist, Ps[p_i],
+        bbsamples_perf
+    ))
+g
+# ggsave(
+#     plot=g, width=8, height=5,
+#     filename = sprintf(
+#         "figs/p1_%s_%s_%s_%i.pdf",
+#         truedist, modeldist, priordist, Ps[p_i]
+#     )
+# )
+
+
+## plot ------------------------------------------------------
+# plot one ni
+ni = 1
+g = ggplot()
+for (fi in 1:length(fillcats)) {
+    g = g + geom_violin(
+        data = data.frame(
+            y = bbs[fi,ni,],
+            x = fillcats[fi]
+        ),
+        aes(x=x, y=y)
+    )
+}
+g = g +
+    geom_hline(yintercept=1) +
+    ylab("") +
+    ggtitle(sprintf(
+        "peformance of variance terms (model: %s_%s_%s_%i_%i)\nbbsamples=%i",
+        truedist, modeldist, priordist, Ps[p_i], Ns[ni],
+        bbsamples_perf
+    ))
+g
+# ggsave(
+#     plot=g, width=8, height=5,
+#     filename = sprintf(
+#         "figs/p1_%s_%s_%s_%i_%i.pdf",
+#         truedist, modeldist, priordist, Ps[p_i], Ns[ni]
+#     )
+# )
