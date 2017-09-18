@@ -14,10 +14,10 @@ options(mc.cores=1, loo.cores=1)
 # modeldist = 'b'
 # priordist = 'n'
 
-# n = 5
-# p = 2
 # Niter = 3
 # Nt = 7
+# n = 5
+# p = 2
 # betas = 2^seq(-6, 3)
 # beta_i = 6
 # bbsamples = 123

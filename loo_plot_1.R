@@ -4,8 +4,7 @@ library(matrixStats)
 library(extraDistr)
 
 
-# Ns = c(10, 20, 40, 60, 100, 140, 200)
-Ns = c(10, 20, 40, 60, 100, 140)
+Ns = c(10, 20, 40, 60, 100, 140, 200)
 Ps = c(1, 2, 5, 10)
 
 # truedist = 'n'; modeldist = 'n'; priordist = 'n'

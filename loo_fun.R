@@ -14,9 +14,11 @@ options(mc.cores=1, loo.cores=1)
 # modeldist = 'b'
 # priordist = 'n'
 
+# Niter = 4
+# Nt = 56
 # n = 10
 # p = 2
-# Niter = 4
+
 
 loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n) {
     #' @param truedist true distribution identifier
@@ -48,7 +50,7 @@ loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n) {
     out = list(
         ltrs = matrix(nrow=n, ncol=Niter),
         loos = matrix(nrow=n, ncol=Niter),
-        # looks = matrix(nrow=n, ncol=Niter),
+        looks = vector("list", Niter),
         peff = matrix(nrow=1, ncol=Niter),
         pks = matrix(nrow=n, ncol=Niter),
         tls = matrix(nrow=1, ncol=Niter),
@@ -62,15 +64,13 @@ loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n) {
         muloos =
             if (truedist=="b") matrix(nrow=n*2, ncol=Niter)
             else matrix(nrow=n, ncol=Niter),
-        # mulooks =
-        #     if (truedist=="b") matrix(nrow=n*2, ncol=Niter)
-        #     else matrix(nrow=n, ncol=Niter),
+        mulooks = vector("list", Niter),
         bs = matrix(nrow=1, ncol=Niter),
         gs = matrix(nrow=1, ncol=Niter),
         gms = matrix(nrow=1, ncol=Niter),
         g2s = matrix(nrow=1, ncol=Niter),
         gm2s = matrix(nrow=1, ncol=Niter),
-        g3s = matrix(nrow=1, ncol=Niter),
+        g3s = matrix(nrow=1, ncol=Niter)
     )
 
     # iterate
@@ -110,11 +110,9 @@ loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n) {
         } else {
             out$muloos[,i1] = colSums(mu1*exp(psis1$lw_smooth))
         }
-        out$mulooks[,i1] = out$muloos[,i1]
         loo1 = loo(log_lik1)
         out$ltrs[,i1] = log(colMeans(exp(log_lik1)))
         out$loos[,i1] = loo1$pointwise[,1]
-        out$looks[,i1] = out$loos[,i1]
         out$peff[,i1] = sum(out$ltrs[,i1]) - sum(out$loos[,i1])
         out$pks[,i1] = loo1$pareto_k
         log_lik2 = extract_log_lik(model1, parameter_name="log_likt")
@@ -200,10 +198,11 @@ loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n) {
             print("k>0.7")
             print(kexeeds)
             # reprocess probelmatic points
-            out$looks = matrix(nrow=n_kexeeds, ncol=Niter)
-            out$mulooks =
-                if (truedist=="b") matrix(nrow=n_kexeeds*2, ncol=Niter)
-                else matrix(nrow=n_kexeeds, ncol=Niter),
+            out$looks[[i1]] = array(NaN, n_kexeeds)
+            out$mulooks[[i1]] = (
+                if (truedist=="b") array(NaN, 2*n_kexeeds)
+                else array(NaN, n_kexeeds)
+            )
             for (ki in 1:n_kexeeds) {
                 cvi = kexeeds[ki]
                 if (truedist == "b") {

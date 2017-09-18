@@ -19,8 +19,8 @@ truedist = 'n'; modeldist = 'n'; priordist = 'n'
 # truedist = 't4'; modeldist = 'n'; priordist = 'n'
 
 # ---- variables
-Ps<-c(0, 1, 2, 5, 10, 20)
-Ns<-c(10, 20, 40, 60, 100, 140, 200)
+Ps = c(0, 1, 2, 5, 10, 20)
+Ns = c(10, 20, 40, 60, 100, 140, 200)
 # array of slope coefficients beta_{p+1}
 betas = 2^seq(-6, 2)
 
