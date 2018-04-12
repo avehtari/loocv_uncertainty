@@ -1,0 +1,79 @@
+\documentclass[a4paper, fleqn]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+
+\usepackage{parskip}  % no intendation
+\usepackage{fullpage}
+
+\usepackage{mathtools}
+\mathtoolsset{showonlyrefs}  % only referred equations are numbered
+
+\usepackage{isomath}
+
+% fix \left  \right
+\let\originalleft\left
+\let\originalright\right
+\renewcommand{\left}{\mathopen{}\mathclose\bgroup\originalleft}
+\renewcommand{\right}{\aftergroup\egroup\originalright}
+
+% ------------------------------------------------------------------------------
+\begin{document}
+
+\begin{gather}
+X_i = \log \operatorname{p}\left( y_i \middle| y_{-i} \right) \qquad
+X = [X_1, X_2, \dots, X_n]^T \qquad
+\operatorname{Cov}(X) =
+\begin{bmatrix}
+    \sigma^2 & \gamma   &  \cdots \\
+    \gamma   & \sigma^2 &  \\
+    \vdots    &          & \ddots
+\end{bmatrix}^{n \times n}
+\end{gather}
+\begin{gather}
+Y_{i,k} = \log \operatorname{p}\left( y_i \middle| y_{-i,-k} \right) \qquad \text{where} \; k \neq i\\
+Y_k = [Y_{1,k}, Y_{2,k}, \dots, Y_{k-1,k}, Y_{k+1,k}, \dots, Y_{n,k}]^T
+\qquad \text{maybe call this LOO-LOO}
+\end{gather}
+Here it might be possible to replace $\log \operatorname{p}\left( y_i \middle| y_{-i,-k} \right)$ with $\log \operatorname{p}\left( y_i \middle| y_{-k} \right)$.
+If not, thats ok also.
+
+\textbf{Idea:}
+\begin{gather}
+\forall k, \quad \operatorname{Cov}(Y_k) \approx
+\begin{bmatrix}
+    \sigma^2 & \gamma   &  \cdots \\
+    \gamma   & \sigma^2 &  \\
+    \vdots    &          & \ddots
+\end{bmatrix}^{n-1 \times n-1}
+\end{gather}
+Here we can approximate $\gamma$, given that $n \geq 4$.
+
+\begin{align}
+\hat{\gamma}
+&= \frac{1}{\text{number of pairs}} \sum_{i \neq j}
+\operatorname{Cov}\left[ Y_{i,k} \; , Y_{j,k} \right]
+\qquad (k \neq i,j) \\
+&= \frac{1}{\binom{n}{2}} \sum_{i \neq j}
+\frac{1}{(n-2)-1} \sum_{k \neq i,j}
+\left( Y_{i,k} - \hat{\mu}_i \right)
+\left( Y_{j,k} - \hat{\mu}_j \right) \\
+\intertext{where}
+\hat{\mu}_i &= \frac{1}{n-1}\sum_{k\neq i}Y_{i,k}
+\end{align}
+
+\textbf{Example} $4 \times 4$
+
+\begin{gather}
+\begin{bmatrix}
+            & Y_{1,2} & Y_{1,3} & Y_{1,4} \\
+    Y_{2,1} &         & Y_{2,3} & Y_{2,4} \\
+    Y_{3,1} & Y_{3,2} &         & Y_{3,4} \\
+    Y_{4,1} & Y_{4,2} & Y_{4,3} &         \\
+\end{bmatrix}
+\end{gather}
+
+For each pair of rows, calculate cov excluding diagonal
+
+\end{document}
