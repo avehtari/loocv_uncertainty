@@ -10,17 +10,13 @@ options(mc.cores=1, loo.cores=1)
 # modeldist = 'n'
 # priordist = 'n'
 
-# truedist = 'b'
-# modeldist = 'b'
-# priordist = 'n'
-
 # Niter = 4
 # Nt = 56
 # n = 10
 # p = 2
 
 
-loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n) {
+loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n, seed) {
     #' @param truedist true distribution identifier
     #' @param modeldist model distribution identifier
     #' @param priordist prior distribution identifier
@@ -28,11 +24,12 @@ loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n) {
     #' @param Nt number of test points
     #' @param p number of input dimensions in M_0 (M_1 has p+1 dim)
     #' @param n number of datapoints
+    #' @param seed seed to use
 
     # config
     modelname = sprintf("models/linear_%s_%s.stan",modeldist,priordist)
 
-    set.seed(1)
+    set.seed(seed)
     if (truedist=="n") {
         yt <- as.array(rnorm(Nt))
         xt <- matrix(runif(p*Nt,-1,1),nrow=Nt,ncol=p)
@@ -45,6 +42,8 @@ loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n) {
     } else {
         stop("Unknown true distribution")
     }
+
+    num_of_pairs = (n^2-n)/2
 
     # allocate output
     out = list(
@@ -70,7 +69,7 @@ loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n) {
         gms = matrix(nrow=1, ncol=Niter),
         g2s = matrix(nrow=1, ncol=Niter),
         gm2s = matrix(nrow=1, ncol=Niter),
-        g3s = matrix(nrow=1, ncol=Niter)
+        g2s_new = matrix(nrow=1, ncol=Niter)
     )
 
     # iterate
@@ -78,7 +77,7 @@ loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n) {
         print(sprintf(
             '%s%s%s p=%d n=%d iter=%d',
             truedist, modeldist, priordist, p, n, i1))
-        set.seed(i1)
+        set.seed(seed+i1)
         if (truedist=="n") {
             y <- as.array(rnorm(n))
             x <- matrix(runif(p*n,-1,1),nrow=n,ncol=p)
@@ -154,17 +153,6 @@ loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n) {
                 qqm[cvi,] = (y-colSums(mu1*exp(psis1$lw_smooth[,cvi])))^2
             }
         }
-        qqq = matrix(nrow=n,ncol=n)
-        for (ii1 in 1:n) {
-            for (ii2 in 1:n) {
-                if (ii1 == ii2)
-                    ll2 = log_lik1[,ii1]
-                else
-                    ll2 = log_lik1[,ii1] + log_lik1[,ii2]
-                ps2 = psislw(-ll2)
-                qqq[ii2,ii1] = log(sum(exp(log_lik1[,ii1]+ps2$lw_smooth)))
-            }
-        }
         gammas = matrix(nrow=1, ncol=n)
         gammams = matrix(nrow=1, ncol=n)
         for (cvi in 1:n) {
@@ -181,13 +169,24 @@ loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n) {
         gammam = mean(gammams);
         gamma2 = mean(colVars(qq));
         gammam2 = mean(colVars(qqm));
-        gamma3 = mean(colVars(qqq));
         out$bs[,i1] = sum(betas)
         out$gs[,i1] = gamma
         out$gms[,i1] = gammam
         out$g2s[,i1] = gamma2
         out$gm2s[,i1] = gammam2
-        out$g3s[,i1] = gamma3
+
+        # g2s_new
+        g2s_s = array(0, num_of_pairs)
+        # center columns
+        qq_c = qq - rep(colMeans(qq), rep.int(nrow(qq), ncol(qq)))
+        cur_pair_i = 1
+        for (xi1 in 1:(n-1)) {
+            for (xi2 in xi1+1:n) {
+                g2s_s[cur_pair_i] = qq_c[xi1,xi2]*qq_c[xi2,xi1]
+                cur_pair_i = cur_pair_i + 1
+            }
+        }
+        out$g2s_new[,i1] = sum(g2s_s)/(num_of_pairs-1)
 
         # free memory
         rm(log_lik1, psis1, mu1)

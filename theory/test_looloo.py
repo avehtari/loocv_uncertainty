@@ -175,7 +175,7 @@ looloo_estims = naive_estims + (n**2 - n)*gamma_estims
 looloo_old_estims = naive_estims + (n**2 - n)*old_looloo_var_estim
 
 # plot
-def plot_one_hist(ax, estims, bins=30):
+def plot_one_hist(ax, estims, bins=50):
     ax.hist(estims, bins=bins)
     ax.axvline(sumvar_target, color='red')
     ax.axvline(np.mean(estims), color='green')

@@ -7,6 +7,8 @@ source('loo_fun.R')
 Niter = 1000
 # num of test samples
 Nt = 10000
+# seed
+seed = 11
 
 truedist = 'n'; modeldist = 'n'; priordist = 'n'
 # truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
@@ -16,7 +18,7 @@ truedist = 'n'; modeldist = 'n'; priordist = 'n'
 
 # ---- variables
 Ps = c(1, 2, 5, 10)
-Ns = c(10, 20, 40, 60, 100, 140, 200)
+Ns = c(10, 20, 40, 60, 100, 140, 200, 260, 340)
 
 # number of jobs (28)
 num_job = length(Ps) * length(Ns)
@@ -37,4 +39,4 @@ cat(sprintf('jobi=%d\n', jobi))
 cat(sprintf('%s_%s_%s_%d_%d\n', truedist, modeldist, priordist, Ps[p_i], n))
 
 # run the function
-loo_fun_one(truedist, modeldist, priordist, Niter, Nt, Ps[p_i], n)
+loo_fun_one(truedist, modeldist, priordist, Niter, Nt, Ps[p_i], n, seed)
