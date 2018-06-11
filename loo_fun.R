@@ -183,7 +183,7 @@ loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n, seed) {
         qq_c = qq - rep(colMeans(qq), rep.int(nrow(qq), ncol(qq)))
         cur_pair_i = 1
         for (xi1 in 1:(n-1)) {
-            for (xi2 in xi1+1:n) {
+            for (xi2 in (xi1+1):n) {
                 g2s_s[cur_pair_i] = qq_c[xi1,xi2]*qq_c[xi2,xi1]
                 cur_pair_i = cur_pair_i + 1
             }
@@ -202,7 +202,7 @@ loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n, seed) {
         )
         cur_pair_i = 1
         for (xi1 in 1:(n-1)) {
-            for (xi2 in xi1+1:n) {
+            for (xi2 in (xi1+1):n) {
                 g2s_s[cur_pair_i] = qq_c[xi1,xi2]*qq_c[xi2,xi1]
                 cur_pair_i = cur_pair_i + 1
             }
