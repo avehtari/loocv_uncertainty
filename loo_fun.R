@@ -14,6 +14,7 @@ options(mc.cores=1, loo.cores=1)
 # Nt = 56
 # n = 10
 # p = 2
+# seed = 11
 
 
 loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n, seed) {
@@ -69,7 +70,8 @@ loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n, seed) {
         gms = matrix(nrow=1, ncol=Niter),
         g2s = matrix(nrow=1, ncol=Niter),
         gm2s = matrix(nrow=1, ncol=Niter),
-        g2s_new = matrix(nrow=1, ncol=Niter)
+        g2s_new = matrix(nrow=1, ncol=Niter),
+        g2s_new2 = matrix(nrow=1, ncol=Niter)
     )
 
     # iterate
@@ -187,6 +189,25 @@ loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n, seed) {
             }
         }
         out$g2s_new[,i1] = sum(g2s_s)/(num_of_pairs-1)
+
+        # qq diag <- nan
+        diag(qq) = NA
+
+        # g2s_new2
+        g2s_s = array(0, num_of_pairs)
+        # center columns (exclude diagonal)
+        qq_c = qq - rep(
+            apply(qq, 2, function(col) mean(na.omit(col))),
+            rep.int(nrow(qq), ncol(qq))
+        )
+        cur_pair_i = 1
+        for (xi1 in 1:(n-1)) {
+            for (xi2 in xi1+1:n) {
+                g2s_s[cur_pair_i] = qq_c[xi1,xi2]*qq_c[xi2,xi1]
+                cur_pair_i = cur_pair_i + 1
+            }
+        }
+        out$g2s_new2[,i1] = sum(g2s_s)/(num_of_pairs-1)
 
         # free memory
         rm(log_lik1, psis1, mu1)
