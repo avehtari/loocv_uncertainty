@@ -251,13 +251,13 @@ loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n, seed) {
                         modelname, data=data, iter=1000, refresh=-1,
                         save_warmup = FALSE, open_progress = FALSE)
                 )
-                out$looks[ki, i1] = log(colMeans(exp(
+                out$looks[[i1]][ki] = log(colMeans(exp(
                     extract_log_lik(modelcv, parameter_name="log_likt"))))
                 if (truedist=="b") {
-                    out$mulooks[((ki-1)*2+1):((ki-1)*2+2), i1] = colMeans(
+                    out$mulooks[[i1]][((ki-1)*2+1):((ki-1)*2+2)] = colMeans(
                         extract_log_lik(modelcv, parameter_name="mut"))
                 } else {
-                    out$mulooks[ki, i1] = colMeans(
+                    out$mulooks[[i1]][ki] = colMeans(
                         extract_log_lik(modelcv, parameter_name="mut"))
                 }
                 # free memory
