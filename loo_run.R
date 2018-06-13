@@ -41,4 +41,4 @@ cat(sprintf('jobi=%d\n', jobi))
 cat(sprintf('%s_%s_%s_%d_%d\n', truedist, modeldist, priordist, Ps[p_i], n))
 
 # run the function
-loo_fun_one(truedist, modeldist, priordist, Niter, Nt, Ps[p_i], n, seed)
+loo_fun_one(truedist, modeldist, priordist, Niter, Nt, Ps[p_i], n, Ntg, seed)

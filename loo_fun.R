@@ -311,7 +311,55 @@ loo_fun_one = function(
 
     }
 
-    filename = sprintf(
-        "res_loo/%s_%s_%s_%d_%d.RData", truedist, modeldist, priordist, p, n)
-    save(out, file=filename)
+    # save to .rdata
+    if (TRUE) {
+        filename = sprintf(
+            "res_loo/%s_%s_%s_%d_%d.RData", truedist, modeldist, priordist, p, n)
+        save(out, file=filename)
+    }
+
+    # save with feather
+    if (FALSE) {
+        saved_names = c(
+            'ltrs',
+            'loos',
+            # 'looks',
+            'peff',
+            'pks',
+            'tls',
+            'ets',
+            'es',
+            'tes',
+            # 'lls',
+            'mutrs',
+            'muloos',
+            # 'mulooks',
+            'bs',
+            'gs',
+            'gms',
+            'g2s',
+            'gm2s',
+            'g2s_new',
+            'g2s_new2',
+            'loovar1',
+            'loovar2',
+            'loovar3',
+            'loovar4',
+            'loovar1_rank',
+            'loovar2_rank',
+            'loovar3_rank',
+            'loovar4_rank',
+            'test_target'
+        )
+        res_dir = sprintf(
+            "res_loo/%s_%s_%s_%d_%d", truedist, modeldist, priordist, p, n)
+        dir.create(res_dir)
+        for (saved_name in saved_names) {
+            write_feather(
+                as.data.frame(`$`(out, saved_name)),
+                file.path(res_dir, paste(saved_name, '.feather', sep=''))
+            )
+        }
+    }
+
 }
