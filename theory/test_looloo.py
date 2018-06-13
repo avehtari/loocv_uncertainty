@@ -111,6 +111,19 @@ print('E[gammas_loo]: {}'.format(np.mean(gammas_loo)))
 print('E[gammas_looloo]: {}'.format(np.mean(gammas_looloo)))
 
 
+# create looloo_full with loo in diag
+looloos_inc_diag = looloos_full.copy()
+idx = np.diag_indices(n)
+looloos_inc_diag[:, idx[0], idx[1]] = loos
+looloos_inc_diag_flat = looloos_inc_diag.reshape((n_trial, n*n))
+cov_looloo_inc_diag = np.cov(
+    looloos_inc_diag.reshape((n_trial, n*n)),
+    rowvar=False,
+    ddof=1
+)
+
+
+
 # ====== targets
 
 # sigma2
@@ -123,7 +136,7 @@ sumvar_target = np.var(np.sum(loos, axis=1), ddof=1)
 # this should be approx same as
 # np.sum(cov_loo)
 # i.e. approx
-# n*sigma2_target + (n**2)*gamma_target
+# n*sigma2_target + (n**2-n)*gamma_target
 
 
 # ====== estimates for gamma

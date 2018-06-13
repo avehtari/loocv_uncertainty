@@ -1,3 +1,7 @@
 *.rds
 *.RData
 *.pdf
+.ipynb_checkpoints
+*.aux
+*.log
+*.npz

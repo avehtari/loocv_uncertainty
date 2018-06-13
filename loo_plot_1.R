@@ -4,16 +4,16 @@ library(matrixStats)
 library(extraDistr)
 
 
-Ns = c(10, 20, 40, 60, 100, 140, 200)
+Ns = c(10, 20, 40, 60, 100, 140, 200, 260, 340)
 Ps = c(1, 2, 5, 10)
 
-# truedist = 'n'; modeldist = 'n'; priordist = 'n'
+truedist = 'n'; modeldist = 'n'; priordist = 'n'
 # truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
-truedist = 'b'; modeldist = 'b'; priordist = 'n'
+# truedist = 'b'; modeldist = 'b'; priordist = 'n'
 # truedist = 'n'; modeldist = 'tnu'; priordist = 'n'
 # truedist = 't4'; modeldist = 'n'; priordist = 'n'
 
-p_i = 2
+p_i = 4
 
 # ==============================================================================
 # peformance of variance terms
@@ -29,10 +29,10 @@ bbs = array(0, c(4, length(Ns), bbsamples_perf))
 cat('processing n=')
 for (ni in 1:length(Ns)) {
     n = Ns[ni]
-    cat(sprintf('%d,', n))
+    cat(sprintf('%g,', n))
 
     # load data in variable out
-    load(sprintf('res_loo/%s_%s_%s_%d_%d.RData',
+    load(sprintf('res_loo/%s_%s_%s_%g_%g.RData',
         truedist, modeldist, priordist, Ps[p_i], n))
     # modify 1d matrices into vectors in out
     out$peff = out$peff[1,]
@@ -45,13 +45,14 @@ for (ni in 1:length(Ns)) {
     out$gms = out$gms[1,]
     out$g2s = out$g2s[1,]
     out$gm2s = out$gm2s[1,]
-    out$g3s = out$g3s[1,]
+    out$g2s_new = out$g2s_new[1,]
+    out$g2s_new2 = out$g2s_new2[1,]
     # populate local environment with the named stored variables in selected out
     list2env(out, envir=environment())
     rm(out)
     Niter = dim(loos)[2]
 
-    pvz = sd(t(tls-colSums(loos)))
+    pvz = sd(tls-colSums(loos))
     colvars_loos_n = colVars(loos)*n
 
     # basic
@@ -61,23 +62,20 @@ for (ni in 1:length(Ns)) {
         rdirichlet(bbsamples_perf, rep(bbalpha_perf, length(t))) %*% t) / pvz
 
     # g2s
-    t = colvars_loos_n + g2s*n*n
+    t = colvars_loos_n + g2s*n
     pvs[2,ni] = sqrt(mean(t)) / pvz
-    # bbs[2,] = sqrt(bayesboot(t, function(d, w) sum(d*w), R=bbsamples_perf, use.weights=TRUE)$V1) / pvz
     bbs[2,ni,] = sqrt(
         rdirichlet(bbsamples_perf, rep(bbalpha_perf, length(t))) %*% t) / pvz
 
-    # g3s
-    t = colvars_loos_n + g3s*n*n
+    # g2s_new
+    t = colvars_loos_n + (n^2-n)*g2s_new
     pvs[3,ni] = sqrt(mean(t)) / pvz
-    # bbs[2,] = sqrt(bayesboot(t, function(d, w) sum(d*w), R=bbsamples_perf, use.weights=TRUE)$V1) / pvz
     bbs[3,ni,] = sqrt(
         rdirichlet(bbsamples_perf, rep(bbalpha_perf, length(t))) %*% t) / pvz
 
     # x2
     t = 2*colvars_loos_n
     pvs[4,ni] = sqrt(mean(t)) / pvz
-    # bbs[3,] = sqrt(bayesboot(t, function(d, w) sum(d*w), R=bbsamples_perf, use.weights=TRUE)$V1) / pvz
     bbs[4,ni,] = sqrt(
         rdirichlet(bbsamples_perf, rep(bbalpha_perf, length(t))) %*% t) / pvz
 }
@@ -85,8 +83,10 @@ cat('\ndone processing\n')
 
 
 ## plot ------------------------------------------------------
+fillcats = c("basic", "g2s", "g2s_new", "x2")
+
+## Plot all Ns
 g = ggplot()
-fillcats = c("basic", "g2s", "g3s", "x2")
 for (fi in 1:length(fillcats)) {
     for (ni in 1:length(Ns)) {
         g = g + geom_violin(
@@ -107,7 +107,7 @@ g = g +
     xlab("number of samples") +
     ylab("") +
     ggtitle(sprintf(
-        "peformance of variance terms (model: %s_%s_%s_%i)\nbbsamples=%i",
+        "peformance of variance terms (model: %s_%s_%s_%g)\nbbsamples=%g",
         truedist, modeldist, priordist, Ps[p_i],
         bbsamples_perf
     ))
@@ -123,7 +123,7 @@ g
 
 ## plot ------------------------------------------------------
 # plot one ni
-ni = 1
+ni = 7
 g = ggplot()
 for (fi in 1:length(fillcats)) {
     g = g + geom_violin(
@@ -138,7 +138,7 @@ g = g +
     geom_hline(yintercept=1) +
     ylab("") +
     ggtitle(sprintf(
-        "peformance of variance terms (model: %s_%s_%s_%i_%i)\nbbsamples=%i",
+        "peformance of variance terms (model: %s_%s_%s_%g_%g)\nbbsamples=%g",
         truedist, modeldist, priordist, Ps[p_i], Ns[ni],
         bbsamples_perf
     ))

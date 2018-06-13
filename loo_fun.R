@@ -11,13 +11,15 @@ options(mc.cores=1, loo.cores=1)
 # priordist = 'n'
 
 # Niter = 4
-# Nt = 56
-# n = 10
+# Nt = 1000
 # p = 2
+# n = 10
+# Ntg = 100
 # seed = 11
 
 
-loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n, seed) {
+loo_fun_one = function(
+    truedist, modeldist, priordist, Niter, Nt, p, n, Ntg, seed) {
     #' @param truedist true distribution identifier
     #' @param modeldist model distribution identifier
     #' @param priordist prior distribution identifier
@@ -25,7 +27,12 @@ loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n, seed) {
     #' @param Nt number of test points
     #' @param p number of input dimensions in M_0 (M_1 has p+1 dim)
     #' @param n number of datapoints
+    #' @param Ntg number of test groups for rank statistics
     #' @param seed seed to use
+
+    if (Ntg > Nt%/%n) {
+        stop("`Ntg` must be equal or smaller than ``Nt%/%n``")
+    }
 
     # config
     modelname = sprintf("models/linear_%s_%s.stan",modeldist,priordist)
@@ -71,7 +78,16 @@ loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n, seed) {
         g2s = matrix(nrow=1, ncol=Niter),
         gm2s = matrix(nrow=1, ncol=Niter),
         g2s_new = matrix(nrow=1, ncol=Niter),
-        g2s_new2 = matrix(nrow=1, ncol=Niter)
+        g2s_new2 = matrix(nrow=1, ncol=Niter),
+        loovar1 = matrix(nrow=1, ncol=Niter),
+        loovar2 = matrix(nrow=1, ncol=Niter),
+        loovar3 = matrix(nrow=1, ncol=Niter),
+        loovar4 = matrix(nrow=1, ncol=Niter),
+        loovar1_rank = matrix(nrow=1, ncol=Niter),
+        loovar2_rank = matrix(nrow=1, ncol=Niter),
+        loovar3_rank = matrix(nrow=1, ncol=Niter),
+        loovar4_rank = matrix(nrow=1, ncol=Niter),
+        test_target = matrix(nrow=1, ncol=Niter)
     )
 
     # iterate
@@ -116,8 +132,9 @@ loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n, seed) {
         out$loos[,i1] = loo1$pointwise[,1]
         out$peff[,i1] = sum(out$ltrs[,i1]) - sum(out$loos[,i1])
         out$pks[,i1] = loo1$pareto_k
-        log_lik2 = extract_log_lik(model1, parameter_name="log_likt")
-        out$tls[,i1] = mean(log(colMeans(exp(log_lik2))))*n
+        log_likt_samp = extract_log_lik(model1, parameter_name="log_likt")
+        log_likt = log(colMeans(exp(log_likt_samp)))
+        out$tls[,i1] = mean(log_likt)*n
         mut = extract_log_lik(model1, parameter_name="mut")
         if (truedist=="b") {
             out$ets[,i1] = mean(xor(out$mutrs[,i1]>0,(y>0)))
@@ -134,7 +151,7 @@ loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n, seed) {
         out$kexeeds = kexeeds
 
         # free memory
-        rm(model1, output, loo1, log_lik2, mut)
+        rm(model1, output, loo1, mut, log_likt_samp)
         gc()
 
         qq = matrix(nrow=n, ncol=n)
@@ -209,9 +226,35 @@ loo_fun_one = function(truedist, modeldist, priordist, Niter, Nt, p, n, seed) {
         }
         out$g2s_new2[,i1] = sum(g2s_s)/(num_of_pairs-1)
 
+        # loo estimates
+        # -------------
+
+        # test target
+        out$test_target[,i1] = var(colSums(array(log_likt, c(n, Ntg))))
+
+        # naive
+        out$loovar1[,i1] = n*var(out$loos[,i1])
+        # conservative 2x
+        out$loovar2[,i1] = 2*out$loovar1[,i1]
+        # g2s
+        out$loovar3[,i1] = out$loovar1[,i1] + n*out$g2s[,i1]
+        out$loovar4[,i1] = out$loovar1[,i1] + (n^2-n)*out$g2s_new[,i1]
+
+        # ranks
+        # form test set variances
+        rank_test_nvars = n*colVars(array(log_likt, c(n, Ntg)))
+        # calc rank for each estimate
+        out$loovar1_rank[,i1] = sum(rank_test_nvars < out$loovar1[,i1])
+        out$loovar2_rank[,i1] = sum(rank_test_nvars < out$loovar2[,i1])
+        out$loovar3_rank[,i1] = sum(rank_test_nvars < out$loovar3[,i1])
+        out$loovar4_rank[,i1] = sum(rank_test_nvars < out$loovar4[,i1])
+
         # free memory
-        rm(log_lik1, psis1, mu1)
+        rm(log_lik1, log_likt, psis1, mu1)
         gc()
+
+        # k_exeeds
+        # --------
 
         n_kexeeds = length(kexeeds)
         if (n_kexeeds > 0) {
