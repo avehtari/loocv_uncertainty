@@ -4,11 +4,11 @@ source('loo_fun.R')
 # setup
 
 # trials per run
-Niter = 1000
+Niter = 1023
 # num of test samples
-Nt = 340000
+Nt = 34000
 # number of test groups for rank statistics (at most Nt/n)
-Ntg = 1000
+Ntg = 100
 # seed
 seed = 11
 
