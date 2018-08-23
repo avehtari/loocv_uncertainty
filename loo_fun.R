@@ -11,10 +11,10 @@ options(mc.cores=1, loo.cores=1)
 # priordist = 'n'
 
 # Niter = 4
-# Nt = 1000
+# Nt = 600
 # p = 2
 # n = 10
-# Ntg = 100
+# Ntg = 60
 # seed = 11
 
 
@@ -57,6 +57,7 @@ loo_fun_one = function(
     out = list(
         ltrs = matrix(nrow=n, ncol=Niter),
         loos = matrix(nrow=n, ncol=Niter),
+        kexeeds = vector("list", Niter),
         looks = vector("list", Niter),
         peff = matrix(nrow=1, ncol=Niter),
         pks = matrix(nrow=n, ncol=Niter),
@@ -116,22 +117,24 @@ loo_fun_one = function(
         )
         log_lik1 = extract_log_lik(model1)
         # out$lls[[i1]] = log_lik1
-        psis1 = psislw(-log_lik1)
+        psis1 = psis(-log_lik1)
         mu1 = extract_log_lik(model1, parameter_name="mu")
         out$mutrs[,i1] = colMeans(mu1)
         if (truedist=="b") {
             out$muloos[seq(1,n*2,2),i1] = colSums(
-                mu1[,seq(1,n*2,2)]*exp(psis1$lw_smooth))
+                mu1[,seq(1,n*2,2)]*exp(psis1$log_weights))
             out$muloos[seq(2,n*2,2),i1] = colSums(
-                mu1[,seq(2,n*2,2)]*exp(psis1$lw_smooth))
+                mu1[,seq(2,n*2,2)]*exp(psis1$log_weights))
         } else {
-            out$muloos[,i1] = colSums(mu1*exp(psis1$lw_smooth))
+            out$muloos[,i1] = colSums(mu1*exp(psis1$log_weights))
         }
-        loo1 = loo(log_lik1)
         out$ltrs[,i1] = log(colMeans(exp(log_lik1)))
-        out$loos[,i1] = loo1$pointwise[,1]
+        # loo1 = loo(log_lik1)  # broken in loo 2.0.0 ???
+        # out$loos[,i1] = loo1$pointwise[,1]
+        out$loos[,i1] = colLogSumExps(
+            log_lik1 +  weights(psis1, normalize = TRUE, log = TRUE))
         out$peff[,i1] = sum(out$ltrs[,i1]) - sum(out$loos[,i1])
-        out$pks[,i1] = loo1$pareto_k
+        out$pks[,i1] = psis1$diagnostics$pareto_k
         log_likt_samp = extract_log_lik(model1, parameter_name="log_likt")
         log_likt = log(colMeans(exp(log_likt_samp)))
         out$tls[,i1] = mean(log_likt)*n
@@ -147,29 +150,30 @@ loo_fun_one = function(
         }
 
         # find in which points pareto k exeeds treshold
-        kexeeds = which(loo1$pareto_k > 0.7)
-        out$kexeeds = kexeeds
+        kexeeds = which(psis1$diagnostics$pareto_k > 0.7)
+        out$kexeeds[[i1]] = kexeeds
 
         # free memory
-        rm(model1, output, loo1, mut, log_likt_samp)
+        rm(model1, output, mut, log_likt_samp)
+        # rm(loo1)
         gc()
 
         qq = matrix(nrow=n, ncol=n)
         qqm = matrix(nrow=n, ncol=n)
         for (cvi in 1:n) {
-            qq[cvi,] = log(colSums(exp(log_lik1+psis1$lw_smooth[,cvi])))
+            qq[cvi,] = log(colSums(exp(log_lik1+psis1$log_weights[,cvi])))
             if (truedist=="b") {
                 qqm[cvi,] = as.numeric(xor(
-                    colSums(mu1[,seq(1,n*2,2)]*exp(psis1$lw_smooth[,cvi])) > 0,
+                    colSums(mu1[,seq(1,n*2,2)]*exp(psis1$log_weights[,cvi])) > 0,
                     y[seq(1,n*2,2)]
                 ))
                 qqm[cvi,] = qqm[cvi,] + as.numeric(xor(
-                    colSums(mu1[,seq(2,n*2,2)]*exp(psis1$lw_smooth[,cvi])) > 0,
+                    colSums(mu1[,seq(2,n*2,2)]*exp(psis1$log_weights[,cvi])) > 0,
                     y[seq(2,n*2,2)]
                 ))
                 qqm[cvi,] = 0.5 * qqm[cvi,]
             } else {
-                qqm[cvi,] = (y-colSums(mu1*exp(psis1$lw_smooth[,cvi])))^2
+                qqm[cvi,] = (y-colSums(mu1*exp(psis1$log_weights[,cvi])))^2
             }
         }
         gammas = matrix(nrow=1, ncol=n)
