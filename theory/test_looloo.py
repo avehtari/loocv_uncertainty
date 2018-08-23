@@ -3,6 +3,7 @@
 import itertools
 import numpy as np
 from scipy import linalg
+from scipy import stats
 
 import matplotlib.pyplot as plt
 
@@ -92,6 +93,9 @@ idx = (
 ).reshape((n_trial, n, n-1))
 looloos = looloos_full.ravel()[idx]
 
+# calc trial loo sums
+loo_sums = np.sum(loos, axis=1)
+
 
 # ====== estimate covariances
 
@@ -132,11 +136,15 @@ sigma2_target = np.mean(sigma2s_loo)
 gamma_target = np.mean(gammas_loo)
 
 # loo target
-sumvar_target = np.var(np.sum(loos, axis=1), ddof=1)
+sumvar_target = np.var(loo_sums, ddof=1)
 # this should be approx same as
 # np.sum(cov_loo)
 # i.e. approx
 # n*sigma2_target + (n**2-n)*gamma_target
+
+# mad target
+mad_k = 1 / stats.norm.ppf(3/4)
+mad_target = (mad_k * np.median(np.abs(loo_sums - np.median(loo_sums))))**2
 
 
 # ====== estimates for gamma
@@ -172,7 +180,7 @@ print(np.percentile(old_looloo_var_estim, [10, 50, 90]))
 print(np.mean(old_looloo_var_estim))
 print()
 
-# ====== estimates for loo
+# ====== estimates for var loo
 
 naive_estims = np.var(loos, axis=1, ddof=1)
 naive_estims *= n
@@ -187,6 +195,14 @@ looloo_estims = naive_estims + (n**2 - n)*gamma_estims
 # old looloo estims
 looloo_old_estims = naive_estims + (n**2 - n)*old_looloo_var_estim
 
+# MAD
+mad_estims = n * np.square(
+    mad_k * np.median(
+        np.abs(loos - np.median(loos, axis=1)[:, None]),
+        axis=1
+    )
+)
+
 # plot
 def plot_one_hist(ax, estims, bins=50):
     ax.hist(estims, bins=bins)
@@ -196,4 +212,5 @@ fig, axes = plt.subplots(3, 1, sharex=True, sharey=True)
 plot_one_hist(axes[0], naive_estims)
 plot_one_hist(axes[1], looloo_estims)
 plot_one_hist(axes[2], looloo_old_estims)
+# plot_one_hist(axes[3], mad_estims)
 axes[0].set_xlim([0, 40])

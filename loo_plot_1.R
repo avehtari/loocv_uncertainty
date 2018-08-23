@@ -52,7 +52,10 @@ for (ni in 1:length(Ns)) {
     rm(out)
     Niter = dim(loos)[2]
 
-    pvz = sd(tls-colSums(loos))
+    pvz = sd(tls-colSums(loos))  # sd of loo error
+    # pvz = mad(tls-colSums(loos))  # mad of loo error
+    # pvz = sd(colSums(loos))    # sd of loo
+    # pvz = mad(colSums(loos))    # mad of loo
     colvars_loos_n = colVars(loos)*n
 
     # basic
@@ -61,8 +64,14 @@ for (ni in 1:length(Ns)) {
     bbs[1,ni,] = sqrt(
         rdirichlet(bbsamples_perf, rep(bbalpha_perf, length(t))) %*% t) / pvz
 
-    # g2s
-    t = colvars_loos_n + g2s*n
+    # # g2s
+    # t = colvars_loos_n + g2s*n
+    # pvs[2,ni] = sqrt(mean(t)) / pvz
+    # bbs[2,ni,] = sqrt(
+    #     rdirichlet(bbsamples_perf, rep(bbalpha_perf, length(t))) %*% t) / pvz
+
+    # mad
+    t = n*((apply(loos, 1, mad))^2)
     pvs[2,ni] = sqrt(mean(t)) / pvz
     bbs[2,ni,] = sqrt(
         rdirichlet(bbsamples_perf, rep(bbalpha_perf, length(t))) %*% t) / pvz
@@ -83,7 +92,7 @@ cat('\ndone processing\n')
 
 
 ## plot ------------------------------------------------------
-fillcats = c("basic", "g2s", "g2s_new", "x2")
+fillcats = c("basic", "mad", "cov", "x2")
 
 ## Plot all Ns
 g = ggplot()
