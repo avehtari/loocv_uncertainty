@@ -15,11 +15,14 @@ options(mc.cores=1, loo.cores=1)
 # p = 2
 # n = 10
 # Ntg = 60
+# run_tot = 10
+# run_i = 3
 # seed = 11
 
 
 loo_fun_one = function(
-    truedist, modeldist, priordist, Niter, Nt, p, n, Ntg, seed) {
+    truedist, modeldist, priordist, Niter, Nt, p, n, Ntg, run_tot, run_i,
+    seed) {
     #' @param truedist true distribution identifier
     #' @param modeldist model distribution identifier
     #' @param priordist prior distribution identifier
@@ -28,6 +31,8 @@ loo_fun_one = function(
     #' @param p number of input dimensions in M_0 (M_1 has p+1 dim)
     #' @param n number of datapoints
     #' @param Ntg number of test groups for rank statistics
+    #' @param run_tot number of runs the iterations are splitted into
+    #' @param run_i current run index
     #' @param seed seed to use
 
     if (Ntg > Nt%/%n) {
@@ -53,50 +58,66 @@ loo_fun_one = function(
 
     num_of_pairs = (n^2-n)/2
 
+    # splitting the iterations
+    if (run_i > run_tot) {
+        stop("`run_i` must be equal or smaller than `run_tot`")
+    }
+    Niter_per_run = rep(Niter %/% run_tot, run_tot)
+    if ((Niter %% run_tot) > 0) {
+        Niter_per_run[1:(Niter %% run_tot)] = (Niter %/% run_tot) + 1
+    }
+    Niter_cur = Niter_per_run[run_i]
+    if (run_i == 1) {
+        Niters_before = 0
+    } else {
+        Niters_before = sum(Niter_per_run[1:(run_i-1)])
+    }
+
+
     # allocate output
     out = list(
-        ltrs = matrix(nrow=n, ncol=Niter),
-        loos = matrix(nrow=n, ncol=Niter),
-        kexeeds = vector("list", Niter),
-        looks = vector("list", Niter),
-        peff = matrix(nrow=1, ncol=Niter),
-        pks = matrix(nrow=n, ncol=Niter),
-        tls = matrix(nrow=1, ncol=Niter),
-        ets = matrix(nrow=1, ncol=Niter),
-        es = matrix(nrow=1, ncol=Niter),
-        tes = matrix(nrow=1, ncol=Niter),
-        # lls = vector("list", length(Niter)),
+        ltrs = matrix(nrow=n, ncol=Niter_cur),
+        loos = matrix(nrow=n, ncol=Niter_cur),
+        kexeeds = vector("list", Niter_cur),
+        looks = vector("list", Niter_cur),
+        peff = matrix(nrow=1, ncol=Niter_cur),
+        pks = matrix(nrow=n, ncol=Niter_cur),
+        tls = matrix(nrow=1, ncol=Niter_cur),
+        ets = matrix(nrow=1, ncol=Niter_cur),
+        es = matrix(nrow=1, ncol=Niter_cur),
+        tes = matrix(nrow=1, ncol=Niter_cur),
+        # lls = vector("list", length(Niter_cur)),
         mutrs =
-            if (truedist=="b") matrix(nrow=n*2, ncol=Niter)
-            else matrix(nrow=n, ncol=Niter),
+            if (truedist=="b") matrix(nrow=n*2, ncol=Niter_cur)
+            else matrix(nrow=n, ncol=Niter_cur),
         muloos =
-            if (truedist=="b") matrix(nrow=n*2, ncol=Niter)
-            else matrix(nrow=n, ncol=Niter),
-        mulooks = vector("list", Niter),
-        bs = matrix(nrow=1, ncol=Niter),
-        gs = matrix(nrow=1, ncol=Niter),
-        gms = matrix(nrow=1, ncol=Niter),
-        g2s = matrix(nrow=1, ncol=Niter),
-        gm2s = matrix(nrow=1, ncol=Niter),
-        g2s_new = matrix(nrow=1, ncol=Niter),
-        g2s_new2 = matrix(nrow=1, ncol=Niter),
-        loovar1 = matrix(nrow=1, ncol=Niter),
-        loovar2 = matrix(nrow=1, ncol=Niter),
-        loovar3 = matrix(nrow=1, ncol=Niter),
-        loovar4 = matrix(nrow=1, ncol=Niter),
-        loovar1_rank = matrix(nrow=1, ncol=Niter),
-        loovar2_rank = matrix(nrow=1, ncol=Niter),
-        loovar3_rank = matrix(nrow=1, ncol=Niter),
-        loovar4_rank = matrix(nrow=1, ncol=Niter),
-        test_target = matrix(nrow=1, ncol=Niter)
+            if (truedist=="b") matrix(nrow=n*2, ncol=Niter_cur)
+            else matrix(nrow=n, ncol=Niter_cur),
+        mulooks = vector("list", Niter_cur),
+        bs = matrix(nrow=1, ncol=Niter_cur),
+        gs = matrix(nrow=1, ncol=Niter_cur),
+        gms = matrix(nrow=1, ncol=Niter_cur),
+        g2s = matrix(nrow=1, ncol=Niter_cur),
+        gm2s = matrix(nrow=1, ncol=Niter_cur),
+        g2s_new = matrix(nrow=1, ncol=Niter_cur),
+        g2s_new2 = matrix(nrow=1, ncol=Niter_cur),
+        loovar1 = matrix(nrow=1, ncol=Niter_cur),
+        loovar2 = matrix(nrow=1, ncol=Niter_cur),
+        loovar3 = matrix(nrow=1, ncol=Niter_cur),
+        loovar4 = matrix(nrow=1, ncol=Niter_cur),
+        loovar1_rank = matrix(nrow=1, ncol=Niter_cur),
+        loovar2_rank = matrix(nrow=1, ncol=Niter_cur),
+        loovar3_rank = matrix(nrow=1, ncol=Niter_cur),
+        loovar4_rank = matrix(nrow=1, ncol=Niter_cur),
+        test_target = matrix(nrow=1, ncol=Niter_cur)
     )
 
     # iterate
-    for (i1 in 1:Niter) {
+    for (i1 in 1:Niter_cur) {
         print(sprintf(
             '%s%s%s p=%d n=%d iter=%d',
-            truedist, modeldist, priordist, p, n, i1))
-        set.seed(seed+i1)
+            truedist, modeldist, priordist, p, n, Niters_before+i1))
+        set.seed(seed+Niters_before+i1)
         if (truedist=="n") {
             y <- as.array(rnorm(n))
             x <- matrix(runif(p*n,-1,1),nrow=n,ncol=p)
@@ -318,7 +339,9 @@ loo_fun_one = function(
     # save to .rdata
     if (TRUE) {
         filename = sprintf(
-            "res_loo/%s_%s_%s_%d_%d.RData", truedist, modeldist, priordist, p, n)
+            "res_loo/%s_%s_%s_%d_%d_%d",
+            truedist, modeldist, priordist, p, n, run_i
+        )
         save(out, file=filename)
     }
 
@@ -356,7 +379,9 @@ loo_fun_one = function(
             'test_target'
         )
         res_dir = sprintf(
-            "res_loo/%s_%s_%s_%d_%d", truedist, modeldist, priordist, p, n)
+            "res_loo/%s_%s_%s_%d_%d_%d",
+            truedist, modeldist, priordist, p, n, run_i
+        )
         dir.create(res_dir)
         for (saved_name in saved_names) {
             write_feather(
