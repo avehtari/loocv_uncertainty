@@ -3,16 +3,21 @@ source('loo_fun.R')
 # ==============================================================================
 # setup
 
-# trials per run
-Niter = 1023
-# num of test samples
-Nt = 26000
-# number of test groups for rank statistics (at most Nt/n)
-Ntg = 100
+# trials total
+Niter = 2000
+# num of test points is ``Nt = Ntx*n``
+Ntx = 1000
+# number of test groups for rank statistics
+# (Ntg*Ntgs at most Ntx)
+Ntg = 9
+# number of test samples per group for rank statistics
+Ntgs = 111
 # number of runs to split the trials
-run_tot = 10
+run_tot = 20
 # seed
 seed = 11
+# fall back to not using PSIS with large k
+fallback_k = F
 
 truedist = 'n'; modeldist = 'n'; priordist = 'n'
 # truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
@@ -24,7 +29,7 @@ truedist = 'n'; modeldist = 'n'; priordist = 'n'
 Ps = c(1, 2, 5, 10)
 Ns = c(10, 20, 40, 60, 100, 140, 200, 260)
 
-# number of jobs (320)
+# number of jobs
 num_job = length(Ps) * length(Ns) * run_tot
 
 # get job number [0, num_job-1] as command line argument
@@ -48,6 +53,6 @@ cat(sprintf('%s_%s_%s_%d_%d\n', truedist, modeldist, priordist, Ps[p_i], n))
 
 # run the function
 loo_fun_one(
-    truedist, modeldist, priordist, Niter, Nt, Ps[p_i], n, Ntg,
-    run_tot, run_i, seed
+    truedist, modeldist, priordist, Niter, Ntx, Ps[p_i], n, Ntg, Ntgs,
+    run_tot, run_i, seed, fallback_k
 )

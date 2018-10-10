@@ -4,7 +4,7 @@ library(matrixStats)
 library(extraDistr)
 
 
-Ns = c(10, 20, 40, 60, 100, 140, 200, 260, 340)
+Ns = c(10, 20, 40, 60, 100, 140, 200, 260)
 Ps = c(1, 2, 5, 10)
 
 truedist = 'n'; modeldist = 'n'; priordist = 'n'
@@ -13,7 +13,7 @@ truedist = 'n'; modeldist = 'n'; priordist = 'n'
 # truedist = 'n'; modeldist = 'tnu'; priordist = 'n'
 # truedist = 't4'; modeldist = 'n'; priordist = 'n'
 
-p_i = 4
+p_i = 1
 
 # ==============================================================================
 # peformance of variance terms
@@ -47,43 +47,56 @@ for (ni in 1:length(Ns)) {
     out$gm2s = out$gm2s[1,]
     out$g2s_new = out$g2s_new[1,]
     out$g2s_new2 = out$g2s_new2[1,]
+    out$loovar1 = out$loovar1[1,]
+    out$loovar2 = out$loovar2[1,]
+    out$loovar3 = out$loovar3[1,]
+    out$loovar4 = out$loovar4[1,]
+    out$loovar5 = out$loovar5[1,]
+    out$loovar1_rank = out$loovar1_rank[1,]
+    out$loovar2_rank = out$loovar2_rank[1,]
+    out$loovar3_rank = out$loovar3_rank[1,]
+    out$loovar4_rank = out$loovar4_rank[1,]
+    out$loovar5_rank = out$loovar5_rank[1,]
     # populate local environment with the named stored variables in selected out
     list2env(out, envir=environment())
     rm(out)
     Niter = dim(loos)[2]
 
     pvz = sd(tls-colSums(loos))  # sd of loo error
-    # pvz = mad(tls-colSums(loos))  # mad of loo error
     # pvz = sd(colSums(loos))    # sd of loo
-    # pvz = mad(colSums(loos))    # mad of loo
     colvars_loos_n = colVars(loos)*n
 
     # basic
     t = colvars_loos_n
+    # t = loovar1
     pvs[1,ni] = sqrt(mean(t)) / pvz
     bbs[1,ni,] = sqrt(
         rdirichlet(bbsamples_perf, rep(bbalpha_perf, length(t))) %*% t) / pvz
 
-    # # g2s
-    # t = colvars_loos_n + g2s*n
-    # pvs[2,ni] = sqrt(mean(t)) / pvz
-    # bbs[2,ni,] = sqrt(
-    #     rdirichlet(bbsamples_perf, rep(bbalpha_perf, length(t))) %*% t) / pvz
-
-    # mad
-    t = n*((apply(loos, 1, mad))^2)
+    # g2s
+    t = colvars_loos_n + g2s*n
+    # t = loovar3
     pvs[2,ni] = sqrt(mean(t)) / pvz
     bbs[2,ni,] = sqrt(
         rdirichlet(bbsamples_perf, rep(bbalpha_perf, length(t))) %*% t) / pvz
 
     # g2s_new
-    t = colvars_loos_n + (n^2-n)*g2s_new
+    t = colvars_loos_n + (n^2)*g2s_new
+    # t = loovar4
     pvs[3,ni] = sqrt(mean(t)) / pvz
     bbs[3,ni,] = sqrt(
         rdirichlet(bbsamples_perf, rep(bbalpha_perf, length(t))) %*% t) / pvz
 
+    # # g2s_new2
+    # t = colvars_loos_n + (n^2)*g2s_new2
+    # # t = loovar5
+    # pvs[3,ni] = sqrt(mean(t)) / pvz
+    # bbs[3,ni,] = sqrt(
+    #     rdirichlet(bbsamples_perf, rep(bbalpha_perf, length(t))) %*% t) / pvz
+
     # x2
-    t = 2*colvars_loos_n
+    # t = 2*colvars_loos_n
+    t = loovar2
     pvs[4,ni] = sqrt(mean(t)) / pvz
     bbs[4,ni,] = sqrt(
         rdirichlet(bbsamples_perf, rep(bbalpha_perf, length(t))) %*% t) / pvz
@@ -92,7 +105,7 @@ cat('\ndone processing\n')
 
 
 ## plot ------------------------------------------------------
-fillcats = c("basic", "mad", "cov", "x2")
+fillcats = c("basic", "g2s", "g2s_new", "x2")
 
 ## Plot all Ns
 g = ggplot()

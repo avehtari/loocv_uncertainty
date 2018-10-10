@@ -10,33 +10,39 @@ options(mc.cores=1, loo.cores=1)
 # modeldist = 'n'
 # priordist = 'n'
 
-# Niter = 4
-# Nt = 600
+# Niter = 10
+# Ntx = 200
 # p = 2
 # n = 10
-# Ntg = 60
-# run_tot = 10
+# Ntg = 9
+# Ntgs = 12
+# run_tot = 4
 # run_i = 3
 # seed = 11
+# fallback_k = F
 
 
 loo_fun_one = function(
-    truedist, modeldist, priordist, Niter, Nt, p, n, Ntg, run_tot, run_i,
-    seed) {
+    truedist, modeldist, priordist, Niter, Ntx, p, n, Ntg, Ntgs, run_tot, run_i,
+    seed, fallback_k) {
     #' @param truedist true distribution identifier
     #' @param modeldist model distribution identifier
     #' @param priordist prior distribution identifier
     #' @param Niter number of trials
-    #' @param Nt number of test points
+    #' @param Ntx number of test points is ``Nt = Ntx*n``
     #' @param p number of input dimensions in M_0 (M_1 has p+1 dim)
     #' @param n number of datapoints
     #' @param Ntg number of test groups for rank statistics
+    #' @param Ntgs number of test samples for each group for rank statistics
     #' @param run_tot number of runs the iterations are splitted into
     #' @param run_i current run index
     #' @param seed seed to use
+    #' @param fallback_k fall back to not using PSIS with large k
 
-    if (Ntg > Nt%/%n) {
-        stop("`Ntg` must be equal or smaller than ``Nt%/%n``")
+    Nt = Ntx*n
+
+    if (Ntg*Ntgs > Ntx) {
+        stop("``Ntg*Ntgs`` must be equal or smaller than `Ntx`")
     }
 
     # config
@@ -105,10 +111,12 @@ loo_fun_one = function(
         loovar2 = matrix(nrow=1, ncol=Niter_cur),
         loovar3 = matrix(nrow=1, ncol=Niter_cur),
         loovar4 = matrix(nrow=1, ncol=Niter_cur),
+        loovar5 = matrix(nrow=1, ncol=Niter_cur),
         loovar1_rank = matrix(nrow=1, ncol=Niter_cur),
         loovar2_rank = matrix(nrow=1, ncol=Niter_cur),
         loovar3_rank = matrix(nrow=1, ncol=Niter_cur),
         loovar4_rank = matrix(nrow=1, ncol=Niter_cur),
+        loovar5_rank = matrix(nrow=1, ncol=Niter_cur),
         test_target = matrix(nrow=1, ncol=Niter_cur)
     )
 
@@ -139,21 +147,21 @@ loo_fun_one = function(
         log_lik1 = extract_log_lik(model1)
         # out$lls[[i1]] = log_lik1
         psis1 = psis(-log_lik1)
+        psis1_lw = weights(psis1, normalize = TRUE, log = TRUE)
         mu1 = extract_log_lik(model1, parameter_name="mu")
         out$mutrs[,i1] = colMeans(mu1)
         if (truedist=="b") {
             out$muloos[seq(1,n*2,2),i1] = colSums(
-                mu1[,seq(1,n*2,2)]*exp(psis1$log_weights))
+                mu1[,seq(1,n*2,2)]*exp(psis1_lw))
             out$muloos[seq(2,n*2,2),i1] = colSums(
-                mu1[,seq(2,n*2,2)]*exp(psis1$log_weights))
+                mu1[,seq(2,n*2,2)]*exp(psis1_lw))
         } else {
-            out$muloos[,i1] = colSums(mu1*exp(psis1$log_weights))
+            out$muloos[,i1] = colSums(mu1*exp(psis1_lw))
         }
         out$ltrs[,i1] = log(colMeans(exp(log_lik1)))
         # loo1 = loo(log_lik1)  # broken in loo 2.0.0 ???
         # out$loos[,i1] = loo1$pointwise[,1]
-        out$loos[,i1] = colLogSumExps(
-            log_lik1 +  weights(psis1, normalize = TRUE, log = TRUE))
+        out$loos[,i1] = colLogSumExps(log_lik1 + psis1_lw)
         out$peff[,i1] = sum(out$ltrs[,i1]) - sum(out$loos[,i1])
         out$pks[,i1] = psis1$diagnostics$pareto_k
         log_likt_samp = extract_log_lik(model1, parameter_name="log_likt")
@@ -182,19 +190,19 @@ loo_fun_one = function(
         qq = matrix(nrow=n, ncol=n)
         qqm = matrix(nrow=n, ncol=n)
         for (cvi in 1:n) {
-            qq[cvi,] = log(colSums(exp(log_lik1+psis1$log_weights[,cvi])))
+            qq[cvi,] = colLogSumExps(log_lik1+psis1_lw[,cvi])
             if (truedist=="b") {
                 qqm[cvi,] = as.numeric(xor(
-                    colSums(mu1[,seq(1,n*2,2)]*exp(psis1$log_weights[,cvi])) > 0,
+                    colSums(mu1[,seq(1,n*2,2)]*exp(psis1_lw[,cvi])) > 0,
                     y[seq(1,n*2,2)]
                 ))
                 qqm[cvi,] = qqm[cvi,] + as.numeric(xor(
-                    colSums(mu1[,seq(2,n*2,2)]*exp(psis1$log_weights[,cvi])) > 0,
+                    colSums(mu1[,seq(2,n*2,2)]*exp(psis1_lw[,cvi])) > 0,
                     y[seq(2,n*2,2)]
                 ))
                 qqm[cvi,] = 0.5 * qqm[cvi,]
             } else {
-                qqm[cvi,] = (y-colSums(mu1*exp(psis1$log_weights[,cvi])))^2
+                qqm[cvi,] = (y-colSums(mu1*exp(psis1_lw[,cvi])))^2
             }
         }
         gammas = matrix(nrow=1, ncol=n)
@@ -254,8 +262,8 @@ loo_fun_one = function(
         # loo estimates
         # -------------
 
-        # test target
-        out$test_target[,i1] = var(colSums(array(log_likt, c(n, Ntg))))
+        # test target (from all the test samples)
+        out$test_target[,i1] = var(colSums(array(log_likt, c(n, Ntx))))
 
         # naive
         out$loovar1[,i1] = n*var(out$loos[,i1])
@@ -263,26 +271,28 @@ loo_fun_one = function(
         out$loovar2[,i1] = 2*out$loovar1[,i1]
         # g2s
         out$loovar3[,i1] = out$loovar1[,i1] + n*out$g2s[,i1]
-        out$loovar4[,i1] = out$loovar1[,i1] + (n^2-n)*out$g2s_new[,i1]
+        out$loovar4[,i1] = out$loovar1[,i1] + (n^2)*out$g2s_new[,i1]
+        out$loovar5[,i1] = out$loovar1[,i1] + (n^2)*out$g2s_new2[,i1]
 
         # ranks
         # form test set variances
-        rank_test_nvars = n*colVars(array(log_likt, c(n, Ntg)))
+        rank_test_nvars = colVars(colSums(array(log_likt, c(n, Ntgs, Ntg))))
         # calc rank for each estimate
         out$loovar1_rank[,i1] = sum(rank_test_nvars < out$loovar1[,i1])
         out$loovar2_rank[,i1] = sum(rank_test_nvars < out$loovar2[,i1])
         out$loovar3_rank[,i1] = sum(rank_test_nvars < out$loovar3[,i1])
         out$loovar4_rank[,i1] = sum(rank_test_nvars < out$loovar4[,i1])
+        out$loovar5_rank[,i1] = sum(rank_test_nvars < out$loovar5[,i1])
 
         # free memory
-        rm(log_lik1, log_likt, psis1, mu1)
+        rm(log_lik1, log_likt, psis1, psis1_lw, mu1)
         gc()
 
         # k_exeeds
         # --------
 
         n_kexeeds = length(kexeeds)
-        if (n_kexeeds > 0) {
+        if (n_kexeeds > 0 && fallback_k) {
             print("k>0.7")
             print(kexeeds)
             # reprocess probelmatic points
@@ -339,7 +349,7 @@ loo_fun_one = function(
     # save to .rdata
     if (TRUE) {
         filename = sprintf(
-            "res_loo/%s_%s_%s_%d_%d_%d",
+            "res_loo/parts/%s_%s_%s_%d_%d_%d",
             truedist, modeldist, priordist, p, n, run_i
         )
         save(out, file=filename)
@@ -372,14 +382,16 @@ loo_fun_one = function(
             'loovar2',
             'loovar3',
             'loovar4',
+            'loovar5',
             'loovar1_rank',
             'loovar2_rank',
             'loovar3_rank',
             'loovar4_rank',
+            'loovar5_rank',
             'test_target'
         )
         res_dir = sprintf(
-            "res_loo/%s_%s_%s_%d_%d_%d",
+            "res_loo/parts/%s_%s_%s_%d_%d_%d",
             truedist, modeldist, priordist, p, n, run_i
         )
         dir.create(res_dir)
