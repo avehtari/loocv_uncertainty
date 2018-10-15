@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 # conf
 seed = 11
-n = 16
+n = 10
 p = 2
 n_trial = 4000
 
@@ -39,7 +39,7 @@ if False:
     # run new loos
 
     # loos
-    loos = np.empty((n_trial, n))
+    loo_ti = np.empty((n_trial, n))
     # for each test
     for t in range(n_trial):
         # for each data point
@@ -51,62 +51,138 @@ if False:
             xS = linalg.solve(Q, x, assume_a='pos')
             mu_pred = xS.dot(r)
             sigma2_pred = xS.dot(x) + 1
-            loos[t, i] = norm_logpdf(y, mu_pred, sigma2_pred)
+            loo_ti[t, i] = norm_logpdf(y, mu_pred, sigma2_pred)
 
     # loo-loos
-    looloos_full = np.full((n_trial, n, n), np.nan)
+    loo_tik = np.full((n_trial, n, n), np.nan)
     # for each test
     for t in range(n_trial):
-        # for each data point
-        for k in range(n):
-            Q = Q_t_full[t] - Q_ti[t, k]
-            r = r_t_full[t] - r_ti[t, k]
-            # add loo_i to the diagonal
-            # looloos_full[t, k, k] = loos[t, k]
-            # for each data point i != k
-            for i in itertools.chain(range(k), range(k+1, n)):
-                x = xs[t, i]
-                y = ys[t, i]
-                Q2 = Q - Q_ti[t, i]
-                r2 = r - r_ti[t, i]
+        # for each datapoint i
+        for i in range(n):
+            Q = Q_t_full[t] - Q_ti[t, i]
+            r = r_t_full[t] - r_ti[t, i]
+            x = xs[t, i]
+            y = ys[t, i]
+            # for each other data point k != i
+            for k in itertools.chain(range(i), range(i+1, n)):
+                Q2 = Q - Q_ti[t, k]
+                r2 = r - r_ti[t, k]
                 xS = linalg.solve(Q2, x, assume_a='pos')
                 mu_pred = xS.dot(r2)
                 sigma2_pred = xS.dot(x) + 1
-                looloos_full[t, k, i] = norm_logpdf(y, mu_pred, sigma2_pred)
+                loo_tik[t, i, k] = norm_logpdf(y, mu_pred, sigma2_pred)
+            # optionally add loo_i to the diagonal
+            # loo_tik[t, i, i] = loo_ti[t, i]
 
     # save
-    np.savez_compressed('test_looloo.npz', loos=loos, looloos_full=looloos_full)
+    np.savez_compressed(
+        'test_looloo.npz', loo_ti=loo_ti, loo_tik=loo_tik)
 
 else:
     # load precalculated loos
     saved_file = np.load('test_looloo.npz')
-    loos = saved_file['loos']
-    looloos_full = saved_file['looloos_full']
+    loo_ti = saved_file['loo_ti']
+    loo_tik = saved_file['loo_tik']
     saved_file.close()
 
-# make view in which k=i elements are skipped
-# strides could be used here also
-idx = (
-    n*n*np.arange(n_trial)[:,None,None] +
-    (n+1)*np.arange(n-1)[:,None] +
-    np.arange(1, n+1)
-).reshape((n_trial, n, n-1))
-looloos = looloos_full.ravel()[idx]
+
+# ====== moments
+
+# for A
+mean_i = np.mean(loo_ti, axis=0)
+var_i = np.var(loo_ti, axis=0, ddof=1)
+cov_ij = np.cov(loo_ti, rowvar=False, ddof=1)
+
+# for B
+mean_ik = np.mean(loo_tik, axis=0)
+var_ik =  np.var(loo_tik, axis=0, ddof=1)
+t_cent = loo_tik - mean_ik
+cov_ikjl = np.einsum('tik,tjl->ikjl', t_cent, t_cent)
+cov_ikjl /= n_trial - 1
+
+# select different parts of cov_ikjl
+i_i, i_k, i_j, i_l = np.unravel_index(np.arange(n**4), cov_ikjl.shape)
+i_valids = (i_i != i_k) & (i_j != i_l)
+# i, k, j, l all not equal
+cov_all_neq = cov_ikjl.ravel()[
+    i_valids & (i_i != i_j) & (i_k != i_l) & (i_i != i_l) & (i_j != i_k)]
+# i == j, k != l
+cov_ieqj_kneql = cov_ikjl.ravel()[i_valids & (i_i == i_j) & (i_k != i_l)]
+# i != j, k == l
+cov_ineqj_keql = cov_ikjl.ravel()[i_valids & (i_i != i_j) & (i_k == i_l)]
+# i == l, j == k (also i != j, k != l)
+cov_ieql_jeqk = cov_ikjl.ravel()[i_valids & (i_i == i_l) & (i_j == i_k)]
+
+# moment estims
+mu_A_hat = np.mean(mean_i)
+sigma2_A_hat = np.mean(var_i)
+gamma_A_hat = np.mean(cov_ij[np.triu_indices_from(cov_ij, 1)])
+mu_B_hat = np.mean(mean_ik[np.arange(n) != np.arange(n)[:,None]])
+sigma2_B_hat = np.mean(var_ik[np.arange(n) != np.arange(n)[:,None]])
+gamma_1_B_hat = np.mean(cov_ineqj_keql)
+gamma_2_B_hat = np.mean(cov_ieqj_kneql)
+
+
+# ==== check moments correspondence
+
+fig, axes = plt.subplots(5, 1, sharex=True)
+
+# var_i
+plot_arr = var_i
+axes[0].hist(plot_arr)
+axes[0].axvline(np.mean(plot_arr), color='C1')
+axes[0].set_title('Var(A_i)')
+# var_ik
+plot_arr = var_ik[np.arange(n) != np.arange(n)[:,None]]  # skip diagonal
+axes[1].hist(plot_arr)
+axes[1].axvline(np.mean(plot_arr), color='C1')
+axes[1].set_title('Var(B_ik)')
+# cov_ieqj_kneql
+plot_arr = cov_ieqj_kneql
+axes[2].hist(plot_arr)
+axes[2].axvline(np.mean(plot_arr), color='C1')
+axes[2].set_title('Cov(B_ik,B_il)')
+# cov_ij
+plot_arr = cov_ij[np.triu_indices_from(cov_ij, 1)]  # take upper diagonal
+axes[3].hist(plot_arr)
+axes[3].axvline(np.mean(plot_arr), color='C1')
+axes[3].set_title('Cov(A_i,A_j)')
+# cov_ineqj_keql vs
+plot_arr = cov_ineqj_keql
+axes[4].hist(plot_arr)
+axes[4].axvline(np.mean(plot_arr), color='C1')
+axes[4].set_title('Cov(B_ik,B_jk)')
+
+
+# ==== estimates
+
+# g2
+g2_estims = np.sum(np.nanvar(loo_tik, axis=2, ddof=1), axis=1)
+# check if calculations correct
+g2_estims.mean()
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ==== old
+
 
 # calc trial loo sums
-loo_sums = np.sum(loos, axis=1)
+loo_sums = np.sum(loo_ti, axis=1)
 
-
-# ====== estimate covariances
-
-# form sample cov matrix for loo
-cov_loo = np.cov(loos, rowvar=False, ddof=1)
-sigma2s_loo = np.diag(cov_loo)
-gammas_loo = cov_loo[np.triu_indices_from(cov_loo, 1)]
 
 # form estims for Cov(Y_ij, Y_ji)
-looloos_full_c = looloos_full - np.mean(looloos_full, axis=0)
-prodsums = np.einsum('tab,tba->ab', looloos_full_c, looloos_full_c)
+loo_tik_c = loo_tik - np.mean(loo_tik, axis=0)
+prodsums = np.einsum('tab,tba->ab', loo_tik_c, loo_tik_c)
 prodsums /= n_trial - 1
 gammas_looloo = prodsums[np.triu_indices_from(prodsums, 1)]
 
@@ -116,9 +192,9 @@ print('E[gammas_looloo]: {}'.format(np.mean(gammas_looloo)))
 
 
 # create looloo_full with loo in diag
-looloos_inc_diag = looloos_full.copy()
+looloos_inc_diag = loo_tik.copy()
 idx = np.diag_indices(n)
-looloos_inc_diag[:, idx[0], idx[1]] = loos
+looloos_inc_diag[:, idx[0], idx[1]] = loo_ti
 looloos_inc_diag_flat = looloos_inc_diag.reshape((n_trial, n*n))
 cov_looloo_inc_diag = np.cov(
     looloos_inc_diag.reshape((n_trial, n*n)),
@@ -150,17 +226,17 @@ mad_target = (mad_k * np.median(np.abs(loo_sums - np.median(loo_sums))))**2
 # ====== estimates for gamma
 
 # looloo gamma estims
-looloos_full_c = (looloos_full - np.nanmean(looloos_full, axis=1)[:, None, :])
-looloos_full_c_T = np.lib.stride_tricks.as_strided(
-    looloos_full_c,
+loo_tik_c = (loo_tik - np.nanmean(loo_tik, axis=1)[:, None, :])
+loo_tik_c_T = np.lib.stride_tricks.as_strided(
+    loo_tik_c,
     strides=(
-        looloos_full_c.strides[0],
-        looloos_full_c.strides[2],
-        looloos_full_c.strides[1]
+        loo_tik_c.strides[0],
+        loo_tik_c.strides[2],
+        loo_tik_c.strides[1]
     ),
     writeable=False
 )
-pairprods = looloos_full_c*looloos_full_c_T
+pairprods = loo_tik_c*loo_tik_c_T
 triu_inds = np.triu_indices(n, 1)
 gamma_estims = np.sum(pairprods[:, triu_inds[0], triu_inds[1]], axis=1)
 gamma_estims /= num_of_pairs - 1
@@ -182,7 +258,7 @@ print()
 
 # ====== estimates for var loo
 
-naive_estims = np.var(loos, axis=1, ddof=1)
+naive_estims = np.var(loo_ti, axis=1, ddof=1)
 naive_estims *= n
 # expectation of this
 # np.mean(naive_estims)
@@ -198,7 +274,7 @@ looloo_old_estims = naive_estims + (n**2 - n)*old_looloo_var_estim
 # MAD
 mad_estims = n * np.square(
     mad_k * np.median(
-        np.abs(loos - np.median(loos, axis=1)[:, None]),
+        np.abs(loo_ti - np.median(loo_ti, axis=1)[:, None]),
         axis=1
     )
 )
