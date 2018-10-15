@@ -84,6 +84,7 @@ loo_fun_one = function(
     out = list(
         ltrs = matrix(nrow=n, ncol=Niter_cur),
         loos = matrix(nrow=n, ncol=Niter_cur),
+        loo2s = array(NA, c(n, n, Niter_cur)),
         kexeeds = vector("list", Niter_cur),
         looks = vector("list", Niter_cur),
         peff = matrix(nrow=1, ncol=Niter_cur),
@@ -100,11 +101,7 @@ loo_fun_one = function(
             if (truedist=="b") matrix(nrow=n*2, ncol=Niter_cur)
             else matrix(nrow=n, ncol=Niter_cur),
         mulooks = vector("list", Niter_cur),
-        bs = matrix(nrow=1, ncol=Niter_cur),
-        gs = matrix(nrow=1, ncol=Niter_cur),
-        gms = matrix(nrow=1, ncol=Niter_cur),
         g2s = matrix(nrow=1, ncol=Niter_cur),
-        gm2s = matrix(nrow=1, ncol=Niter_cur),
         g2s_new = matrix(nrow=1, ncol=Niter_cur),
         g2s_new2 = matrix(nrow=1, ncol=Niter_cur),
         loovar1 = matrix(nrow=1, ncol=Niter_cur),
@@ -187,45 +184,13 @@ loo_fun_one = function(
         # rm(loo1)
         gc()
 
+        # ==== loo2
         qq = matrix(nrow=n, ncol=n)
-        qqm = matrix(nrow=n, ncol=n)
         for (cvi in 1:n) {
             qq[cvi,] = colLogSumExps(log_lik1+psis1_lw[,cvi])
-            if (truedist=="b") {
-                qqm[cvi,] = as.numeric(xor(
-                    colSums(mu1[,seq(1,n*2,2)]*exp(psis1_lw[,cvi])) > 0,
-                    y[seq(1,n*2,2)]
-                ))
-                qqm[cvi,] = qqm[cvi,] + as.numeric(xor(
-                    colSums(mu1[,seq(2,n*2,2)]*exp(psis1_lw[,cvi])) > 0,
-                    y[seq(2,n*2,2)]
-                ))
-                qqm[cvi,] = 0.5 * qqm[cvi,]
-            } else {
-                qqm[cvi,] = (y-colSums(mu1*exp(psis1_lw[,cvi])))^2
-            }
         }
-        gammas = matrix(nrow=1, ncol=n)
-        gammams = matrix(nrow=1, ncol=n)
-        for (cvi in 1:n) {
-            gammas[,cvi] = var(qq[-cvi,cvi]);
-            gammams[,cvi] = var(qqm[-cvi,cvi]);
-        }
-        betas = matrix(nrow=1, ncol=n)
-        mbetas = matrix(nrow=1, ncol=n)
-        for (cvi in 1:n) {
-            betas[,cvi] = mean(qq[-cvi,cvi]);
-            mbetas[,cvi] = mean(qqm[-cvi,cvi]);
-        }
-        gamma = mean(gammas);
-        gammam = mean(gammams);
-        gamma2 = mean(colVars(qq));
-        gammam2 = mean(colVars(qqm));
-        out$bs[,i1] = sum(betas)
-        out$gs[,i1] = gamma
-        out$gms[,i1] = gammam
-        out$g2s[,i1] = gamma2
-        out$gm2s[,i1] = gammam2
+        out$loo2s[,,i1] = qq
+        out$g2s[,i1] = mean(colVars(qq))
 
         # g2s_new
         g2s_s = array(0, num_of_pairs)
@@ -360,6 +325,7 @@ loo_fun_one = function(
         saved_names = c(
             'ltrs',
             'loos',
+            'loo2s',
             # 'looks',
             'peff',
             'pks',
@@ -371,11 +337,7 @@ loo_fun_one = function(
             'mutrs',
             'muloos',
             # 'mulooks',
-            'bs',
-            'gs',
-            'gms',
             'g2s',
-            'gm2s',
             'g2s_new',
             'g2s_new2',
             'loovar1',
