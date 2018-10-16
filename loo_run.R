@@ -6,12 +6,12 @@ source('loo_fun.R')
 # trials total
 Niter = 2000
 # num of test points is ``Nt = Ntx*n``
-Ntx = 1000
+Ntx = 2000
 # number of test groups for rank statistics
 # (Ntg*Ntgs at most Ntx)
 Ntg = 9
 # number of test samples per group for rank statistics
-Ntgs = 111
+Ntgs = 222
 # number of runs to split the trials
 run_tot = 20
 # seed
