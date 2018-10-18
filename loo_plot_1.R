@@ -7,11 +7,11 @@ library(extraDistr)
 Ns = c(10, 20, 40, 60, 100, 140, 200, 260)
 Ps = c(1, 2, 5, 10)
 
-truedist = 'n'; modeldist = 'n'; priordist = 'n'
-# truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
+# truedist = 'n'; modeldist = 'n'; priordist = 'n'
+truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
 # truedist = 'b'; modeldist = 'b'; priordist = 'n'
 # truedist = 'n'; modeldist = 'tnu'; priordist = 'n'
-# truedist = 't4'; modeldist = 'n'; priordist = 'n'
+# #truedist = 't4'; modeldist = 'n'; priordist = 'n'
 
 p_i = 1
 

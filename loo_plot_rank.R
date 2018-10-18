@@ -64,7 +64,7 @@ for (plot_i in 1:length(test_arrays)) {
     # calc ranks
     ranks = array(NaN, Niter)
     for (i1 in 1:Niter) {
-        ranks[i1] = sum(test_target[1:Niter-1] < test_array[i1])
+        ranks[i1] = sum(test_target[1:(Niter-1)] < test_array[i1])
     }
 
     # combine bins
