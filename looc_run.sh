@@ -8,4 +8,4 @@
 #module load boost
 #module load R
 
-Rscript loo_run_comp.R $SLURM_ARRAY_TASK_ID
+Rscript looc_run.R $SLURM_ARRAY_TASK_ID

@@ -19,7 +19,7 @@ options(mc.cores=1, loo.cores=1)
 # seed = 11
 
 
-loo_fun_one = function(
+looc_fun_one = function(
     truedist, modeldist, priordist, Niter, Nt, p0, n, run_tot, run_i, seed) {
     #' @param truedist true distribution identifier
     #' @param modeldist model distribution identifier
@@ -220,7 +220,7 @@ loo_fun_one = function(
 
     # save
     filename = sprintf(
-        "res_loo_comp/parts/%s_%s_%s_%d_%d_%d",
+        "res_looc/parts/%s_%s_%s_%d_%d_%d",
         truedist, modeldist, priordist, p0, n, run_i
     )
     save(out, file=filename)

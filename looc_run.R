@@ -1,4 +1,4 @@
-source('loo_fun_comp.R')
+source('looc_fun.R')
 
 # ==============================================================================
 # setup
@@ -46,5 +46,5 @@ cat(sprintf('jobi=%d\n', jobi))
 cat(sprintf('%s_%s_%s_%d_%d\n', truedist, modeldist, priordist, p0, n))
 
 # run the function
-loo_fun_one(
+looc_fun_one(
     truedist, modeldist, priordist, Niter, Nt, p0, n, run_tot, run_i, seed)
