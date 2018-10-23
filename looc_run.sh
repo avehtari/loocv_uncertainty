@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --cpus-per-task=2
-#SBATCH --time=5-00:00:00 --mem-per-cpu=5000
+#SBATCH --time=3-00:00:00 --mem-per-cpu=5000
 #SBATCH -p batch
 #SBATCH -o log_comp/%a.txt
 #SBATCH --array=0-159

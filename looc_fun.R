@@ -20,7 +20,8 @@ options(mc.cores=1, loo.cores=1)
 
 
 looc_fun_one = function(
-    truedist, modeldist, priordist, Niter, Nt, p0, n, run_tot, run_i, seed) {
+    truedist, modeldist, priordist, Niter, Nt, p0, n, run_tot, run_i, seed,
+    save_loo2=FALSE) {
     #' @param truedist true distribution identifier
     #' @param modeldist model distribution identifier
     #' @param priordist prior distribution identifier
@@ -31,6 +32,7 @@ looc_fun_one = function(
     #' @param run_tot number of runs the iterations are splitted into
     #' @param run_i current run index
     #' @param seed seed to use
+    #' @param save_loo2 bool if loo2 should be saved to out
 
     # config
     modelname = sprintf("models/linear_%s_%s.stan",modeldist,priordist)
@@ -79,8 +81,16 @@ looc_fun_one = function(
         g2s = array(NA, c(1, Niter_cur, 2)),
         g2s_nod = array(NA, c(1, Niter_cur, 2)),
         g3s = array(NA, c(1, Niter_cur, 2)),
-        g3s_nod = array(NA, c(1, Niter_cur, 2))
+        g3s_nod = array(NA, c(1, Niter_cur, 2)),
+        g2s_d = array(NA, c(1, Niter_cur)),
+        g2s_nod_d = array(NA, c(1, Niter_cur)),
+        g3s_d = array(NA, c(1, Niter_cur)),
+        g3s_nod_d = array(NA, c(1, Niter_cur))
     )
+    if (save_loo2) out$loo2 = array(NA, c(n, n, Niter_cur, 2))
+
+    # loo2 placeholder
+    loo2 = array(NA, c(n, n, 2))
 
     # iterate
     for (i1 in 1:Niter_cur) {
@@ -166,10 +176,11 @@ looc_fun_one = function(
 
 
             # ====== loo2
-            qq = matrix(nrow=n, ncol=n)
             for (cvi in 1:n) {
-                qq[cvi,] = colLogSumExps(log_lik1+psis1_lw[,cvi])
+                loo2[cvi,,m_i] = colLogSumExps(log_lik1+psis1_lw[,cvi])
             }
+            if (save_loo2) out$loo2[,,i1,m_i] = loo2[,,m_i]
+            qq = loo2[,,m_i]
 
             # g2s
             out$g2s[,i1,m_i] = mean(colVars(qq))
@@ -215,6 +226,48 @@ looc_fun_one = function(
             gc()
 
         }
+
+        # ====== loo2 diff
+        qq = loo2[,,1] - loo2[,,2]
+
+        # g2s
+        out$g2s_d[,i1] = mean(colVars(qq))
+
+        # g3s
+        g3s_s = array(0, num_of_pairs)
+        # center columns
+        qq_c = qq - rep(colMeans(qq), rep.int(nrow(qq), ncol(qq)))
+        cur_pair_i = 1
+        for (xi1 in 1:(n-1)) {
+            for (xi2 in (xi1+1):n) {
+                g3s_s[cur_pair_i] = qq_c[xi1,xi2]*qq_c[xi2,xi1]
+                cur_pair_i = cur_pair_i + 1
+            }
+        }
+        out$g3s_d[,i1] = sum(g3s_s)/(num_of_pairs-1)
+
+        # qq diag <- NA
+        diag(qq) = NA
+
+        # g2s_nod
+        out$g2s_nod_d[,i1] = mean(
+            apply(qq, 2, function(col) var(na.omit(col))))
+
+        # g3s_nod
+        g3s_s = array(0, num_of_pairs)
+        # center columns (exclude diagonal)
+        qq_c = qq - rep(
+            apply(qq, 2, function(col) mean(na.omit(col))),
+            rep.int(nrow(qq), ncol(qq))
+        )
+        cur_pair_i = 1
+        for (xi1 in 1:(n-1)) {
+            for (xi2 in (xi1+1):n) {
+                g3s_s[cur_pair_i] = qq_c[xi1,xi2]*qq_c[xi2,xi1]
+                cur_pair_i = cur_pair_i + 1
+            }
+        }
+        out$g3s_nod_d[,i1] = sum(g3s_s)/(num_of_pairs-1)
 
     }
 

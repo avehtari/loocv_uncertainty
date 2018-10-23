@@ -18,7 +18,7 @@ truedist = 'n'; modeldist = 'n'; priordist = 'n'
 # truedist = 'n'; modeldist = 'tnu'; priordist = 'n'
 # truedist = 't4'; modeldist = 'n'; priordist = 'n'
 
-p0 = 1
+p0 = 0
 
 # ---- variables
 Ns = c(10, 20, 40, 60, 100, 140, 200, 260)

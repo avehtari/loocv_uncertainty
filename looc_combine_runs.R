@@ -9,7 +9,7 @@ run_tot = 20
 Niter = 2000
 
 Ns = c(10, 20, 40, 60, 100, 140, 200, 260)
-p0 = 1
+p0 = 0
 
 truedist = 'n'; modeldist = 'n'; priordist = 'n'
 # truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
@@ -49,8 +49,17 @@ for (n_i in 1:length(Ns)) {
         if (is.null(out_all)) {
             out_all = list()
             for (name in names(out)) {
-                out_all[[name]] = array(
-                    NA, c(dim(out[[name]])[1], Niter, dim(out[[name]])[3]))
+                dims = dim(out[[name]])
+                if (length(dims) == 2) {
+                    out_all[[name]] = array(NA, c(dims[1], Niter))
+                } else if (length(dims) == 3) {
+                    out_all[[name]] = array(NA, c(dims[1], Niter, dims[3]))
+                } else if (length(dims) == 4) {
+                    out_all[[name]] = array(
+                        NA, c(dims[1], dims[2], Niter, dims[4]))
+                } else {
+                    stop('Unrecognised name in out part')
+                }
             }
         }
 
@@ -60,7 +69,17 @@ for (n_i in 1:length(Ns)) {
 
         # fill output with the current slice
         for (name in names(out)) {
-            out_all[[name]][,start_i:end_i,] = out[[name]]
+            dims = dim(out_all[[name]])
+            if (length(dims) == 2) {
+                out_all[[name]][,start_i:end_i] = out[[name]]
+            } else if (length(dims) == 3) {
+                out_all[[name]][,start_i:end_i,] = out[[name]]
+            } else if (length(dims) == 4) {
+                out_all[[name]][,,start_i:end_i,] = out[[name]]
+            } else {
+                stop('Unrecognised name in out part')
+            }
+
         }
 
     }
