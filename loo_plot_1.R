@@ -4,8 +4,9 @@ library(matrixStats)
 library(extraDistr)
 
 
+SAVE_FIGURE = FALSE
+
 Ns = c(10, 20, 40, 60, 100, 140, 200, 260)
-Ps = c(1, 2, 5, 10)
 
 # truedist = 'n'; modeldist = 'n'; priordist = 'n'
 truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
@@ -13,18 +14,20 @@ truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
 # truedist = 'n'; modeldist = 'tnu'; priordist = 'n'
 # #truedist = 't4'; modeldist = 'n'; priordist = 'n'
 
-p_i = 1
+p0 = 0
 
 # ==============================================================================
-# peformance of variance terms
+# ratio peformance of variance terms
 
 # settings for bayesian bootstrap
-bbsamples_perf = 2000
-bbalpha_perf = 1
+bbn = 2000
+bba = 1
+
+var_estim_names = list('naive', 'g2', 'g3', 'x2')
 
 # output arrays
-pvs = array(0, c(4, length(Ns)))
-bbs = array(0, c(4, length(Ns), bbsamples_perf))
+rat_s = array(0, c(length(var_estim_names), length(Ns)))
+rat_bb_s = array(0, c(length(var_estim_names), length(Ns), bbn))
 
 cat('processing n=')
 for (ni in 1:length(Ns)) {
@@ -32,90 +35,81 @@ for (ni in 1:length(Ns)) {
     cat(sprintf('%g,', n))
 
     # load data in variable out
-    load(sprintf('res_loo/%s_%s_%s_%g_%g.RData',
-        truedist, modeldist, priordist, Ps[p_i], n))
-    # modify 1d matrices into vectors in out
-    out$peff = out$peff[1,]
-    out$tls = out$tls[1,]
-    out$ets = out$ets[1,]
-    out$es = out$es[1,]
-    out$tes = out$tes[1,]
-    out$bs = out$bs[1,]
-    out$gs = out$gs[1,]
-    out$gms = out$gms[1,]
-    out$g2s = out$g2s[1,]
-    out$gm2s = out$gm2s[1,]
-    out$g2s_new = out$g2s_new[1,]
-    out$g2s_new2 = out$g2s_new2[1,]
-    out$loovar1 = out$loovar1[1,]
-    out$loovar2 = out$loovar2[1,]
-    out$loovar3 = out$loovar3[1,]
-    out$loovar4 = out$loovar4[1,]
-    out$loovar5 = out$loovar5[1,]
-    out$loovar1_rank = out$loovar1_rank[1,]
-    out$loovar2_rank = out$loovar2_rank[1,]
-    out$loovar3_rank = out$loovar3_rank[1,]
-    out$loovar4_rank = out$loovar4_rank[1,]
-    out$loovar5_rank = out$loovar5_rank[1,]
-    # populate local environment with the named stored variables in selected out
-    list2env(out, envir=environment())
-    rm(out)
-    Niter = dim(loos)[2]
+    load(sprintf('res_looc/%s_%s_%s_%g_%g.RData',
+        truedist, modeldist, priordist, p0, n))
+    # drop singleton dimensions
+    Niter = dim(out$loos)[2]
+    for (name in names(out)) {
+        out[[name]] = drop(out[[name]])
+    }
 
-    pvz = sd(tls-colSums(loos))  # sd of loo error
-    # pvz = sd(colSums(loos))    # sd of loo
-    colvars_loos_n = colVars(loos)*n
+    # ==================================================
+    # select data
+
+    # # Mi
+    # m_i = 1
+    # loo_name = sprintf('M%d', m_i)
+    # loos = out$loos[,,m_i]
+    # tls = out$tls[,m_i]
+    # g2s = out$g2s[,m_i]
+    # g3s = out$g3s[,m_i]
+    # # g2s = out$g2s_nod[,m_i]
+    # # g3s = out$g3s_nod[,m_i]
+
+    # M1-M2
+    loo_name = 'M1-M2'
+    loos = out$loos[,,1] - out$loos[,,2]
+    tls = out$tls[,1] - out$tls[,2]
+    g2s = out$g2s_d
+    g3s = out$g3s_d
+    # g2s = out$g2s_nod_d
+    # g3s = out$g3s_nod_d
+
+    # ==================================================
+
+    target_sd = sd(tls-colSums(loos))  # sd of loo error
+    # target_sd = sd(colSums(loos))    # sd of loo
+
+    loovars_naive = colVars(loos)*n
 
     # basic
-    t = colvars_loos_n
-    # t = loovar1
-    pvs[1,ni] = sqrt(mean(t)) / pvz
-    bbs[1,ni,] = sqrt(
-        rdirichlet(bbsamples_perf, rep(bbalpha_perf, length(t))) %*% t) / pvz
+    estims = loovars_naive
+    rat_s[1,ni] = sqrt(mean(estims)) / target_sd
+    rat_bb_s[1,ni,] = sqrt(
+        rdirichlet(bbn, rep(bba, length(estims))) %*% estims) / target_sd
 
     # g2s
-    t = colvars_loos_n + g2s*n
-    # t = loovar3
-    pvs[2,ni] = sqrt(mean(t)) / pvz
-    bbs[2,ni,] = sqrt(
-        rdirichlet(bbsamples_perf, rep(bbalpha_perf, length(t))) %*% t) / pvz
+    estims = loovars_naive + n*g2s
+    rat_s[2,ni] = sqrt(mean(estims)) / target_sd
+    rat_bb_s[2,ni,] = sqrt(
+        rdirichlet(bbn, rep(bba, length(estims))) %*% estims) / target_sd
 
-    # g2s_new
-    t = colvars_loos_n + (n^2)*g2s_new
-    # t = loovar4
-    pvs[3,ni] = sqrt(mean(t)) / pvz
-    bbs[3,ni,] = sqrt(
-        rdirichlet(bbsamples_perf, rep(bbalpha_perf, length(t))) %*% t) / pvz
-
-    # # g2s_new2
-    # t = colvars_loos_n + (n^2)*g2s_new2
-    # # t = loovar5
-    # pvs[3,ni] = sqrt(mean(t)) / pvz
-    # bbs[3,ni,] = sqrt(
-    #     rdirichlet(bbsamples_perf, rep(bbalpha_perf, length(t))) %*% t) / pvz
+    # g3s
+    estims = loovars_naive + (n^2)*g3s
+    rat_s[3,ni] = sqrt(mean(estims)) / target_sd
+    rat_bb_s[3,ni,] = sqrt(
+        rdirichlet(bbn, rep(bba, length(estims))) %*% estims) / target_sd
 
     # x2
-    # t = 2*colvars_loos_n
-    t = loovar2
-    pvs[4,ni] = sqrt(mean(t)) / pvz
-    bbs[4,ni,] = sqrt(
-        rdirichlet(bbsamples_perf, rep(bbalpha_perf, length(t))) %*% t) / pvz
+    estims = 2*loovars_naive
+    rat_s[4,ni] = sqrt(mean(estims)) / target_sd
+    rat_bb_s[4,ni,] = sqrt(
+        rdirichlet(bbn, rep(bba, length(estims))) %*% estims) / target_sd
 }
 cat('\ndone processing\n')
 
 
 ## plot ------------------------------------------------------
-fillcats = c("basic", "g2s", "g2s_new", "x2")
 
 ## Plot all Ns
 g = ggplot()
-for (fi in 1:length(fillcats)) {
+for (fi in 1:length(var_estim_names)) {
     for (ni in 1:length(Ns)) {
         g = g + geom_violin(
             data = data.frame(
-                y = bbs[fi,ni,],
-                x = Ns[ni],
-                fill = fillcats[fi]
+                y=rat_bb_s[fi,ni,],
+                x=Ns[ni],
+                fill=var_estim_names[[fi]]
             ),
             aes(x=x, y=y, fill=fill),
             width = 8,
@@ -129,46 +123,17 @@ g = g +
     xlab("number of samples") +
     ylab("") +
     ggtitle(sprintf(
-        "peformance of variance terms (model: %s_%s_%s_%g)\nbbsamples=%g",
-        truedist, modeldist, priordist, Ps[p_i],
-        bbsamples_perf
+        "hat{sd(loo_i)} / sd(elpd_i-loo_i), model: %s_%s_%s, p0=%g, %s",
+        truedist, modeldist, priordist, p0, loo_name
     ))
 g
-# ggsave(
-#     plot=g, width=8, height=5,
-#     filename = sprintf(
-#         "figs/p1_%s_%s_%s_%i.pdf",
-#         truedist, modeldist, priordist, Ps[p_i]
-#     )
-# )
-
-
-## plot ------------------------------------------------------
-# plot one ni
-ni = 7
-g = ggplot()
-for (fi in 1:length(fillcats)) {
-    g = g + geom_violin(
-        data = data.frame(
-            y = bbs[fi,ni,],
-            x = fillcats[fi]
-        ),
-        aes(x=x, y=y)
+# save figure
+if (SAVE_FIGURE) {
+    ggsave(
+        plot=g, width=8, height=5,
+        filename = sprintf(
+            "figs/ratio_%s_%s_%s_%i_%s.pdf",
+            truedist, modeldist, priordist, p0, loo_name
+        )
     )
 }
-g = g +
-    geom_hline(yintercept=1) +
-    ylab("") +
-    ggtitle(sprintf(
-        "peformance of variance terms (model: %s_%s_%s_%g_%g)\nbbsamples=%g",
-        truedist, modeldist, priordist, Ps[p_i], Ns[ni],
-        bbsamples_perf
-    ))
-g
-# ggsave(
-#     plot=g, width=8, height=5,
-#     filename = sprintf(
-#         "figs/p1_%s_%s_%s_%i_%i.pdf",
-#         truedist, modeldist, priordist, Ps[p_i], Ns[ni]
-#     )
-# )

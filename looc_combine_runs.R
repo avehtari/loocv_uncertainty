@@ -9,7 +9,7 @@ run_tot = 20
 Niter = 2000
 
 Ns = c(10, 20, 40, 60, 100, 140, 200, 260)
-p0 = 0
+p0 = 1
 
 truedist = 'n'; modeldist = 'n'; priordist = 'n'
 # truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
