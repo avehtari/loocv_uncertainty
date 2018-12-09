@@ -10,13 +10,14 @@ options(mc.cores=1, loo.cores=1)
 # modeldist = 'n'
 # priordist = 'n'
 
-# Niter = 10
-# Nt = 10000
-# p0 = 1
-# n = 10
-# run_tot = 4
+# Niter = 2000
+# Nt = 20000
+# p0 = 0
+# n = 20
+# run_tot = 20
 # run_i = 3
 # seed = 11
+# save_loo2=FALSE
 
 
 looc_fun_one = function(

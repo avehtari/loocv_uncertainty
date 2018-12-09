@@ -3,13 +3,12 @@ library(matrixStats)
 
 library(rstan)
 rstan_options(auto_write=TRUE)
-options(mc.cores=1, loo.cores=1)
+options(mc.cores = parallel::detectCores())  # local
+# options(mc.cores=1)  # cluster
 
 
 # ==============================================================================
 # setup
-
-# possible parameters
 
 truedist = 'n'; modeldist = 'n'; priordist = 'n'
 # truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
@@ -17,12 +16,16 @@ truedist = 'n'; modeldist = 'n'; priordist = 'n'
 # truedist = 'n'; modeldist = 'tnu'; priordist = 'n'
 # truedist = 't4'; modeldist = 'n'; priordist = 'n'
 
-# ---- variables
-Ps = c(1, 2, 5, 10)
-Ns = c(10, 20, 40, 60, 100, 140, 200)
+p0 = 0
 
-# number of jobs (28)
-num_job = length(Ps) * length(Ns)
+stan_iter = 2000
+
+
+# ---- variables
+Ns = c(10, 20, 40, 60, 100, 140, 200, 260)
+
+# number of jobs
+num_job = length(Ns)
 
 # get job number [0, num_job-1] as command line argument
 jobi = as.numeric(commandArgs(trailingOnly = TRUE)[1])
@@ -30,42 +33,32 @@ if (jobi >= num_job)
     stop(sprintf("Jobi must be smaller than %d", num_job))
 
 # convert jobi to parameters
-# (there should be a function to calc quotient and remainder at the same time)
-n_i = (jobi %% length(Ns)) + 1
-p_i = (jobi %/% length(Ns)) + 1
+n_i = jobi + 1
 
 n = Ns[n_i]
 
 cat(sprintf('jobi=%d\n', jobi))
-cat(sprintf('%s_%s_%s_%d_%d\n', truedist, modeldist, priordist, Ps[p_i], n))
+cat(sprintf('%s_%s_%s_%d_%d\n', truedist, modeldist, priordist, p0, n))
 
 
 # ==============================================================================
 # run the content
 
-stansamples = 2000
-
 # load data in variable out
-load(sprintf('res_loo/%s_%s_%s_%d_%d.RData',
-    truedist, modeldist, priordist, Ps[p_i], n))
-# modify 1d matrices into vectors in out
-out$peff = out$peff[1,]
-out$tls = out$tls[1,]
-out$ets = out$ets[1,]
-out$es = out$es[1,]
-out$tes = out$tes[1,]
-out$bs = out$bs[1,]
-out$gs = out$gs[1,]
-out$gms = out$gms[1,]
-out$g2s = out$g2s[1,]
-out$gm2s = out$gm2s[1,]
-out$g3s = out$g3s[1,]
-# populate local environment with the named stored variables in selected out
-list2env(out, envir=environment())
-Niter = dim(loos)[2]
+load(sprintf('res_looc/%s_%s_%s_%d_%d.RData',
+    truedist, modeldist, priordist, p0, n))
+# drop singleton dimensions
+Niter = dim(out$loos)[2]
+for (name in names(out)) {
+    out[[name]] = drop(out[[name]])
+}
 
 # sample array
-sigma2s = array(0, c(stansamples, Niter))
+mus = array(0, c(stan_iter*2, Niter))
+sigmas = array(0, c(stan_iter*2, Niter))
+ls = array(0, c(stan_iter*2, Niter))
+ps = array(0, c(stan_iter*2, Niter))
+qs = array(0, c(stan_iter*2, Niter))
 
 # ---- progress bar
 progressbar_length = 40
@@ -85,12 +78,17 @@ time_estim_i = 1
 # iterate for all trials
 for (i in 1:Niter) {
 
+    loos_i = out$loos[,i]
+    # center data (no scaling)
+    loos_i_mean = mean(loos_i)
+    loos_i = loos_i - loos_i_mean
+
     # skewed generalised t fit
     output <- capture.output(
         sgt_loo_fit <- stan(
             'models/sgt.stan',
-            data=list(N=n, x=loos[,i]),
-            iter=1000, refresh=-1, save_warmup=FALSE, open_progress=FALSE
+            data=list(N=n, x=loos_i),
+            iter=stan_iter, refresh=-1, save_warmup=FALSE, open_progress=FALSE
         )
     )
     sigma2s[,i] = (extract(sgt_loo_fit, 'sigma')$sigma)^2
@@ -124,7 +122,7 @@ vm_samp = n*rowMeans(sigma2s)
 # save output to file
 out = list(vm_iter=vm_iter, vm_samp=vm_samp)
 filename = sprintf(
-    "res_loo_sgt/%s_%s_%s_%d_%d.RData",
-    truedist, modeldist, priordist, Ps[p_i], n
+    "res_sgt/%s_%s_%s_%d_%d.RData",
+    truedist, modeldist, priordist, p0, n
 )
 save(out, file=filename)

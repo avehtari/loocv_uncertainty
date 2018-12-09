@@ -1,15 +1,15 @@
 
-library(ggplot2)
 library(matrixStats)
 library(extraDistr)
+library(ggplot2)
 
 
 SAVE_FIGURE = FALSE
 
 Ns = c(10, 20, 40, 60, 100, 140, 200, 260)
 
-# truedist = 'n'; modeldist = 'n'; priordist = 'n'
-truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
+truedist = 'n'; modeldist = 'n'; priordist = 'n'
+# truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
 # truedist = 'b'; modeldist = 'b'; priordist = 'n'
 # truedist = 'n'; modeldist = 'tnu'; priordist = 'n'
 # #truedist = 't4'; modeldist = 'n'; priordist = 'n'
@@ -26,8 +26,9 @@ bba = 1
 var_estim_names = list('naive', 'g2', 'g3', 'x2')
 
 # output arrays
-rat_s = array(0, c(length(var_estim_names), length(Ns)))
-rat_bb_s = array(0, c(length(var_estim_names), length(Ns), bbn))
+rat_s = array(NA, c(length(var_estim_names), length(Ns)))
+rat_bb_s = array(NA, c(length(var_estim_names), length(Ns), bbn))
+# rat_loo_target_s = array(NA, length(Ns))
 
 cat('processing n=')
 for (ni in 1:length(Ns)) {
@@ -67,31 +68,33 @@ for (ni in 1:length(Ns)) {
 
     # ==================================================
 
-    target_sd = sd(tls-colSums(loos))  # sd of loo error
-    # target_sd = sd(colSums(loos))    # sd of loo
+    loosums = colSums(loos)
+    loovars = colVars(loos)*n
 
-    loovars_naive = colVars(loos)*n
+    target_sd = sd(tls-loosums)  # sd of loo error
+
+    # rat_loo_target_s[ni] = sd(loosums) / target_sd
 
     # basic
-    estims = loovars_naive
+    estims = loovars
     rat_s[1,ni] = sqrt(mean(estims)) / target_sd
     rat_bb_s[1,ni,] = sqrt(
         rdirichlet(bbn, rep(bba, length(estims))) %*% estims) / target_sd
 
     # g2s
-    estims = loovars_naive + n*g2s
+    estims = loovars + n*g2s
     rat_s[2,ni] = sqrt(mean(estims)) / target_sd
     rat_bb_s[2,ni,] = sqrt(
         rdirichlet(bbn, rep(bba, length(estims))) %*% estims) / target_sd
 
     # g3s
-    estims = loovars_naive + (n^2)*g3s
+    estims = loovars + (n^2)*g3s
     rat_s[3,ni] = sqrt(mean(estims)) / target_sd
     rat_bb_s[3,ni,] = sqrt(
         rdirichlet(bbn, rep(bba, length(estims))) %*% estims) / target_sd
 
     # x2
-    estims = 2*loovars_naive
+    estims = 2*loovars
     rat_s[4,ni] = sqrt(mean(estims)) / target_sd
     rat_bb_s[4,ni,] = sqrt(
         rdirichlet(bbn, rep(bba, length(estims))) %*% estims) / target_sd
@@ -117,6 +120,8 @@ for (fi in 1:length(var_estim_names)) {
         )
     }
 }
+# g = g +
+#     geom_point(aes(x=Ns, y=rat_loo_target_s[ni]))
 g = g +
     geom_hline(yintercept=1) +
     scale_fill_manual(values=c("green", "red", "blue", "gray")) +
