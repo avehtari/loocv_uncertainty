@@ -1,10 +1,10 @@
-sn_loo_fit = function(mu, sigma, skew){
-    # fit skew normal from loo sample moments
+sn_from_moments = function(mu, sigma, skew){
+    # fit skew normal from sample moments
     # returns xi, omega, alpha
 
     # limit skew
-    skew[skew>0.99] = 0.99
-    skew[skew<(-0.99)] = -0.99
+    skew[skew>0.995] = 0.99
+    skew[skew<(-0.995)] = -0.99
 
     delta2 = pi/(2*(1+((4-pi)/(2*abs(skew)))**(2/3)))
     delta = sqrt(delta2) * sign(skew)
