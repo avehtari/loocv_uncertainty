@@ -13,7 +13,7 @@ source('sn_fit.R')
 
 
 SAVE_FIGURE = FALSE
-COMPARISON = TRUE
+COMPARISON = FALSE
 
 Ns = c(10, 20, 40, 60, 100, 140, 200, 260)
 p0 = 1
@@ -24,7 +24,7 @@ truedist = 'n'; modeldist = 'n'; priordist = 'n'
 # truedist = 'n'; modeldist = 'tnu'; priordist = 'n'
 # truedist = 't4'; modeldist = 'n'; priordist = 'n'
 
-ni = 8
+ni = 1
 n = Ns[ni]
 
 # load data in variable out
@@ -106,9 +106,11 @@ loo_skews = (
 
 
 # p(elpd<elpd_t)
-ref_p = sapply(tls, function(x) mean(tls < x))  # uniform
+# run looc_plot_dist instead for this
+# ref_p = sapply(tls, function(x) mean(tls < x))
+
 # p(loo<elpd_t)
-# ref_p = sapply(tls, function(x) mean(loop_sums < x))
+ref_p = sapply(tls, function(x) mean(loop_sums < x))
 
 
 # estimate p(loo<elpd_t), normal approx. using all var estimates
@@ -128,30 +130,7 @@ for (var_e_i in 1:length(var_estims)) {
 }
 
 # ==============================================================================
-# plot pairwise plots
-
-dev.new()
-g = ggplot()
-g = g + geom_abline(intercept=0, slope=1, colour='red')
-g = g + geom_point(aes(x=tls, y=loop_sums))
-g = g +
-    xlab("elpd") +
-    ylab("loo") +
-    ggtitle(sprintf(
-        "%s, %s_%s_%s, p0=%g n=%g",
-        loo_name, truedist, modeldist, priordist, p0, n
-    ))
-g = ggMarginal(g, type='histogram')
-print(g)
-if (SAVE_FIGURE) {
-    ggsave(
-        plot=g, width=8, height=5,
-        filename = sprintf(
-            "figs/elpd-loo_%s_%s_%s_%i_%i_%s.pdf",
-            truedist, modeldist, priordist, p0, n, loo_name
-        )
-    )
-}
+# plot ranks
 
 g_s = vector("list", length(var_estims))
 for (var_e_i in 1:length(var_estims)) {
@@ -161,50 +140,6 @@ for (var_e_i in 1:length(var_estims)) {
 
     test_p = test_p_sn[[var_e_i]]
     test_p_name = sprintf('skew-normal, %s var', var_estim_names[[var_e_i]])
-
-    g = ggplot()
-    g = g + geom_abline(intercept=0, slope=1, colour='red')
-    g = g + geom_point(
-            data=data.frame(
-                x=ref_p,
-                y=test_p
-            ),
-            aes(x=x, y=y)
-        )
-    g = g +
-        xlab("p(elpd<elpd_t)") +
-        ylab(sprintf("p(loo<elpd_t), %s", test_p_name))
-    g = ggMarginal(g, type='histogram')
-    g_s[[var_e_i]] = g
-}
-# plot (and save)
-if (SAVE_FIGURE) {
-    pdf(
-        file=sprintf(
-            "figs/pelpd-ploo_%s_%s_%s_%i_%i_%s.pdf",
-            truedist, modeldist, priordist, p0, n, loo_name
-        ),
-        width=12,
-        height=8
-    )
-} else {
-    dev.new()
-}
-top_str = sprintf(
-    "%s, %s_%s_%s, p0=%g n=%g",
-    loo_name, truedist, modeldist, priordist, p0, n
-)
-do.call("grid.arrange", c(g_s, nrow=2, top=top_str))
-if (SAVE_FIGURE) dev.off()
-
-# ==============================================================================
-# plot ranks
-
-g_s = vector("list", length(var_estims))
-for (var_e_i in 1:length(var_estims)) {
-
-    test_p = test_p_n[[var_e_i]]
-    test_p_name = var_estim_names[[var_e_i]]
 
     # calc
     Ntg = Niter

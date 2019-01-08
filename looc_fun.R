@@ -22,7 +22,7 @@ options(mc.cores=1, loo.cores=1)
 
 looc_fun_one = function(
     truedist, modeldist, priordist, Niter, Nt, p0, n, run_tot, run_i, seed,
-    save_loo2=FALSE) {
+    save_loo2=FALSE, stan_iter=4000, stan_chains=4) {
     #' @param truedist true distribution identifier
     #' @param modeldist model distribution identifier
     #' @param priordist prior distribution identifier
@@ -34,6 +34,8 @@ looc_fun_one = function(
     #' @param run_i current run index
     #' @param seed seed to use
     #' @param save_loo2 bool if loo2 should be saved to out
+    #' @param stan_iter number of stan iterations per chain
+    #' @param stan_chains number of stan chains
 
     # config
     modelname = sprintf("models/linear_%s_%s.stan",modeldist,priordist)
@@ -99,7 +101,13 @@ looc_fun_one = function(
             '%s%s%s p0=%d n=%d iter=%d',
             truedist, modeldist, priordist, p0, n, Niters_before+i1))
 
-        set.seed(seed+Niters_before+i1)
+        # seed used by R for this trial
+        trial_seed_r = seed+Niters_before+i1
+        set.seed(trial_seed_r)
+        # seed used by Stan for this trial
+        trial_seed_stan = seed+Niter+Niters_before+i1
+
+        # generate trial data
         if (truedist=="n") {
             y <- as.array(rnorm(n))
             x <- matrix(runif(p1*n,-1,1), nrow=n, ncol=p1)
@@ -133,8 +141,9 @@ looc_fun_one = function(
 
             output <- capture.output(
                 model1 <- stan(
-                    modelname, data=data, iter=2000, refresh=-1,
-                    save_warmup=FALSE, open_progress=FALSE)
+                    modelname, data=data, iter=stan_iter, chains=stan_chains,
+                    refresh=-1, save_warmup=FALSE, open_progress=FALSE,
+                    seed=trial_seed_stan)
             )
 
             log_lik1 <- extract_log_lik(model1, merge_chains=FALSE)

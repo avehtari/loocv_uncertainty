@@ -13,18 +13,18 @@ source('sn_fit.R')
 
 
 SAVE_FIGURE = FALSE
-COMPARISON = TRUE
+COMPARISON = FALSE
 
 Ns = c(10, 20, 40, 60, 100, 140, 200, 260)
 p0 = 1
 
-truedist = 'n'; modeldist = 'n'; priordist = 'n'
-# truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
+# truedist = 'n'; modeldist = 'n'; priordist = 'n'
+truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
 # truedist = 'b'; modeldist = 'b'; priordist = 'n'
 # truedist = 'n'; modeldist = 'tnu'; priordist = 'n'
 # truedist = 't4'; modeldist = 'n'; priordist = 'n'
 
-ni = 1
+ni = 3
 n = Ns[ni]
 
 # load data in variable out
@@ -115,6 +115,80 @@ for (var_e_i in 1:length(var_estims)) {
         tls, xi=sn_param$xi, omega=sn_param$omega, alpha=sn_param$alpha)
 }
 
+
+# ==============================================================================
+# plot pairwise plots
+
+dev.new()
+g = ggplot()
+g = g + geom_abline(intercept=0, slope=1, colour='red')
+g = g + geom_point(aes(x=tls, y=loop_sums))
+g = g +
+    xlab("elpd") +
+    ylab("loo") +
+    ggtitle(sprintf(
+        "%s, %s_%s_%s, p0=%g n=%g",
+        loo_name, truedist, modeldist, priordist, p0, n
+    ))
+g = ggMarginal(g, type='histogram')
+print(g)
+if (SAVE_FIGURE) {
+    ggsave(
+        plot=g, width=8, height=5,
+        filename = sprintf(
+            "figs/elpd-loo_%s_%s_%s_%i_%i_%s.pdf",
+            truedist, modeldist, priordist, p0, n, loo_name
+        )
+    )
+}
+
+g_s = vector("list", length(var_estims))
+for (var_e_i in 1:length(var_estims)) {
+
+    # test_p = test_p_n[[var_e_i]]
+    # test_p_name = 'normal'
+
+    test_p = test_p_sn[[var_e_i]]
+    test_p_name = 'skew-normal'
+
+    var_estim_name = var_estim_names[[var_e_i]]
+
+    g = ggplot()
+    g = g + geom_abline(intercept=0, slope=1, colour='red')
+    g = g + geom_point(
+            data=data.frame(
+                x=ref_p,
+                y=test_p
+            ),
+            aes(x=x, y=y)
+        )
+    g = g +
+        xlab("p(elpd<elpd_t)") +
+        ylab(sprintf("p(loo<elpd_t), %s", var_estim_name))
+    g = ggMarginal(g, type='histogram')
+    g_s[[var_e_i]] = g
+}
+# plot (and save)
+if (SAVE_FIGURE) {
+    pdf(
+        file=sprintf(
+            "figs/pelpd-ploo_%s_%s_%s_%i_%i_%s.pdf",
+            truedist, modeldist, priordist, p0, n, loo_name
+        ),
+        width=12,
+        height=8
+    )
+} else {
+    dev.new()
+}
+top_str = sprintf(
+    "%s, %s_%s_%s, p0=%g, n=%g, %s",
+    loo_name, truedist, modeldist, priordist, p0, n, test_p_name
+)
+do.call("grid.arrange", c(g_s, nrow=2, top=top_str))
+if (SAVE_FIGURE) dev.off()
+
+
 # ==============================================================================
 # plot comparison normal vs skew-normal
 
@@ -122,7 +196,7 @@ g_s = vector("list", length(var_estims))
 for (var_e_i in 1:length(var_estims)) {
 
     diff_p = test_p_n[[var_e_i]] - test_p_sn[[var_e_i]]
-    var_name = var_estim_names[[var_e_i]]
+    var_estim_name = var_estim_names[[var_e_i]]
 
     g = ggplot()
     g = g + geom_point(
@@ -135,7 +209,7 @@ for (var_e_i in 1:length(var_estims)) {
     g = g +
         xlab("p(elpd<elpd_t)") +
         ylab("delta p(loo<elpd_t)") +
-        ggtitle(var_name)
+        ggtitle(var_estim_name)
     g = ggMarginal(g, type='histogram', margins='y')
     g_s[[var_e_i]] = g
 }
@@ -153,20 +227,26 @@ if (SAVE_FIGURE) {
     dev.new()
 }
 top_str = sprintf(
-    "%s, %s_%s_%s, p0=%g n=%g",
+    "%s, %s_%s_%s, p0=%g, n=%g",
     loo_name, truedist, modeldist, priordist, p0, n
 )
 do.call("grid.arrange", c(g_s, nrow=2, top=top_str))
 if (SAVE_FIGURE) dev.off()
 
+
 # ==============================================================================
-# plot
+# plot uniformity check histograms
 
 g_s = vector("list", length(var_estims))
 for (var_e_i in 1:length(var_estims)) {
 
+    # test_p = test_p_n[[var_e_i]]
+    # test_p_name = 'normal'
+
     test_p = test_p_sn[[var_e_i]]
-    test_p_name = var_estim_names[[var_e_i]]
+    test_p_name = 'skew-normal'
+
+    var_estim_name = var_estim_names[[var_e_i]]
 
     # bins
     B = 8
@@ -186,7 +266,7 @@ for (var_e_i in 1:length(var_estims)) {
         geom_hline(yintercept=qbinom(0.995, Niter, 1/B)) +
         xlab("") +
         ylab("") +
-        ggtitle(sprintf("%s", test_p_name))
+        ggtitle(sprintf("%s", var_estim_name))
     g_s[[var_e_i]] = g
 }
 # share ymax
@@ -208,8 +288,70 @@ if (SAVE_FIGURE) {
     dev.new()
 }
 top_str = sprintf(
-    "%s, %s_%s_%s, p0=%g n=%g",
-    loo_name, truedist, modeldist, priordist, p0, n
+    "%s, %s_%s_%s, p0=%g, n=%g, %s",
+    loo_name, truedist, modeldist, priordist, p0, n, test_p_name
+)
+do.call("grid.arrange", c(g_s, nrow=2, top=top_str))
+if (SAVE_FIGURE) dev.off()
+
+
+
+# ==============================================================================
+# plot uniformity check histograms grouped
+
+g_s = vector("list", length(var_estims))
+for (var_e_i in 1:length(var_estims)) {
+
+    # test_p = test_p_n[[var_e_i]]
+    # test_p_name = 'normal'
+
+    test_p = test_p_sn[[var_e_i]]
+    test_p_name = 'skew-normal'
+
+    var_estim_name = var_estim_names[[var_e_i]]
+
+    # bins
+    B = 8
+
+    # plot
+    g = ggplot()
+    g = g + geom_histogram(
+            data=data.frame(
+                x=test_p
+            ),
+            aes(x=x),
+            breaks=seq(from=0, by=1/B, length=B+1)
+        )
+    g = g +
+        geom_hline(yintercept=qbinom(0.005, Niter, 1/B)) +
+        geom_hline(yintercept=Niter/B) +
+        geom_hline(yintercept=qbinom(0.995, Niter, 1/B)) +
+        xlab("") +
+        ylab("") +
+        ggtitle(sprintf("%s", var_estim_name))
+    g_s[[var_e_i]] = g
+}
+# share ymax
+max_bin = max(sapply(g_s, function(g) max(ggplot_build(g)$data[[1]]$y)))
+for (var_e_i in 1:length(var_estims)) {
+    g_s[[var_e_i]] = g_s[[var_e_i]] + ylim(0, max_bin)
+}
+# plot (and save)
+if (SAVE_FIGURE) {
+    pdf(
+        file=sprintf(
+            "figs/dist_%s_%s_%s_%i_%i_%s.pdf",
+            truedist, modeldist, priordist, p0, n, loo_name
+        ),
+        width=12,
+        height=8
+    )
+} else {
+    dev.new()
+}
+top_str = sprintf(
+    "%s, %s_%s_%s, p0=%g, n=%g, %s",
+    loo_name, truedist, modeldist, priordist, p0, n, test_p_name
 )
 do.call("grid.arrange", c(g_s, nrow=2, top=top_str))
 if (SAVE_FIGURE) dev.off()

@@ -7,6 +7,7 @@ library(gridExtra)
 
 
 SAVE_FIGURE = FALSE
+COMPARISON = FALSE
 
 Ns = c(10, 20, 40, 60, 100, 140, 200, 260)
 
@@ -49,27 +50,21 @@ for (ni in 1:length(Ns)) {
         out[[name]] = drop(out[[name]])
     }
 
-    # ==================================================
-    # select data
+    # ==========================================================================
+    # select measure
 
-    # # Mi
-    # m_i = 1
-    # loo_name = sprintf('M%d', m_i)
-    # loos = out$loos[,,m_i]
-    # tls = out$tls[,m_i]
-    # g2s = out$g2s[,m_i]
-    # g3s = out$g3s[,m_i]
-    # # g2s = out$g2s_nod[,m_i]
-    # # g3s = out$g3s_nod[,m_i]
-
-    # M1-M2
-    loo_name = 'M1-M2'
-    loos = out$loos[,,1] - out$loos[,,2]
-    tls = out$tls[,1] - out$tls[,2]
-    g2s = out$g2s_d
-    g3s = out$g3s_d
-    # g2s = out$g2s_nod_d
-    # g3s = out$g3s_nod_d
+    if (COMPARISON) {
+        # M1-M2
+        loo_name = 'M1-M2'
+        loos = out$loos[,,1] - out$loos[,,2]
+        tls = out$tls[,1] - out$tls[,2]
+    } else {
+        # Mi
+        m_i = 1
+        loo_name = sprintf('M%d', m_i)
+        loos = out$loos[,,m_i]
+        tls = out$tls[,m_i]
+    }
 
     # ==================================================
 
