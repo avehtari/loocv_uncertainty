@@ -8,6 +8,7 @@ library(RColorBrewer)
 SAVE_FIGURE = FALSE
 COMPARISON = FALSE
 FORCE_NONNEGATIVE_G3S = TRUE
+FORCE_G3S_MAX_X2 = TRUE
 
 Ns = c(10, 20, 40, 60, 100, 140, 200, 260)
 
@@ -19,6 +20,7 @@ truedist = 'n'; modeldist = 'n'; priordist = 'n'
 
 p0 = 0
 
+# # =====================================================================
 # # These are for running them all (also uncimment `}`s at the bottom)
 # for (p0 in c(0,1)) {
 # for (COMPARISON in c(FALSE, TRUE)) {
@@ -28,6 +30,7 @@ p0 = 0
 # } else {
 #     truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
 # }
+# # =====================================================================
 
 
 
@@ -111,6 +114,10 @@ for (ni in 1:length(Ns)) {
 
     # g3s
     estims = loovars + (n^2)*g3s
+    if (FORCE_G3S_MAX_X2) {
+        g3s_too_big_idxs = estims > 2*loovars
+        estims[g3s_too_big_idxs] = 2*loovars[g3s_too_big_idxs]
+    }
     rat_s[2,ni] = sqrt(mean(estims)) / target_sd
     rat_bb_s[2,ni,] = sqrt(
         rdirichlet(bbn, rep(bba, length(estims))) %*% estims) / target_sd
@@ -174,7 +181,9 @@ if (SAVE_FIGURE) {
 }
 
 
+# # =====================================================================
 # # There are for running them all
 # }
 # }
 # }
+# # =====================================================================

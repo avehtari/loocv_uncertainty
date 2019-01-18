@@ -4,15 +4,18 @@ library(matrixStats)
 library(extraDistr)
 
 # number of runs to split the trials
-run_tot = 20
+run_tot = 40
 # trials per run
 Niter = 2000
 
-Ns = c(10, 20, 40, 60, 100, 140, 200, 260)
+# Ns = c(10, 20, 40, 60, 100, 140, 200, 260)
+Ns = c(10, 20, 50, 130, 250, 400)
 p0 = 1
 
-truedist = 'n'; modeldist = 'n'; priordist = 'n'
-# truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
+root_folder = 'res_loo3'
+
+# truedist = 'n'; modeldist = 'n'; priordist = 'n'
+truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
 # truedist = 'b'; modeldist = 'b'; priordist = 'n'
 # truedist = 'n'; modeldist = 'tnu'; priordist = 'n'
 # truedist = 't4'; modeldist = 'n'; priordist = 'n'
@@ -42,8 +45,8 @@ for (n_i in 1:length(Ns)) {
         }
 
         # load data in variable out
-        load(sprintf('res_looc/parts/%s_%s_%s_%g_%g_%g',
-            truedist, modeldist, priordist, p0, n, run_i))
+        load(sprintf('%s/parts/%s_%s_%s_%g_%g_%g',
+            root_folder, truedist, modeldist, priordist, p0, n, run_i))
 
         # create output array if not created already
         if (is.null(out_all)) {
@@ -88,8 +91,8 @@ for (n_i in 1:length(Ns)) {
     out = out_all
     # save
     filename = sprintf(
-        "res_looc/%s_%s_%s_%d_%d.RData",
-        truedist, modeldist, priordist, p0, n
+        "%s/%s_%s_%s_%d_%d.RData",
+        root_folder, truedist, modeldist, priordist, p0, n
     )
     save(out, file=filename)
 

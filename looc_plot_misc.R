@@ -13,7 +13,9 @@ source('sn_fit.R')
 
 
 SAVE_FIGURE = FALSE
-COMPARISON = FALSE
+COMPARISON = TRUE
+FORCE_NONNEGATIVE_G3S = TRUE
+FORCE_G3S_MAX_X2 = TRUE
 
 Ns = c(10, 20, 40, 60, 100, 140, 200, 260)
 p0 = 1
@@ -24,7 +26,7 @@ truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
 # truedist = 'n'; modeldist = 'tnu'; priordist = 'n'
 # truedist = 't4'; modeldist = 'n'; priordist = 'n'
 
-ni = 3
+ni = 8
 n = Ns[ni]
 
 # load data in variable out
@@ -62,6 +64,11 @@ if (COMPARISON) {
     # g3s = out$g3s_nod[,m_i]
 }
 
+if (FORCE_NONNEGATIVE_G3S) {
+    # force g3s nonnegative
+    g3s[g3s<0] = 0.0
+}
+
 # ==============================================================================
 # calc
 
@@ -80,6 +87,10 @@ loo_vars_1 = n*loop_vars
 loo_vars_2 = 2*loo_vars_1
 loo_vars_3 = loo_vars_1 + n*g2s
 loo_vars_4 = loo_vars_1 + (n^2)*g3s
+if (FORCE_G3S_MAX_X2) {
+    g3s_too_big_idxs = loo_vars_4 > loo_vars_2
+    loo_vars_4[g3s_too_big_idxs] = loo_vars_2[g3s_too_big_idxs]
+}
 # pack them
 var_estim_names = list('naive', 'x2', 'g2', 'g3')
 var_estims = list(loo_vars_1, loo_vars_2, loo_vars_3, loo_vars_4)
@@ -132,15 +143,7 @@ g = g +
     ))
 g = ggMarginal(g, type='histogram')
 print(g)
-if (SAVE_FIGURE) {
-    ggsave(
-        plot=g, width=8, height=5,
-        filename = sprintf(
-            "figs/elpd-loo_%s_%s_%s_%i_%i_%s.pdf",
-            truedist, modeldist, priordist, p0, n, loo_name
-        )
-    )
-}
+
 
 g_s = vector("list", length(var_estims))
 for (var_e_i in 1:length(var_estims)) {
@@ -168,25 +171,94 @@ for (var_e_i in 1:length(var_estims)) {
     g = ggMarginal(g, type='histogram')
     g_s[[var_e_i]] = g
 }
-# plot (and save)
-if (SAVE_FIGURE) {
-    pdf(
-        file=sprintf(
-            "figs/pelpd-ploo_%s_%s_%s_%i_%i_%s.pdf",
-            truedist, modeldist, priordist, p0, n, loo_name
-        ),
-        width=12,
-        height=8
-    )
-} else {
-    dev.new()
-}
+# plot
+dev.new()
 top_str = sprintf(
     "%s, %s_%s_%s, p0=%g, n=%g, %s",
     loo_name, truedist, modeldist, priordist, p0, n, test_p_name
 )
 do.call("grid.arrange", c(g_s, nrow=2, top=top_str))
-if (SAVE_FIGURE) dev.off()
+
+
+# loovar_naive vs n2g3s
+dev.new()
+g = ggplot()
+g = g + geom_abline(intercept=0, slope=1, colour='red')
+g = g + geom_point(aes(x=loo_vars_1, y=((n^2)*g3s)))
+g = g +
+    xlab("var(loo) naive") +
+    ylab("(n^2)*g3s") +
+    ggtitle(sprintf(
+        "%s, %s_%s_%s, p0=%g n=%g",
+        loo_name, truedist, modeldist, priordist, p0, n
+    ))
+g = ggMarginal(g, type='histogram')
+print(g)
+
+
+if (COMPARISON) {
+
+    # loo1 vs loo2
+    dev.new()
+    g = ggplot()
+    g = g + geom_abline(intercept=0, slope=1, colour='red')
+    g = g + geom_point(aes(y=colSums(out$loos[,,1]), x=colSums(out$loos[,,2])))
+    g = g +
+        ylab("loo1") +
+        xlab("loo2") +
+        ggtitle(sprintf(
+            "%s, %s_%s_%s, p0=%g n=%g",
+            loo_name, truedist, modeldist, priordist, p0, n
+        ))
+    g = ggMarginal(g, type='histogram')
+    print(g)
+
+    # loo1 vs loo2
+    dev.new()
+    g = ggplot()
+    g = g + geom_abline(intercept=0, slope=1, colour='red')
+    g = g + geom_point(aes(x=out$tls[,1], y=out$tls[,2]))
+    g = g +
+        xlab("tls1") +
+        ylab("tls2") +
+        ggtitle(sprintf(
+            "%s, %s_%s_%s, p0=%g n=%g",
+            loo_name, truedist, modeldist, priordist, p0, n
+        ))
+    g = ggMarginal(g, type='histogram')
+    print(g)
+
+    # loo1 vs tls1
+    dev.new()
+    g = ggplot()
+    g = g + geom_abline(intercept=0, slope=1, colour='red')
+    g = g + geom_point(aes(x=out$tls[,1], y=colSums(out$loos[,,1])))
+    g = g +
+        xlab("tls1") +
+        ylab("loo1") +
+        ggtitle(sprintf(
+            "%s, %s_%s_%s, p0=%g n=%g",
+            loo_name, truedist, modeldist, priordist, p0, n
+        ))
+    g = ggMarginal(g, type='histogram')
+    print(g)
+
+    # loo2 vs tls2
+    dev.new()
+    g = ggplot()
+    g = g + geom_abline(intercept=0, slope=1, colour='red')
+    g = g + geom_point(aes(x=colSums(out$loos[,,2]), y=out$tls[,2]))
+    g = g +
+        xlab("loo2") +
+        ylab("tls2") +
+        ggtitle(sprintf(
+            "%s, %s_%s_%s, p0=%g n=%g",
+            loo_name, truedist, modeldist, priordist, p0, n
+        ))
+    g = ggMarginal(g, type='histogram')
+    print(g)
+
+}
 
 
 # ==============================================================================

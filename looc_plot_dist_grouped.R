@@ -5,6 +5,7 @@ library(moments)
 library(ggplot2)
 library(ggExtra)
 library(gridExtra)
+library(RColorBrewer)
 
 library(sn)
 # library(emg)
@@ -15,6 +16,7 @@ source('sn_fit.R')
 SAVE_FIGURE = FALSE
 COMPARISON = FALSE
 FORCE_NONNEGATIVE_G3S = TRUE
+FORCE_G3S_MAX_X2 = TRUE
 
 Ns = c(10, 20, 40, 60, 100, 140, 200, 260)
 p0 = 0
@@ -28,6 +30,20 @@ truedist = 'n'; modeldist = 'n'; priordist = 'n'
 
 
 bins = 8
+
+
+# # =====================================================================
+# # These are for running them all (also uncimment `}`s at the bottom)
+# for (p0 in c(0,1)) {
+# for (COMPARISON in c(FALSE, TRUE)) {
+# for (temp_i in c(1,2)) {
+# if (temp_i == 1) {
+#     truedist = 'n'; modeldist = 'n'; priordist = 'n'
+# } else {
+#     truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
+# }
+# # =====================================================================
+
 
 # ==============================================================================
 # For all n
@@ -101,6 +117,10 @@ for (ni in 1:length(Ns)) {
     loo_vars_2 = 2*loo_vars_1
     loo_vars_3 = loo_vars_1 + n*g2s
     loo_vars_4 = loo_vars_1 + (n^2)*g3s
+    if (FORCE_G3S_MAX_X2) {
+        g3s_too_big_idxs = loo_vars_4 > loo_vars_2
+        loo_vars_4[g3s_too_big_idxs] = loo_vars_2[g3s_too_big_idxs]
+    }
     # pack them
     var_estim_names = list('naive', 'corr', 'x2')
     var_estims = list(loo_vars_1, loo_vars_4, loo_vars_2)
@@ -177,13 +197,12 @@ for (ni in 1:length(Ns)) {
 }
 
 # get fill colours
-library(RColorBrewer)
 colours = brewer.pal(6,"Paired")
 # swap 3,4 (greens) <> 5,6 (reds)
 colours = c(colours[1:2], colours[5:6], colours[3:4])
 names(colours) = levels(data_out$var_estim)
 
-
+dev.new()
 g = ggplot(data_out, aes(factor(bin), count, fill=var_estim)) +
     geom_bar(stat="identity", width=0.7, position=position_dodge(width=0.7)) +
     # geom_bar(stat="identity", position='dodge') +
@@ -214,3 +233,11 @@ if (SAVE_FIGURE) {
         )
     )
 }
+
+
+# # =====================================================================
+# # There are for running them all
+# }
+# }
+# }
+# # =====================================================================
