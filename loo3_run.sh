@@ -2,7 +2,7 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --time=3-00:00:00 --mem-per-cpu=5000
 #SBATCH -p batch
-#SBATCH -o log_3/%a.txt
+#SBATCH -o log3/%a.txt
 #SBATCH --array=0-239
 
 #module load boost
