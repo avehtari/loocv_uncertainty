@@ -341,8 +341,8 @@ loo3_fun_one = function(
 
     # save
     filename = sprintf(
-        "res_loo3/parts/%s_%s_%s_%d_%d_%d",
-        truedist, modeldist, priordist, p0, n, run_i
+        "res_loo3/parts/%s_%s_%s_%g_%d_%d",
+        truedist, modeldist, priordist, beta0, n, run_i
     )
     save(out, file=filename)
 

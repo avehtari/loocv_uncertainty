@@ -66,7 +66,7 @@ for (ni in 1:length(Ns)) {
     # select measure
 
     if (MEASURE <= 3) {
-        m_i = 1
+        m_i = MEASURE
         loo_name = sprintf('M%d', m_i-1)
         loos = out$loos[,,m_i]
         tls = out$tls[,m_i]

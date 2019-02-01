@@ -1,3 +1,18 @@
+
+skewness_weighted = function(x, w){
+    sum_w = sum(w)
+    sum_w_2 = sum_w^2
+    sum_w_3 = sum_w^3
+    sum_w2 = sum(w^2)
+    sum_w3 = sum(w^3)
+    resid_x_w = x - sum(w*x)/sum_w
+    sd_x_w = sqrt(sum(w*resid_x_w^2) * sum_w_2 / (sum_w * (sum_w_2 - sum_w2)))
+    skew_x_w = sum(w*resid_x_w^3) * sum_w_3 /
+        (sum_w * sd_x_w^3 * (sum_w_3 - 3*sum_w*sum_w2 + 2*sum_w3))
+    skew_x_w
+}
+
+
 sn_from_moments = function(mu, sigma, skew){
     # fit skew normal from sample moments
     # returns xi, omega, alpha

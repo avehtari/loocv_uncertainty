@@ -14,7 +14,7 @@ source('sn_fit.R')
 
 
 SAVE_FIGURE = FALSE
-
+MEASURE = 5  # 1:M0, 2:M1, 3:M2, 4:M0-M1, 5:M0-M2, 6:M1-M2
 FORCE_NONNEGATIVE_G3S = TRUE
 FORCE_G3S_MAX_X2 = TRUE
 
@@ -30,7 +30,7 @@ truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
 
 # define min number of selected trials
 # min_trials = 400
-min_trials = 1
+min_trials = 10
 
 # thin the plot
 plot_thin = 200
@@ -44,6 +44,7 @@ beta_prior_beta = 1
 # # =====================================================================
 # # These are for running them all (also uncimment `}`s at the bottom)
 # for (p0 in c(0,1)) {
+# for (MEASURE in 4:6) {
 # for (temp_i in c(1,2)) {
 # if (temp_i == 1) {
 #     truedist = 'n'; modeldist = 'n'; priordist = 'n'
@@ -59,6 +60,7 @@ beta_prior_beta = 1
 # initialise empty result plot data
 data_out = data.frame(
     n_str=character(),
+    loosign=character(),
     var_estim=character(),
     multiplier=double(),
     success_median=double(),
@@ -85,32 +87,42 @@ for (ni in 1:length(Ns)) {
     # ==========================================================================
     # select measure
 
-    # # M0-M1
-    # loo_name = 'M0-M1'
-    # loos = out$loos[,,1] - out$loos[,,2]
-    # tls = out$tls[,1] - out$tls[,2]
-    # g2s = out$g2s_d01
-    # g3s = out$g3s_d01
-    # # g2s = out$g2s_nod_d01
-    # # g3s = out$g3s_nod_d01
-
-    # M0-M2
-    loo_name = 'M0-M2'
-    loos = out$loos[,,1] - out$loos[,,3]
-    tls = out$tls[,1] - out$tls[,3]
-    g2s = out$g2s_d02
-    g3s = out$g3s_d02
-    # g2s = out$g2s_nod_d02
-    # g3s = out$g3s_nod_d02
-
-    # # M1-M2
-    # loo_name = 'M1-M2'
-    # loos = out$loos[,,2] - out$loos[,,3]
-    # tls = out$tls[,2] - out$tls[,3]
-    # g2s = out$g2s_d12
-    # g3s = out$g3s_d12
-    # # g2s = out$g2s_nod_d12
-    # # g3s = out$g3s_nod_d12
+    if (MEASURE == 4) {
+        # M0-M1
+        loo_name = 'M0-M1'
+        loo_pos_chosen = 'M0 chosen'
+        loo_neg_chosen = 'M1 chosen'
+        loos = out$loos[,,1] - out$loos[,,2]
+        tls = out$tls[,1] - out$tls[,2]
+        g2s = out$g2s_d01
+        g3s = out$g3s_d01
+        # g2s = out$g2s_nod_d01
+        # g3s = out$g3s_nod_d01
+    } else if (MEASURE == 5) {
+        # M0-M2
+        loo_name = 'M0-M2'
+        loo_pos_chosen = 'M0 chosen'
+        loo_neg_chosen = 'M2 chosen'
+        loos = out$loos[,,1] - out$loos[,,3]
+        tls = out$tls[,1] - out$tls[,3]
+        g2s = out$g2s_d02
+        g3s = out$g3s_d02
+        # g2s = out$g2s_nod_d02
+        # g3s = out$g3s_nod_d02
+    } else if (MEASURE == 6) {
+        # M1-M2
+        loo_name = 'M1-M2'
+        loo_pos_chosen = 'M1 chosen'
+        loo_neg_chosen = 'M2 chosen'
+        loos = out$loos[,,2] - out$loos[,,3]
+        tls = out$tls[,2] - out$tls[,3]
+        g2s = out$g2s_d12
+        g3s = out$g3s_d12
+        # g2s = out$g2s_nod_d12
+        # g3s = out$g3s_nod_d12
+    } else {
+        stop('Invalid measure')
+    }
 
     if (FORCE_NONNEGATIVE_G3S) {
         # force g3s nonnegative
@@ -147,89 +159,121 @@ for (ni in 1:length(Ns)) {
 
 
     # required uncertainty sigma multipliers
-    multiplier = vector("list", length(var_estims))
-    success_median = vector("list", length(var_estims))
-    success_025 = vector("list", length(var_estims))
-    success_975 = vector("list", length(var_estims))
-    for (var_e_i in 1:length(var_estims)) {
-        multips = abs(loo_means)/sqrt(var_estims[[var_e_i]])
-        multips_order = order(multips)
-        if (plot_thin) {
-            # calculate with thinned multipliers
-            thinned_x = seq(
-                from=(multips[multips_order[1]])/2,
-                to=(multips[multips_order[Niter-min_trials-1]] +
-                    multips[multips_order[Niter-min_trials]]
-                )/2,
-                length=plot_thin
-            )
-            success_median_i = array(NA, plot_thin)
-            success_025_i = array(NA, plot_thin)
-            success_975_i = array(NA, plot_thin)
-            for (x_i in 1:plot_thin) {
-                selected = (
-                    abs(loo_means) >
-                    thinned_x[x_i]*sqrt(var_estims[[var_e_i]])
+    multiplier = vector("list", length(var_estims)*2)
+    success_median = vector("list", length(var_estims)*2)
+    success_025 = vector("list", length(var_estims)*2)
+    success_975 = vector("list", length(var_estims)*2)
+    for (loosign_i in 1:2) {
+        loosign_idx = sign(loo_means) == c(-1,1)[loosign_i]
+        loo_means_cur = loo_means[loosign_idx]
+        tls_cur = tls[loosign_idx]
+        len_cur = length(loo_means_cur)
+        if (len_cur <= min_trials)
+            next
+        for (var_e_i in 1:length(var_estims)) {
+            var_estims_cur = var_estims[[var_e_i]][loosign_idx]
+
+            multips = abs(loo_means_cur)/sqrt(var_estims_cur)
+            multips_order = order(multips)
+            if (plot_thin) {
+                # calculate with thinned multipliers
+                thinned_x = seq(
+                    from=(0+multips[multips_order[1]])/2,
+                    to=(multips[multips_order[len_cur-min_trials]] +
+                        multips[multips_order[len_cur-min_trials+1]]
+                    )/2,
+                    length=plot_thin
                 )
-                n_success = sum(selected)
-                y_success = sum(
-                    sign(loo_means[selected]) == sign(tls[selected]))
-                quantiles = qbeta(
-                    c(0.025, 0.5, 0.975),
-                    y_success+beta_prior_alpha,
-                    n_success-y_success+beta_prior_beta
-                )
-                success_median_i[x_i] = quantiles[2]
-                success_025_i[x_i] = quantiles[1]
-                success_975_i[x_i] = quantiles[3]
+                success_median_i = array(NA, plot_thin)
+                success_025_i = array(NA, plot_thin)
+                success_975_i = array(NA, plot_thin)
+                for (x_i in 1:plot_thin) {
+                    selected = (
+                        abs(loo_means_cur) >
+                        thinned_x[x_i]*sqrt(var_estims_cur)
+                    )
+                    n_success = sum(selected)
+                    y_success = sum(
+                        sign(loo_means_cur[selected]) ==
+                        sign(tls_cur[selected])
+                    )
+                    quantiles = qbeta(
+                        c(0.025, 0.5, 0.975),
+                        y_success+beta_prior_alpha,
+                        n_success-y_success+beta_prior_beta
+                    )
+                    success_median_i[x_i] = quantiles[2]
+                    success_025_i[x_i] = quantiles[1]
+                    success_975_i[x_i] = quantiles[3]
+                }
+                list_idx = var_e_i+(loosign_i-1)*length(var_estims)
+                multiplier[[list_idx]] = thinned_x
+                success_median[[list_idx]] = success_median_i
+                success_025[[list_idx]] = success_025_i
+                success_975[[list_idx]] = success_975_i
+            } else {
+                # calculate with all multipliers
+                success_median_i = array(NA, (len_cur-min_trials+1))
+                success_025_i = array(NA, (len_cur-min_trials+1))
+                success_975_i = array(NA, (len_cur-min_trials+1))
+                for (x_i in 1:(len_cur-min_trials+1)) {
+                    selected = multips_order[x_i:len_cur]
+                    n_success = length(selected)
+                    y_success = sum(
+                        sign(loo_means_cur[selected]) ==
+                        sign(tls_cur[selected])
+                    )
+                    quantiles = qbeta(
+                        c(0.025, 0.5, 0.975),
+                        y_success+beta_prior_alpha,
+                        n_success-y_success+beta_prior_beta
+                    )
+                    success_median_i[x_i] = quantiles[2]
+                    success_025_i[x_i] = quantiles[1]
+                    success_975_i[x_i] = quantiles[3]
+                }
+                list_idx = var_e_i+(loosign_i-1)*length(var_estims)
+                multiplier[[list_idx]] = c(
+                    0.0, multips[multips_order[1:(len_cur-min_trials+1)]])
+                success_median[[list_idx]] = c(
+                    success_median_i[1], success_median_i)
+                success_025[[list_idx]] = c(
+                    success_025_i[1], success_025_i)
+                success_975[[list_idx]] = c(
+                    success_975_i[1], success_975_i)
             }
-            multiplier[[var_e_i]] = thinned_x
-            success_median[[var_e_i]] = success_median_i
-            success_025[[var_e_i]] = success_025_i
-            success_975[[var_e_i]] = success_975_i
-        } else {
-            # calculate with all multipliers
-            success_median_i = array(NA, (Niter-min_trials))
-            success_025_i = array(NA, (Niter-min_trials))
-            success_975_i = array(NA, (Niter-min_trials))
-            for (x_i in 1:(Niter-min_trials)) {
-                selected = multips_order[x_i:Niter]
-                n_success = length(selected)
-                y_success = sum(
-                    sign(loo_means[selected]) == sign(tls[selected]))
-                quantiles = qbeta(
-                    c(0.025, 0.5, 0.975),
-                    y_success+beta_prior_alpha,
-                    n_success-y_success+beta_prior_beta
-                )
-                success_median_i[x_i] = quantiles[2]
-                success_025_i[x_i] = quantiles[1]
-                success_975_i[x_i] = quantiles[3]
-            }
-            multiplier[[var_e_i]] = c(
-                0.0, multips[multips_order[1:(Niter-min_trials)]])
-            success_median[[var_e_i]] = c(success_median_i[1], success_median_i)
-            success_025[[var_e_i]] = c(success_025_i[1], success_025_i)
-            success_975[[var_e_i]] = c(success_975_i[1], success_975_i)
         }
     }
 
     # store data
-    for (var_e_i in 1:length(var_estims)) {
-        data_out = rbind(
-            data_out,
-            data.frame(
-                n_str=sprintf('n=%g', n),
-                var_estim=var_estim_names[[var_e_i]],
-                multiplier=multiplier[[var_e_i]],
-                success_median=success_median[[var_e_i]],
-                success_025=success_025[[var_e_i]],
-                success_975=success_975[[var_e_i]]
+    for (loosign_i in 1:2) {
+        if (loosign_i == 1)
+            loosign_str = loo_neg_chosen
+        else
+            loosign_str = loo_pos_chosen
+        for (var_e_i in 1:length(var_estims)) {
+            list_idx = var_e_i+(loosign_i-1)*length(var_estims)
+            if (is.null(multiplier[[list_idx]])) next
+            data_out = rbind(
+                data_out,
+                data.frame(
+                    n_str=sprintf('n=%g', n),
+                    loosign=loosign_str,
+                    var_estim=var_estim_names[[var_e_i]],
+                    multiplier=multiplier[[list_idx]],
+                    success_median=success_median[[list_idx]],
+                    success_025=success_025[[list_idx]],
+                    success_975=success_975[[list_idx]]
+                )
             )
-        )
+        }
     }
 
 }
+
+# order loosign
+data_out$loosign <- factor(
+    data_out$loosign, levels = c(loo_pos_chosen, loo_neg_chosen))
 
 
 # ==============================================================================
@@ -237,19 +281,14 @@ for (ni in 1:length(Ns)) {
 
 # get colours
 colours = brewer.pal(6,"Paired")
-colours = c(colours[2], colours[6], colours[4])
+# colours = c(colours[2], colours[6], colours[4])
+colours = c(colours[2], colours[6])
 names(colours) = levels(data_out$var_estim)
 
+dev.new()
 if (plot_thin) {
-    dev.new()
-    g = ggplot(
-            data_out,
-            aes(
-                x=multiplier, y=success_median, colour=var_estim,
-                ymin=success_025, ymax=success_975
-            )
-        ) +
-        facet_wrap(~n_str, ncol=2) +
+    g = ggplot(data_out) +
+        facet_grid(n_str~loosign, scales='free_x') +
         geom_ribbon(
             aes(x=multiplier, ymin=success_025, ymax=success_975,
                 fill=var_estim),
@@ -260,9 +299,8 @@ if (plot_thin) {
         scale_colour_manual(values=colours) +
         scale_fill_manual(values=colours)
 } else {
-    dev.new()
     g = ggplot(data_out) +
-        facet_wrap(~n_str, ncol=2) +
+        facet_grid(n_str~loosign, scales='free_x') +
         geom_step(
             aes(x=multiplier, y=success_025, colour=var_estim),
             direction="vh", alpha=0.4
@@ -299,7 +337,8 @@ if (SAVE_FIGURE) {
 
 
 # # =====================================================================
-# # There are for running them all
+# # These are for running them all
+# }
 # }
 # }
 # # =====================================================================
