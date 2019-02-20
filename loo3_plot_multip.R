@@ -14,12 +14,20 @@ source('sn_fit.R')
 
 
 SAVE_FIGURE = FALSE
-MEASURE = 5  # 1:M0, 2:M1, 3:M2, 4:M0-M1, 5:M0-M2, 6:M1-M2
+MEASURE = 4  # 1:M0, 2:M1, 3:M2, 4:M0-M1, 5:M0-M2, 6:M1-M2
 FORCE_NONNEGATIVE_G3S = TRUE
-FORCE_G3S_MAX_X2 = TRUE
+FORCE_G3S_MAX_X2 = FALSE
 
 Ns = c(10, 20, 50, 130, 250, 400)
 p0 = 1
+
+beta0 = 0.25
+# beta0 = 0.5
+# beta0 = 1
+# beta0 = 2
+# beta0 = 3
+# beta0 = 4
+beta0s = c(0.25, 0.5, 1, 2, 4)
 
 # truedist = 'n'; modeldist = 'n'; priordist = 'n'
 truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
@@ -43,18 +51,12 @@ beta_prior_beta = 1
 
 # # =====================================================================
 # # These are for running them all (also uncimment `}`s at the bottom)
-# for (p0 in c(0,1)) {
+# for (beta0 in beta0s) {
 # for (MEASURE in 4:6) {
-# for (temp_i in c(1,2)) {
-# if (temp_i == 1) {
-#     truedist = 'n'; modeldist = 'n'; priordist = 'n'
-# } else {
-#     truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
-# }
 # # =====================================================================
 
 
-# ==============================================================================
+# =============================================================================
 # For all n
 
 # initialise empty result plot data
@@ -74,8 +76,8 @@ for (ni in 1:length(Ns)) {
     cat(sprintf('%g,', n))
 
     # load data in variable out
-    load(sprintf('res_loo3/%s_%s_%s_%g_%g.RData',
-        truedist, modeldist, priordist, p0, n))
+    load(sprintf('res_loo3/%s_%s_%s_%g_%d.RData',
+        truedist, modeldist, priordist, beta0, n))
     # drop singleton dimensions
     for (name in names(out)) {
         out[[name]] = drop(out[[name]])
@@ -135,8 +137,8 @@ for (ni in 1:length(Ns)) {
     # loo point estimates
     loop_sums = colSums(loos)
     loop_means = colMeans(loos)
-    loop_sds = colSds(loos)
-    loop_vars = loop_sds**2
+    loop_vars = colVars(loos)
+    loop_sds = sqrt(loop_vars)
     loop_skews = apply(loos, 2, skewness)
 
     # loo sum mean estimate
@@ -144,7 +146,7 @@ for (ni in 1:length(Ns)) {
 
     # loo sum var estimates
     loo_vars_1 = n*loop_vars
-    loo_vars_2 = 2*loo_vars_1
+    loo_vars_2 = 2*(n-1)/(n-2)*loo_vars_1
     loo_vars_3 = loo_vars_1 + n*g2s
     loo_vars_4 = loo_vars_1 + (n^2)*g3s
     if (FORCE_G3S_MAX_X2) {
@@ -178,7 +180,7 @@ for (ni in 1:length(Ns)) {
             if (plot_thin) {
                 # calculate with thinned multipliers
                 thinned_x = seq(
-                    from=(0+multips[multips_order[1]])/2,
+                    from=0,
                     to=(multips[multips_order[len_cur-min_trials]] +
                         multips[multips_order[len_cur-min_trials+1]]
                     )/2,
@@ -288,7 +290,8 @@ names(colours) = levels(data_out$var_estim)
 dev.new()
 if (plot_thin) {
     g = ggplot(data_out) +
-        facet_grid(n_str~loosign, scales='free_x') +
+        facet_grid(n_str~loosign) +
+        # facet_grid(n_str~loosign, scales='free_x') +
         geom_ribbon(
             aes(x=multiplier, ymin=success_025, ymax=success_975,
                 fill=var_estim),
@@ -316,11 +319,13 @@ if (plot_thin) {
         scale_colour_manual(values=colours)
 }
 
+g = g + ylim(0,1)
+
 # add labels
 g = g + xlab("x") + ylab("Pr(sign(elpd)=sign(loo) | abs(loo)>x*sd(loo))")
 g = g + ggtitle(sprintf(
-    "model: %s_%s_%s, p0=%g, %s",
-    truedist, modeldist, priordist, p0, loo_name
+    "model: %s_%s_%s, beta0=%g, %s",
+    truedist, modeldist, priordist, beta0, loo_name
 ))
 
 print(g)
@@ -329,8 +334,8 @@ if (SAVE_FIGURE) {
     ggsave(
         plot=g, width=16, height=12,
         filename = sprintf(
-            "figs/multip_%s_%s_%s_%i_%s.pdf",
-            truedist, modeldist, priordist, p0, loo_name
+            "figs/multip_%s_%s_%s_%g_%s.pdf",
+            truedist, modeldist, priordist, beta0, loo_name
         )
     )
 }
@@ -338,7 +343,6 @@ if (SAVE_FIGURE) {
 
 # # =====================================================================
 # # These are for running them all
-# }
 # }
 # }
 # # =====================================================================

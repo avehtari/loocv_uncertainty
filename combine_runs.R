@@ -4,13 +4,20 @@ library(matrixStats)
 library(extraDistr)
 
 # number of runs to split the trials
-run_tot = 40
+run_tot = 20
 # trials per run
 Niter = 2000
 
 # Ns = c(10, 20, 40, 60, 100, 140, 200, 260)
 Ns = c(10, 20, 50, 130, 250, 400)
 p0 = 1
+
+beta0 = 0.25
+# beta0 = 0.5
+# beta0 = 1
+# beta0 = 2
+# beta0 = 3
+# beta0 = 4
 
 root_folder = 'res_loo3'
 
@@ -45,8 +52,10 @@ for (n_i in 1:length(Ns)) {
         }
 
         # load data in variable out
-        load(sprintf('%s/parts/%s_%s_%s_%g_%g_%g',
-            root_folder, truedist, modeldist, priordist, p0, n, run_i))
+        # load(sprintf('%s/parts/%s_%s_%s_%g_%g_%g',
+        #     root_folder, truedist, modeldist, priordist, p0, n, run_i))
+        load(sprintf('%s/parts/%s_%s_%s_%g_%d_%d',
+            root_folder, truedist, modeldist, priordist, beta0, n, run_i))
 
         # create output array if not created already
         if (is.null(out_all)) {
@@ -91,8 +100,8 @@ for (n_i in 1:length(Ns)) {
     out = out_all
     # save
     filename = sprintf(
-        "%s/%s_%s_%s_%d_%d.RData",
-        root_folder, truedist, modeldist, priordist, p0, n
+        "%s/%s_%s_%s_%g_%d.RData",
+        root_folder, truedist, modeldist, priordist, beta0, n
     )
     save(out, file=filename)
 

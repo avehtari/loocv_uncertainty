@@ -6,9 +6,9 @@ library(RColorBrewer)
 
 
 SAVE_FIGURE = FALSE
-MEASURE = 5  # 1:M0, 2:M1, 3:M2, 4:M0-M1, 5:M0-M2, 6:M1-M2
+MEASURE = 1  # 1:M0, 2:M1, 3:M2, 4:M0-M1, 5:M0-M2, 6:M1-M2
 FORCE_NONNEGATIVE_G3S = TRUE
-FORCE_G3S_MAX_X2 = TRUE
+FORCE_G3S_MAX_X2 = FALSE
 
 Ns = c(10, 20, 50, 130, 250, 400)
 
@@ -20,16 +20,18 @@ truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
 
 p0 = 1
 
+beta0 = 0.25
+# beta0 = 0.5
+# beta0 = 1
+# beta0 = 2
+# beta0 = 3
+# beta0 = 4
+beta0s = c(0.25, 0.5, 1, 2, 4)
+
 # # =====================================================================
 # # These are for running them all (also uncimment `}`s at the bottom)
-# for (p0 in c(0,1)) {
+# for (beta0 in beta0s) {
 # for (MEASURE in 1:6) {
-# for (temp_i in c(1,2)) {
-# if (temp_i == 1) {
-#     truedist = 'n'; modeldist = 'n'; priordist = 'n'
-# } else {
-#     truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
-# }
 # # =====================================================================
 
 
@@ -38,7 +40,7 @@ p0 = 1
 # ratio peformance of variance terms
 
 # settings for bayesian bootstrap
-bbn = 2000
+bbn = 1000
 bba = 1
 
 var_estim_names = list('naive', 'corr', 'x2')
@@ -54,8 +56,8 @@ for (ni in 1:length(Ns)) {
     cat(sprintf('%g,', n))
 
     # load data in variable out
-    load(sprintf('res_loo3/%s_%s_%s_%g_%g.RData',
-        truedist, modeldist, priordist, p0, n))
+    load(sprintf('res_loo3/%s_%s_%s_%g_%d.RData',
+        truedist, modeldist, priordist, beta0, n))
     # drop singleton dimensions
     Niter = dim(out$loos)[2]
     for (name in names(out)) {
@@ -132,15 +134,15 @@ for (ni in 1:length(Ns)) {
     # g3s
     estims = loovars + (n^2)*g3s
     if (FORCE_G3S_MAX_X2) {
-        g3s_too_big_idxs = estims > 2*loovars
-        estims[g3s_too_big_idxs] = 2*loovars[g3s_too_big_idxs]
+        g3s_too_big_idxs = estims > 2*(n-1)/(n-2)*loovars
+        estims[g3s_too_big_idxs] = 2*(n-1)/(n-2)*loovars[g3s_too_big_idxs]
     }
     rat_s[2,ni] = sqrt(mean(estims)) / target_sd
     rat_bb_s[2,ni,] = sqrt(
         rdirichlet(bbn, rep(bba, length(estims))) %*% estims) / target_sd
 
     # x2
-    estims = 2*loovars
+    estims = 2*(n-1)/(n-2)*loovars
     rat_s[3,ni] = sqrt(mean(estims)) / target_sd
     rat_bb_s[3,ni,] = sqrt(
         rdirichlet(bbn, rep(bba, length(estims))) %*% estims) / target_sd
@@ -182,8 +184,8 @@ g = g +
     xlab("number of samples") +
     ylab("") +
     ggtitle(sprintf(
-        "hat{sd(loo_i)} / sd(elpd_i-loo_i), model: %s_%s_%s, p0=%g, %s",
-        truedist, modeldist, priordist, p0, loo_name
+        "hat{sd(loo_i)} / sd(elpd_i-loo_i), model: %s_%s_%s, beta0=%g, %s",
+        truedist, modeldist, priordist, beta0, loo_name
     ))
 print(g)
 # save figure
@@ -191,8 +193,8 @@ if (SAVE_FIGURE) {
     ggsave(
         plot=g, width=8, height=5,
         filename = sprintf(
-            "figs/ratio_%s_%s_%s_%i_%s.pdf",
-            truedist, modeldist, priordist, p0, loo_name
+            "figs/ratio_%s_%s_%s_%g_%s.pdf",
+            truedist, modeldist, priordist, beta0, loo_name
         )
     )
 }
@@ -200,7 +202,6 @@ if (SAVE_FIGURE) {
 
 # # =====================================================================
 # # There are for running them all
-# }
 # }
 # }
 # # =====================================================================

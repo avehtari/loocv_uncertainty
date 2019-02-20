@@ -9,10 +9,18 @@ source('sn_fit.R')
 
 
 SAVE_FIGURE = TRUE
-MEASURE = 5  # 1:M0, 2:M1, 3:M2, 4:M0-M1, 5:M0-M2, 6:M1-M2
+MEASURE = 1  # 1:M0, 2:M1, 3:M2, 4:M0-M1, 5:M0-M2, 6:M1-M2
 
 Ns = c(10, 20, 50, 130, 250, 400)
 p0 = 1
+
+beta0 = 0.25
+# beta0 = 0.5
+# beta0 = 1
+# beta0 = 2
+# beta0 = 3
+# beta0 = 4
+beta0s = c(0.25, 0.5, 1, 2, 4)
 
 # truedist = 'n'; modeldist = 'n'; priordist = 'n'
 truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
@@ -23,8 +31,16 @@ truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
 Niter = 2000
 
 # bayes bootstrap samples
-bbn = 2000
-bb_alpha = 0.5
+bbn = 1000
+bb_alpha = 1
+
+
+# =====================================================================
+# These are for running them all (also uncimment `}`s at the bottom)
+for (beta0 in beta0s) {
+for (MEASURE in 1:6) {
+# =====================================================================
+
 
 # ==============================================================================
 
@@ -44,8 +60,8 @@ for (ni in 1:length(Ns)) {
     cat(sprintf('%g,', n))
 
     # load data in variable out
-    load(sprintf('res_loo3/%s_%s_%s_%g_%g.RData',
-        truedist, modeldist, priordist, p0, n))
+    load(sprintf('res_loo3/%s_%s_%s_%g_%d.RData',
+        truedist, modeldist, priordist, beta0, n))
     # drop singleton dimensions
     for (name in names(out)) {
         out[[name]] = drop(out[[name]])
@@ -160,8 +176,8 @@ g = g + facet_wrap(~fill, nrow=4)
 g = g +
     xlab("number of samples") +
     ggtitle(sprintf(
-        "skewness, model: %s_%s_%s, p0=%g, %s",
-        truedist, modeldist, priordist, p0, loo_name
+        "skewness, model: %s_%s_%s, beta0=%g, %s",
+        truedist, modeldist, priordist, beta0, loo_name
     ))
 print(g)
 
@@ -170,8 +186,14 @@ if (SAVE_FIGURE) {
     ggsave(
         plot=g, width=8, height=5,
         filename = sprintf(
-            "figs/skew_%s_%s_%s_%i_%s.pdf",
-            truedist, modeldist, priordist, p0, loo_name
+            "figs/skew_%s_%s_%s_%g_%s.pdf",
+            truedist, modeldist, priordist, beta0, loo_name
         )
     )
 }
+
+# =====================================================================
+# There are for running them all
+}
+}
+# =====================================================================

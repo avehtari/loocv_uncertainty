@@ -3,7 +3,7 @@
 #SBATCH --time=3-00:00:00 --mem-per-cpu=5000
 #SBATCH -p batch
 #SBATCH -o log3/%a.txt
-#SBATCH --array=0-239
+#SBATCH --array=0-599
 
 #module load boost
 #module load R
