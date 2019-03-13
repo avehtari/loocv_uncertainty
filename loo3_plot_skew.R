@@ -5,18 +5,21 @@ library(moments)
 library(ggplot2)
 library(gridExtra)
 
+library(bayesplot)
+theme_set(bayesplot::theme_default(base_family = "sans"))
+
 source('sn_fit.R')
 
 
 SAVE_FIGURE = TRUE
-MEASURE = 1  # 1:M0, 2:M1, 3:M2, 4:M0-M1, 5:M0-M2, 6:M1-M2
+MEASURE = 5  # 1:M0, 2:M1, 3:M2, 4:M0-M1, 5:M0-M2, 6:M1-M2
 
 Ns = c(10, 20, 50, 130, 250, 400)
 p0 = 1
 
-beta0 = 0.25
+# beta0 = 0.25
 # beta0 = 0.5
-# beta0 = 1
+beta0 = 1
 # beta0 = 2
 # beta0 = 3
 # beta0 = 4
@@ -31,15 +34,15 @@ truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
 Niter = 2000
 
 # bayes bootstrap samples
-bbn = 1000
+bbn = 2000
 bb_alpha = 1
 
 
-# =====================================================================
-# These are for running them all (also uncimment `}`s at the bottom)
-for (beta0 in beta0s) {
-for (MEASURE in 1:6) {
-# =====================================================================
+# # =====================================================================
+# # These are for running them all (also uncimment `}`s at the bottom)
+# for (beta0 in beta0s) {
+for (MEASURE in c(1,4,5)) {
+# # =====================================================================
 
 
 # ==============================================================================
@@ -130,6 +133,8 @@ cat('\ndone processing\n')
 
 dev.new()
 g = ggplot()
+g = g + scale_x_sqrt(breaks=Ns)
+g = g + geom_hline(yintercept=0, colour='gray')
 for (ni in 1:length(Ns)) {
     g = g + geom_violin(
         data = data.frame(
@@ -138,17 +143,17 @@ for (ni in 1:length(Ns)) {
             fill='loo_i'
         ),
         aes(x=x, y=y),
-        width = 16,
+        width = 2,
         alpha = 0.5
     )
     g = g + geom_violin(
         data = data.frame(
             y=skew_loosum_bb[,ni],
             x=Ns[ni],
-            fill='loosum'
+            fill='loo'
         ),
         aes(x=x, y=y),
-        width = 16,
+        width = 2,
         alpha = 0.5
     )
     g = g + geom_violin(
@@ -158,33 +163,42 @@ for (ni in 1:length(Ns)) {
             fill='elpd'
         ),
         aes(x=x, y=y),
-        width = 16,
+        width = 2,
         alpha = 0.5
     )
     g = g + geom_violin(
         data = data.frame(
             y=skew_looerror_bb[,ni],
             x=Ns[ni],
-            fill='loosum-elpd'
+            fill='loo-elpd'
         ),
         aes(x=x, y=y),
-        width = 16,
+        width = 2,
         alpha = 0.5
     )
 }
-g = g + facet_wrap(~fill, nrow=4)
-g = g +
-    xlab("number of samples") +
-    ggtitle(sprintf(
-        "skewness, model: %s_%s_%s, beta0=%g, %s",
-        truedist, modeldist, priordist, beta0, loo_name
-    ))
+g = g + facet_wrap(~fill, nrow=4, , scales='free_y')
+g = g + xlab("data size")
+
+if (MEASURE == 1) {
+    g = g + ylab('skewness')
+} else {
+    g = g + ylab(NULL)
+}
+
+# g = g +
+    # ggtitle(sprintf(
+    #     "skewness, model: %s_%s_%s, beta0=%g, %s",
+    #     truedist, modeldist, priordist, beta0, loo_name
+    # ))
+    # ggtitle(sprintf("%s", loo_name))
+
 print(g)
 
 # save figure
 if (SAVE_FIGURE) {
     ggsave(
-        plot=g, width=8, height=5,
+        plot=g, width=4, height=5,
         filename = sprintf(
             "figs/skew_%s_%s_%s_%g_%s.pdf",
             truedist, modeldist, priordist, beta0, loo_name
@@ -192,8 +206,8 @@ if (SAVE_FIGURE) {
     )
 }
 
-# =====================================================================
-# There are for running them all
+# # =====================================================================
+# # There are for running them all
+# }
 }
-}
-# =====================================================================
+# # =====================================================================
