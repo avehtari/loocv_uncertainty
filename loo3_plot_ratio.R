@@ -26,13 +26,14 @@ p0 = 1
 # beta0 = 0.5
 # beta0 = 1
 # beta0 = 2
-beta0 = 3
+# beta0 = 3
 # beta0 = 4
-beta0s = c(0.25, 0.5, 1, 2, 4)
+beta0 = 8
+beta0s = c(0.25, 0.5, 1, 2, 4, 8)
 
 # # =====================================================================
 # # These are for running them all (also uncimment `}`s at the bottom)
-for (beta0 in beta0s) {
+# for (beta0 in beta0s) {
 for (MEASURE in c(1,4,5)) {
 # # =====================================================================
 
@@ -214,11 +215,12 @@ if (MEASURE != 5) {
 print(g)
 # save figure
 if (SAVE_FIGURE) {
+    beta0_name = sub('\\.', '', sprintf('%g', beta0))  # remove .
     ggsave(
         plot=g, width=fig_width, height=5,
         filename = sprintf(
-            "figs/ratio_%s_%s_%s_%g_%s.pdf",
-            truedist, modeldist, priordist, beta0, loo_name
+            "figs/ratio_%s_%s_%s_%s_%s.pdf",
+            truedist, modeldist, priordist, beta0_name, loo_name
         )
     )
 }
@@ -226,6 +228,6 @@ if (SAVE_FIGURE) {
 
 # # =====================================================================
 # # There are for running them all
-}
+# }
 }
 # # =====================================================================

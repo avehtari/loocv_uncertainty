@@ -12,12 +12,13 @@ Niter = 2000
 Ns = c(10, 20, 50, 130, 250, 400)
 p0 = 1
 
-beta0 = 0.25
+#beta0 = 0.25
 # beta0 = 0.5
 # beta0 = 1
 # beta0 = 2
 # beta0 = 3
 # beta0 = 4
+beta0 = 8
 
 root_folder = 'res_loo3'
 

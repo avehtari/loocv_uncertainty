@@ -19,11 +19,12 @@ p0 = 1
 
 # beta0 = 0.25
 # beta0 = 0.5
-beta0 = 1
+# beta0 = 1
 # beta0 = 2
 # beta0 = 3
 # beta0 = 4
-beta0s = c(0.25, 0.5, 1, 2, 4)
+beta0 = 8
+beta0s = c(0.25, 0.5, 1, 2, 4, 8)
 
 # truedist = 'n'; modeldist = 'n'; priordist = 'n'
 truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
@@ -197,11 +198,12 @@ print(g)
 
 # save figure
 if (SAVE_FIGURE) {
+    beta0_name = sub('\\.', '', sprintf('%g', beta0))  # remove .
     ggsave(
         plot=g, width=4, height=5,
         filename = sprintf(
-            "figs/skew_%s_%s_%s_%g_%s.pdf",
-            truedist, modeldist, priordist, beta0, loo_name
+            "figs/skew_%s_%s_%s_%s_%s.pdf",
+            truedist, modeldist, priordist, beta0_name, loo_name
         )
     )
 }

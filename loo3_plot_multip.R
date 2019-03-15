@@ -7,13 +7,17 @@ library(ggExtra)
 library(gridExtra)
 library(RColorBrewer)
 
+
+# library(bayesplot)
+# theme_set(bayesplot::theme_default(base_family = "sans"))
+
 library(sn)
 # library(emg)
 
 source('sn_fit.R')
 
 
-SAVE_FIGURE = FALSE
+SAVE_FIGURE = TRUE
 MEASURE = 4  # 1:M0, 2:M1, 3:M2, 4:M0-M1, 5:M0-M2, 6:M1-M2
 FORCE_NONNEGATIVE_G3S = TRUE
 FORCE_G3S_MAX_X2 = FALSE
@@ -21,13 +25,14 @@ FORCE_G3S_MAX_X2 = FALSE
 Ns = c(10, 20, 50, 130, 250, 400)
 p0 = 1
 
-beta0 = 0.25
+# beta0 = 0.25
 # beta0 = 0.5
 # beta0 = 1
 # beta0 = 2
-# beta0 = 3
+beta0 = 3
 # beta0 = 4
-beta0s = c(0.25, 0.5, 1, 2, 4)
+# beta0 = 8
+beta0s = c(0.25, 0.5, 1, 2, 4, 8)
 
 # truedist = 'n'; modeldist = 'n'; priordist = 'n'
 truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
@@ -38,7 +43,7 @@ truedist = 't4'; modeldist = 'tnu'; priordist = 'n'
 
 # define min number of selected trials
 # min_trials = 400
-min_trials = 10
+min_trials = 5
 
 # thin the plot
 plot_thin = 200
@@ -52,7 +57,7 @@ beta_prior_beta = 1
 # # =====================================================================
 # # These are for running them all (also uncimment `}`s at the bottom)
 # for (beta0 in beta0s) {
-# for (MEASURE in 4:6) {
+for (MEASURE in 4:5) {
 # # =====================================================================
 
 
@@ -96,10 +101,10 @@ for (ni in 1:length(Ns)) {
         loo_neg_chosen = 'M1 chosen'
         loos = out$loos[,,1] - out$loos[,,2]
         tls = out$tls[,1] - out$tls[,2]
-        g2s = out$g2s_d01
-        g3s = out$g3s_d01
-        # g2s = out$g2s_nod_d01
-        # g3s = out$g3s_nod_d01
+        # g2s = out$g2s_d01
+        # g3s = out$g3s_d01
+        g2s = out$g2s_nod_d01
+        g3s = out$g3s_nod_d01
     } else if (MEASURE == 5) {
         # M0-M2
         loo_name = 'M0-M2'
@@ -107,10 +112,10 @@ for (ni in 1:length(Ns)) {
         loo_neg_chosen = 'M2 chosen'
         loos = out$loos[,,1] - out$loos[,,3]
         tls = out$tls[,1] - out$tls[,3]
-        g2s = out$g2s_d02
-        g3s = out$g3s_d02
-        # g2s = out$g2s_nod_d02
-        # g3s = out$g3s_nod_d02
+        # g2s = out$g2s_d02
+        # g3s = out$g3s_d02
+        g2s = out$g2s_nod_d02
+        g3s = out$g3s_nod_d02
     } else if (MEASURE == 6) {
         # M1-M2
         loo_name = 'M1-M2'
@@ -118,13 +123,17 @@ for (ni in 1:length(Ns)) {
         loo_neg_chosen = 'M2 chosen'
         loos = out$loos[,,2] - out$loos[,,3]
         tls = out$tls[,2] - out$tls[,3]
-        g2s = out$g2s_d12
-        g3s = out$g3s_d12
-        # g2s = out$g2s_nod_d12
-        # g3s = out$g3s_nod_d12
+        # g2s = out$g2s_d12
+        # g3s = out$g3s_d12
+        g2s = out$g2s_nod_d12
+        g3s = out$g3s_nod_d12
     } else {
         stop('Invalid measure')
     }
+
+    # fix ddof error in loo3_fun g3s
+    num_of_pairs = (n^2-n)/2
+    g3s = g3s*((num_of_pairs-1)*(2/(n*(n-2))))
 
     if (FORCE_NONNEGATIVE_G3S) {
         # force g3s nonnegative
@@ -156,7 +165,7 @@ for (ni in 1:length(Ns)) {
     # pack them
     # var_estim_names = list('naive', 'x2', 'g2', 'g3')
     # var_estims = list(loo_vars_1, loo_vars_2, loo_vars_3, loo_vars_4)
-    var_estim_names = list('naive', 'corr')
+    var_estim_names = list('naive', 'improved')
     var_estims = list(loo_vars_1, loo_vars_4)
 
 
@@ -288,8 +297,12 @@ colours = c(colours[2], colours[6])
 names(colours) = levels(data_out$var_estim)
 
 dev.new()
+g = ggplot(data_out)
+# g = g + geom_hline(yintercept=1, colour='black')
+# g = g + geom_hline(yintercept=0, colour='black')
+# g = g + geom_hline(yintercept=0.5, colour='gray')
 if (plot_thin) {
-    g = ggplot(data_out) +
+    g = g +
         facet_grid(n_str~loosign) +
         # facet_grid(n_str~loosign, scales='free_x') +
         geom_ribbon(
@@ -302,8 +315,9 @@ if (plot_thin) {
         scale_colour_manual(values=colours) +
         scale_fill_manual(values=colours)
 } else {
-    g = ggplot(data_out) +
-        facet_grid(n_str~loosign, scales='free_x') +
+    g = g +
+        facet_grid(loosign~n_str) +
+        # facet_grid(n_str~loosign, scales='free_x') +
         geom_step(
             aes(x=multiplier, y=success_025, colour=var_estim),
             direction="vh", alpha=0.4
@@ -320,22 +334,36 @@ if (plot_thin) {
 }
 
 g = g + ylim(0,1)
+g = g + scale_y_continuous(breaks=c(0,0.5,1), minor_breaks=NULL)
+g = g + scale_x_continuous(minor_breaks=NULL)
+
+# g2 = g + theme(panel.border = element_rect(colour="black", fill=NA, size=0.5))
+
 
 # add labels
-g = g + xlab("x") + ylab("Pr(sign(elpd)=sign(loo) | abs(loo)>x*sd(loo))")
-g = g + ggtitle(sprintf(
-    "model: %s_%s_%s, beta0=%g, %s",
-    truedist, modeldist, priordist, beta0, loo_name
-))
+
+# g = g + xlab("x") + ylab(
+#     "Pr(sign(elpd)=sign(hat{elpd}_loo) | abs(hat{elpd}_loo)>x*hat{sigma}_type)")
+# g = g + xlab("multiplier") + ylab("probability")
+g = g + xlab(NULL) + ylab(NULL)
+
+# g = g + ggtitle(sprintf(
+#     "model: %s_%s_%s, beta0=%g, %s",
+#     truedist, modeldist, priordist, beta0, loo_name
+# ))
+
+g = g + theme(legend.position="none")
+# g = g + theme(legend.position="bottom")
 
 print(g)
 
 if (SAVE_FIGURE) {
+    beta0_name = sub('\\.', '', sprintf('%g', beta0))  # remove .
     ggsave(
-        plot=g, width=16, height=12,
+        plot=g, width=6, height=6,
         filename = sprintf(
-            "figs/multip_%s_%s_%s_%g_%s.pdf",
-            truedist, modeldist, priordist, beta0, loo_name
+            "figs/multip_%s_%s_%s_%s_%s.pdf",
+            truedist, modeldist, priordist, beta0_name, loo_name
         )
     )
 }
@@ -343,6 +371,6 @@ if (SAVE_FIGURE) {
 
 # # =====================================================================
 # # These are for running them all
-# }
+}
 # }
 # # =====================================================================
