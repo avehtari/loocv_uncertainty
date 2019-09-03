@@ -1,8 +1,12 @@
 """Run LOOCV.
 
-run:
-python run_1.py [run_id]
+data:
+y = beta'*x + eps
+x ~ Unif(-1, 1)
+eps ~ t_df(0, 1)
 
+run:
+python m1_run.py [run_i]
 
 """
 
@@ -22,7 +26,7 @@ seed = 11
 # number of obs in one trial
 n_obs = 10
 # number of trials
-n_trial = 50
+n_trial = 6000
 
 # number of true coefficients, >= 1 (inc. possible intercept)
 n_coef = 3
@@ -35,16 +39,32 @@ beta_other = 1.0
 # intercept coef (if applied)
 beta_intercept = 0.0
 
-# data epsilon degres of freedom
-t_df_data = 4
+# data epsilon t-distribution degres of freedom
+tdf_data = 4
 
 
 # ===========================================================================
 # parse cmd input for run id
 if len(sys.argv) > 1:
-    run_id = sys.argv[1].zfill(4)
+    # get run_i
+    run_i = int(sys.argv[1])
+    run_i_str = str(run_i).zfill(4)
+    # set grid
+    n_obs_s, beta_t_s = np.meshgrid(
+        (10, 20, 50, 130, 250, 400),
+        (0.0, 0.2, 0.5, 1, 2, 4, 8)
+    )
+    n_obs_s = n_obs_s.ravel()
+    beta_t_s = beta_t_s.ravel()
+    n_runs = len(n_obs_s)
+    seeds = np.arange(11, 11+n_runs)
+    # set params for this run
+    seed = seeds[run_i]
+    n_obs = n_obs_s[run_i]
+    beta_t = beta_t_s[run_i]
+
 else:
-    run_id = 'runi'
+    run_i_str = 'runi'
 
 # ===========================================================================
 beta = np.array([beta_other]*(n_coef-1)+[beta_t])
@@ -59,12 +79,12 @@ xs = rng.uniform(low=-1.0, high=1.0, size=(n_trial, n_obs, n_coef))
 if intercept:
     # firs dim ones for intercept
     xs[:,:,0] = 1.0
-eps = rng.standard_t(t_df_data, size=(n_trial, n_obs))
+eps = rng.standard_t(tdf_data, size=(n_trial, n_obs))
 ys = xs.dot(beta) + eps
 
 def calc_loo_ti(ys, xs):
     n_coef_cur = xs.shape[2]
-    pred_t_df = n_obs - 1 - n_coef_cur
+    pred_tdf = n_obs - 1 - n_coef_cur
 
     # natural parameters
     # pointwise products for each trial and data point
@@ -86,6 +106,8 @@ def calc_loo_ti(ys, xs):
     sigma2_preds = np.empty((n_trial, n_obs))
     # for each trial
     for t in range(n_trial):
+        if t % (n_trial//10) == 0:
+            print('{}/{}'.format(t, n_trial))
         # for each data point
         for i in range(n_obs):
             Q_i = np.subtract(Q_t_full[t], Q_ti[t, i], out=temp_mat)
@@ -103,25 +125,28 @@ def calc_loo_ti(ys, xs):
             y_xm = x_tilde.dot(rS, out=temp_loo_vec)
             y_xm -= y_tilde
             s2 = y_xm.dot(y_xm)
-            s2 /= pred_t_df
+            s2 /= pred_tdf
             mu_preds[t, i] = rS.dot(x_i)
             sigma2_preds[t, i] = (xS.dot(x_i) + 1)*s2
+    print('done')
 
     # calc logpdf for pred distributions
     loo_ti = stats.t.logpdf(
-        ys, pred_t_df, loc=mu_preds, scale=np.sqrt(sigma2_preds))
+        ys, pred_tdf, loc=mu_preds, scale=np.sqrt(sigma2_preds))
 
     return loo_ti
 
 # model A
+print('model A')
 loo_ti_A = calc_loo_ti(ys, xs[:,:,:-1])
 # model B
+print('model B')
 loo_ti_B = calc_loo_ti(ys, xs)
 
 # save
 os.makedirs('res_1', exist_ok=True)
 np.savez_compressed(
-    'res_1/{}.npz'.format(run_id),
+    'res_1/{}.npz'.format(run_i_str),
     loo_ti_A=loo_ti_A,
     loo_ti_B=loo_ti_B,
     seed=seed,
@@ -132,5 +157,5 @@ np.savez_compressed(
     beta_t=beta_t,
     beta_other=beta_other,
     beta_intercept=beta_intercept,
-    t_df_data=t_df_data,
+    tdf_data=tdf_data,
 )
