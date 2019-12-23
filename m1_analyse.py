@@ -1,6 +1,6 @@
 """Analyse LOOCV results
 
-First run m1_run.py s
+First run m1_run.py
 
 """
 
