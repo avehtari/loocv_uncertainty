@@ -21,11 +21,14 @@ from scipy import stats
 # ===========================================================================
 # conf (remember to save all confs in the result file)
 
+# file identifier string in '<file_id>_<run_id>'
+file_id = 'unfixed'
+
 # random seed for data
 seed = 11
 
 # fixed model sigma
-fixed_sigma2_m = True
+fixed_sigma2_m = False
 # fixed model sigma2_m value
 sigma2_m = 1.0
 # epsilon sigma2_d
@@ -125,20 +128,9 @@ ys = X_mat.dot(beta) + eps
 
 
 def calc_loo_ti(ys, X_mat):
-
     n_dim_cur = X_mat.shape[-1]
-
     if not fixed_sigma2_m:
         pred_tdf = n_obs_i - 1 - n_dim_cur
-
-    # natural parameters
-    # pointwise products for each trial and data point
-    Q_i = X_mat[:,:,None]*X_mat[:,None,:]
-    r_ti = X_mat[None,:,:]*ys[:,:,None]
-    # full posterior for each trial
-    Q_full = Q_i.sum(axis=0)
-    r_t_full = r_ti.sum(axis=1)
-
     # working arrays
     temp_mat = np.empty((n_dim_cur, n_dim_cur))
     temp_vec = np.empty((n_dim_cur,))
@@ -146,7 +138,6 @@ def calc_loo_ti(ys, X_mat):
         temp_loo_vec = np.empty((n_obs_i-1,))
     x_tilde = np.empty((n_obs_i-1, n_dim_cur))
     y_tilde = np.empty((n_obs_i-1,))
-
     # calc pred distr params
     mu_preds = np.empty((n_trial, n_obs_i))
     sigma2_preds = np.empty((n_trial, n_obs_i))
@@ -156,8 +147,6 @@ def calc_loo_ti(ys, X_mat):
             print('{}/{}'.format(t, n_trial), flush=True)
         # for each data point
         for i in range(n_obs_i):
-            Q_i = np.subtract(Q_full, Q_i[i], out=temp_mat)
-            r_i = np.subtract(r_t_full[t], r_ti[t, i], out=temp_vec)
             x_i = X_mat[i]
             # x_tilde = np.delete(X_mat, i, axis=0)
             # y_tilde = np.delete(ys[t], i, axis=0)
@@ -165,20 +154,21 @@ def calc_loo_ti(ys, X_mat):
             x_tilde[i:,:] = X_mat[i+1:,:]
             y_tilde[:i] = ys[t,:i]
             y_tilde[i:] = ys[t,i+1:]
+            Q_i = x_tilde.T.dot(x_tilde, out=temp_mat)
+            r_i = x_tilde.T.dot(y_tilde, out=temp_vec)
             cho = linalg.cho_factor(Q_i, overwrite_a=True)
-            xS = linalg.cho_solve(cho, x_i)
+            xSx = linalg.cho_solve(cho, x_i).dot(x_i)
             rS = linalg.cho_solve(cho, r_i)
             mu_preds[t, i] = rS.dot(x_i)
             if fixed_sigma2_m:
-                sigma2_preds[t, i] = (xS.dot(x_i) + 1)*sigma2_m
+                sigma2_preds[t, i] = (xSx + 1)*sigma2_m
             else:
                 y_xm = x_tilde.dot(rS, out=temp_loo_vec)
                 y_xm -= y_tilde
                 s2 = y_xm.dot(y_xm)
                 s2 /= pred_tdf
-                sigma2_preds[t, i] = (xS.dot(x_i) + 1)*s2
+                sigma2_preds[t, i] = (xSx + 1)*s2
     print('done', flush=True)
-
     # calc logpdf for pred distributions
     if fixed_sigma2_m:
         loo_ti = stats.norm.logpdf(
@@ -199,7 +189,7 @@ loo_ti_B = calc_loo_ti(ys, X_mat)
 # save
 os.makedirs('res_1', exist_ok=True)
 np.savez_compressed(
-    'res_1/{}.npz'.format(run_i_str),
+    'res_1/{}_{}.npz'.format(file_id, run_i_str),
     loo_ti_A=loo_ti_A,
     loo_ti_B=loo_ti_B,
     seed=seed,
