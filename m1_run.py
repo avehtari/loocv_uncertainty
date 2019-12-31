@@ -7,7 +7,7 @@ eps = sqrt(sigma2_d) * (
     norm_rng(0,1) if nonoutlier else norm_rng(+-outlier_dev,1))
 
 run:
-python m1_run.py [run_i]
+python m1_run.py [run_i [fixed/unfixed]]
 
 """
 
@@ -21,14 +21,11 @@ from scipy import stats
 # ===========================================================================
 # conf (remember to save all confs in the result file)
 
-# results save folder name in `res_1`
-folder_name = 'unfixed'
+
 
 # random seed for data
 seed = 11
 
-# fixed model sigma
-fixed_sigma2_m = False
 # fixed model sigma2_m value
 sigma2_m = 1.0
 # epsilon sigma2_d
@@ -42,7 +39,7 @@ outlier_dev = 10.0
 # suffle observations
 suffle_obs = False
 # number of trials
-n_trial = 2000
+n_trial = 200
 # dimensionality of true beta
 n_dim = 3
 # first covariate as intercept
@@ -77,6 +74,19 @@ if len(sys.argv) > 1:
 else:
     run_i = 0
 run_i_str = str(run_i).zfill(4)
+# results save folder name in `res_1`
+if len(sys.argv) > 2:
+    # results save folder name in `res_1`
+    folder_name = sys.argv[2]
+else:
+    folder_name = None
+if folder_name == 'unfixed':
+    fixed_sigma2_m = False
+elif folder_name == 'fixed':
+    fixed_sigma2_m = True
+else:
+    folder_name = 'unfixed'
+    fixed_sigma2_m = False
 
 # set params for this run
 n_obs_i = n_obs_s[run_i]
@@ -86,6 +96,7 @@ sigma2_d_i = sigma2_d_s[run_i]
 
 print('Run {}/{}'.format(run_i, n_runs-1))
 print(
+    'model sigma fixed: {}'.format(fixed_sigma2_m),
     'n_obs_i: {} / {}'.format(n_obs_i, n_obs),
     'beta_t_i: {} / {}'.format(beta_t_i, beta_t),
     'prc_out_i: {} / {}'.format(prc_out_i, prc_out),
@@ -231,6 +242,7 @@ np.savez_compressed(
     'res_1/{}/{}.npz'.format(folder_name, run_i_str),
     loo_ti_A=loo_ti_A,
     loo_ti_B=loo_ti_B,
+    run_i=run_i,
     seed=seed,
     fixed_sigma2_m=fixed_sigma2_m,
     sigma2_m=sigma2_m,
