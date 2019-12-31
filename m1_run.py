@@ -84,7 +84,7 @@ beta_t_i = beta_t_s[run_i]
 prc_out_i = prc_out_s[run_i]
 sigma2_d_i = sigma2_d_s[run_i]
 
-print('Run {}/{}'.format(run_i, n_runs))
+print('Run {}/{}'.format(run_i, n_runs-1))
 print(
     'n_obs_i: {} / {}'.format(n_obs_i, n_obs),
     'beta_t_i: {} / {}'.format(beta_t_i, beta_t),
