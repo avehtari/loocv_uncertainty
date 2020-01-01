@@ -7,7 +7,7 @@ eps = sqrt(sigma2_d) * (
     norm_rng(0,1) if nonoutlier else norm_rng(+-outlier_dev,1))
 
 run:
-python m1_run.py [run_i [fixed/unfixed]]
+python m1_run.py [<run_i> [fixed/unfixed]]
 
 """
 
@@ -33,7 +33,7 @@ sigma2_d = 10.0**(2*np.arange(-1, 3))
 # number of obs in one trial
 n_obs = [16, 32, 64, 128, 256, 512]
 # percentage of outliers
-prc_out = [0.01, 0.05, 0.1]
+prc_out = [0.0, 0.01, 0.05, 0.1]
 # outlier loc deviation
 outlier_dev = 10.0
 # suffle observations
@@ -50,6 +50,10 @@ beta_t = [0.0, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0]
 beta_other = 1.0
 # intercept coef (if applied)
 beta_intercept = 0.0
+# independent test set for true elpd
+elpd_test_set_size = 10000
+# outliers in the independent test set for true elpd
+elpd_test_outliers = True
 
 
 # ===========================================================================
@@ -118,6 +122,7 @@ X_last = stats.norm.ppf(
 if intercept:
     # firs dim ones for intercept
     X_last[:,0] = 1.0
+# data for the biggest sample size
 n_obs_out_last = max(int(np.ceil(prc_out[-1]*n_obs[-1])), 2)
 n_obs_out_m_last = n_obs_out_last // 2
 n_obs_out_p_last = n_obs_out_last - n_obs_out_m_last
@@ -126,25 +131,58 @@ eps_out_p_last = rng.normal(
     loc=outlier_dev, size=(n_trial, n_obs_out_p_last))
 eps_out_m_last = rng.normal(
     loc=-outlier_dev, size=(n_trial, n_obs_out_m_last))
-
 # take current size observations (copy in order to get contiguous)
 X_mat = X_last[:n_obs_i,:].copy()
-n_obs_out = max(int(np.ceil(prc_out_i*n_obs_i)), 2)
-n_obs_out_m = n_obs_out // 2
-n_obs_out_p = n_obs_out - n_obs_out_m
-eps_in = eps_in_last[:,:n_obs_i-n_obs_out].copy()
-eps_out_p = eps_out_p_last[:,:n_obs_out_p].copy()
-eps_out_m = eps_out_m_last[:,:n_obs_out_m].copy()
-eps = np.concatenate((eps_in, eps_out_p, eps_out_m), axis=1)
+if prc_out_i > 0.0:
+    n_obs_out = max(int(np.ceil(prc_out_i*n_obs_i)), 2)
+    n_obs_out_m = n_obs_out // 2
+    n_obs_out_p = n_obs_out - n_obs_out_m
+    eps_in = eps_in_last[:,:n_obs_i-n_obs_out]
+    eps_out_p = eps_out_p_last[:,:n_obs_out_p]
+    eps_out_m = eps_out_m_last[:,:n_obs_out_m]
+    eps = np.concatenate((eps_in, eps_out_p, eps_out_m), axis=1)
+else:
+    n_obs_out = 0
+    n_obs_out_m = 0
+    n_obs_out_p = 0
+    eps = eps_in_last[:,:n_obs_i].copy()
 eps *= np.sqrt(sigma2_d_i)
 if suffle_obs:
     rng.shuffle(eps.T)
-
 # drop unnecessary data
 del(X_last, eps_in_last, eps_out_p_last, eps_out_m_last)
-
 # calc y
 ys = X_mat.dot(beta) + eps
+
+# elpd test set
+X_test = stats.norm.ppf(
+    rng.uniform(size=(elpd_test_set_size, n_dim)))
+if intercept:
+    # firs dim ones for intercept
+    X_test[:,0] = 1.0
+if elpd_test_outliers and prc_out_i > 0.0:
+    n_obs_out_test = max(int(np.ceil(prc_out_i*elpd_test_set_size)), 2)
+    n_obs_out_test_m = n_obs_out_test // 2
+    n_obs_out_test_p = n_obs_out_test - n_obs_out_test_m
+    eps_test_in = rng.normal(
+        size=(elpd_test_set_size-n_obs_out_test,))
+    eps_test_out_p = rng.normal(
+        loc=outlier_dev, size=(n_obs_out_test_p,))
+    eps_test_out_m = rng.normal(
+        loc=outlier_dev, size=(n_obs_out_test_m,))
+    eps_test = np.concatenate(
+        (eps_test_in, eps_test_out_p, eps_test_out_m), axis=0)
+    del(eps_test_in, eps_test_out_p, eps_test_out_m)
+else:
+    n_obs_out_test = 0
+    n_obs_out_test_m = 0
+    n_obs_out_test_p = 0
+    eps_test = rng.normal(size=(elpd_test_set_size,))
+eps_test *= np.sqrt(sigma2_d_i)
+if suffle_obs:
+    rng.shuffle(eps_test.T)
+# calc y
+ys_test = X_test.dot(beta) + eps_test
 
 
 def calc_loo_ti(ys, X_mat):
@@ -210,17 +248,24 @@ def calc_loo_ti(ys, X_mat):
     else:
         loo_ti = stats.t.logpdf(
             ys, pred_tdf, loc=mu_preds, scale=np.sqrt(sigma2_preds))
-
-    return loo_ti
+    # calc test elpd
+    TODO
+    if fixed_sigma2_m:
+        ...
+        elpd_test =
+    else:
+        ...
+        elpd_test =
+    return loo_ti, elpd_test
 
 outer_start_time = time.time()
 
 # model A
 print('model A')
-loo_ti_A = calc_loo_ti(ys, X_mat[:,:-1])
+loo_ti_A, elpd_test_A = calc_loo_ti(ys, X_mat[:,:-1])
 # model B
 print('model B')
-loo_ti_B = calc_loo_ti(ys, X_mat)
+loo_ti_B, elpd_test_B = calc_loo_ti(ys, X_mat)
 
 time_per_1000 = (time.time() - outer_start_time) * 1000 / n_trial
 time_per_1000_unit = 's'
@@ -242,6 +287,8 @@ np.savez_compressed(
     'res_1/{}/{}.npz'.format(folder_name, run_i_str),
     loo_ti_A=loo_ti_A,
     loo_ti_B=loo_ti_B,
+    elpd_test_A=elpd_test_A,
+    elpd_test_B=elpd_test_B,
     run_i=run_i,
     seed=seed,
     fixed_sigma2_m=fixed_sigma2_m,
@@ -257,4 +304,6 @@ np.savez_compressed(
     beta_t=beta_t,
     beta_other=beta_other,
     beta_intercept=beta_intercept,
+    elpd_test_set_size=elpd_test_set_size,
+    elpd_test_outliers=elpd_test_outliers,
 )
