@@ -41,7 +41,7 @@ outlier_dev = 10.0
 # suffle observations
 suffle_obs = False
 # number of trials
-n_trial = 200
+n_trial = 1000
 # dimensionality of true beta
 n_dim = 3
 # first covariate as intercept
@@ -175,7 +175,7 @@ if elpd_test_outliers and prc_out_i > 0.0:
     eps_test_out_p = rng.normal(
         loc=outlier_dev, size=(n_obs_out_test_p,))
     eps_test_out_m = rng.normal(
-        loc=outlier_dev, size=(n_obs_out_test_m,))
+        loc=-outlier_dev, size=(n_obs_out_test_m,))
     eps_test = np.concatenate(
         (eps_test_in, eps_test_out_p, eps_test_out_m), axis=0)
     del(eps_test_in, eps_test_out_p, eps_test_out_m)
@@ -280,19 +280,19 @@ def calc_loo_ti(ys, X_mat, ys_test, X_test):
         # calc logpdf for test
         if fixed_sigma2_m:
             test_logpdf = stats.norm.logpdf(
-                ys_test[i],
+                ys_test,
                 loc=mu_pred_test,
                 scale=np.sqrt(sigma2_pred_test)
             )
-            test_t[i] = n_obs_i*np.mean(test_logpdf)
+            test_t[t] = n_obs_i*np.mean(test_logpdf)
         else:
             test_logpdf = stats.t.logpdf(
-                ys_test[i],
+                ys_test,
                 n_obs_i - n_dim_cur,
                 loc=mu_pred_test,
                 scale=np.sqrt(sigma2_pred_test)
             )
-            test_t[i] = n_obs_i*np.mean(test_logpdf)
+            test_t[t] = n_obs_i*np.mean(test_logpdf)
 
     print('done', flush=True)
     # calc logpdf for loos
@@ -358,3 +358,78 @@ np.savez_compressed(
     elpd_test_set_size=elpd_test_set_size,
     elpd_test_outliers=elpd_test_outliers,
 )
+
+
+# double check calculations
+if False:
+    t = 3
+    i = 7
+
+    def calc_logpdf_for_one_pred(x_cur, y_cur, x_pred, y_pred):
+        n_obs_cur, n_dim_cur = x_cur.shape
+        v_cho = linalg.cho_factor(x_cur.T.dot(x_cur))
+        beta_hat = linalg.cho_solve(v_cho, x_cur.T.dot(y_cur))
+        if fixed_sigma2_m:
+            s2 = sigma2_m
+        else:
+            y_xm = y_cur - x_cur.dot(beta_hat)
+            s2 = y_xm.dot(y_xm)/(n_obs_cur - n_dim_cur)
+        pred_mu = x_pred.dot(beta_hat)
+        pred_sigma2 = (x_pred.dot(linalg.cho_solve(v_cho, x_pred)) + 1.0)*s2
+        if fixed_sigma2_m:
+            out = stats.norm.logpdf(
+                y_pred, loc=pred_mu, scale=np.sqrt(pred_sigma2))
+        else:
+            out = stats.t.logpdf(
+                y_pred,
+                n_obs_cur - n_dim_cur,
+                loc=pred_mu,
+                scale=np.sqrt(pred_sigma2)
+            )
+        return out
+
+    # LOO A
+    test_loo_a = calc_logpdf_for_one_pred(
+        np.delete(X_mat[:,:-1], i, axis=0),
+        np.delete(ys[t], i, axis=0),
+        X_mat[i,:-1],
+        ys[t,i]
+    )
+    print('loo_a:\n{}\n{}'.format(test_loo_a, loo_ti_A[t,i]))
+    # ok
+
+    # LOO B
+    test_loo_b = calc_logpdf_for_one_pred(
+        np.delete(X_mat, i, axis=0),
+        np.delete(ys[t], i, axis=0),
+        X_mat[i],
+        ys[t,i]
+    )
+    print('loo_b:\n{}\n{}'.format(test_loo_b, loo_ti_B[t,i]))
+    # ok
+
+    # test A
+    test_test_a = np.zeros(elpd_test_set_size)
+    for t_i in range(elpd_test_set_size):
+        test_test_a[t_i] = calc_logpdf_for_one_pred(
+            X_mat[:,:-1],
+            ys[t],
+            X_test[t_i,:-1],
+            ys_test[t_i]
+        )
+    test_test_a = n_obs_i*np.mean(test_test_a)
+    print('test_a:\n{}\n{}'.format(test_test_a, test_t_A[t]))
+    # not ok
+
+    # test B
+    test_test_b = np.zeros(elpd_test_set_size)
+    for t_i in range(elpd_test_set_size):
+        test_test_b[t_i] = calc_logpdf_for_one_pred(
+            X_mat,
+            ys[t],
+            X_test[t_i],
+            ys_test[t_i]
+        )
+    test_test_b = n_obs_i*np.mean(test_test_b)
+    print('test_b:\n{}\n{}'.format(test_test_b, test_t_B[t]))
+    # not ok
