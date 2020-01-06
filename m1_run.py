@@ -25,8 +25,9 @@ import sobol_seq
 
 
 
-# random seed for data
-seed = 11
+# Random seed for data. Generate one with:
+# np.random.RandomState().randint(np.iinfo(np.uint32).max)
+seed = 2958319585
 
 # fixed model sigma2_m value
 sigma2_m = 1.0
@@ -119,13 +120,14 @@ if intercept:
 rng = np.random.RandomState(seed=seed)
 
 # data for all cases
-X_last = stats.norm.ppf(
-    sobol_seq.i4_sobol_generate(1, n_obs[-1]*n_dim)
-    .reshape((n_obs[-1], n_dim))
-)
 if intercept:
-    # firs dim ones for intercept
-    X_last[:,0] = 1.0
+    # firs dim (column) ones for intercept
+    X_last = np.hstack((
+        np.ones((n_obs[-1], 1))
+        sobol_seq.i4_sobol_generate_std_normal(n_dim-1, n_obs[-1])
+    ))
+else:
+    X_last = sobol_seq.i4_sobol_generate_std_normal(n_dim, n_obs[-1])
 # data for the biggest sample size
 n_obs_out_last = max(int(np.ceil(prc_out[-1]*n_obs[-1])), 2)
 n_obs_out_m_last = n_obs_out_last // 2
@@ -159,13 +161,14 @@ del(X_last, eps_in_last, eps_out_p_last, eps_out_m_last)
 ys = X_mat.dot(beta) + eps
 
 # elpd test set
-X_test = stats.norm.ppf(
-    sobol_seq.i4_sobol_generate(1, elpd_test_set_size*n_dim)
-    .reshape((elpd_test_set_size, n_dim))
-)
 if intercept:
-    # firs dim ones for intercept
-    X_test[:,0] = 1.0
+    # firs dim (column) ones for intercept
+    X_test = np.hstack((
+        np.ones((elpd_test_set_size, 1))
+        sobol_seq.i4_sobol_generate_std_normal(n_dim-1, elpd_test_set_size)
+    ))
+else:
+    X_test = sobol_seq.i4_sobol_generate_std_normal(n_dim, elpd_test_set_size)
 if elpd_test_outliers and prc_out_i > 0.0:
     n_obs_out_test = max(int(np.ceil(prc_out_i*elpd_test_set_size)), 2)
     n_obs_out_test_m = n_obs_out_test // 2
