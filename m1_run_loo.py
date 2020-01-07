@@ -157,17 +157,17 @@ print(
 outer_start_time = time.time()
 
 # model A LOO
-print('model A LOO')
+print('model A LOO', flush=True)
 loo_ti_A = calc_loo_ti(ys, X_mat[:,:-1])
 # model B LOO
-print('model B LOO')
+print('model B LOO', flush=True)
 loo_ti_B = calc_loo_ti(ys, X_mat)
 
 # model A test
-print('model A test')
+print('model A test', flush=True)
 test_t_A = calc_test_t(ys, X_mat[:,:-1], ys_test, X_test[:,:-1])
 # model B test
-print('model B test')
+print('model B test', flush=True)
 test_t_B = calc_test_t(ys, X_mat, ys_test, X_test)
 
 # progress print

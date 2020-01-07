@@ -71,14 +71,28 @@ def calc_loo_ti(ys, X_mat):
 
 def calc_bootloo_tb_AB(ys, X_mat):
     rng = np.random.RandomState(seed=seed_boot)
-    # size of the subsample
-    n_boot_sample = max(int(np.round(n_boot_sample_prc*n_obs)), 4)
-    if not boot_replace:
-        n_boot_sample = min(n_boot_sample, n_obs-1)
     out = np.zeros((n_trial, n_boot_trial))
+    inner_start_time = time.time()
     for boot_i in range(n_boot_trial):
+        # progress print
+        if boot_i % (n_boot_trial//10) == 0 and boot_i != 0:
+            elapsed_time = time.time() - inner_start_time
+            etr = (n_boot_trial - boot_i)*(elapsed_time/boot_i)
+            etr_unit = 's'
+            if etr >= 60:
+                etr /= 60
+                etr_unit = 'min'
+                if etr >= 60:
+                    etr /= 60
+                    etr_unit = 'h'
+            etr = int(np.ceil(etr))
+            print(
+                '{}/{}, etr: {} {}'
+                .format(boot_i, n_boot_trial, etr, etr_unit),
+                flush=True
+            )
         # take subsample
-        idxs = rng.choice(n_obs, size=n_boot_sample, replace=boot_replace)
+        idxs = rng.choice(n_obs, size=n_obs, replace=True)
         idxs.sort()
         X_mat_i = X_mat[idxs]
         ys_i = ys[:,idxs]
@@ -134,8 +148,9 @@ print(
 outer_start_time = time.time()
 
 # bootloo
-print('bootloo')
+print('bootloo', flush=True)
 bootloo_tb = calc_bootloo_tb_AB(ys, X_mat)
+print('done')
 
 # progress print
 time_per = (

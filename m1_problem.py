@@ -55,10 +55,6 @@ elpd_test_set_size = 20000
 # outliers in the independent test set for true elpd
 elpd_test_outliers = True
 
-# bootstral with or without replacement
-boot_replace = False
-# bootstrap subsample size percentage from original
-n_boot_sample_prc = 0.5
 # bootstrap loo repetitions
 n_boot_trial = 100
 # bootrap sampling random seed
@@ -69,7 +65,7 @@ seed_boot = 1584981854
 n_mboot_trial = 100
 # bootrap sampling random seed
 # np.random.RandomState().randint(np.iinfo(np.uint32).max)
-seed_mboot = 1584981854
+seed_mboot = 1118669156
 
 
 # ===========================================================================

@@ -99,7 +99,25 @@ def calc_mbootloo_tb_AB(ys, X_mat):
     B_cho_v = linalg.cho_factor(X_b.T.dot(X_b).T, overwrite_a=True)
     B_vx = linalg.cho_solve(B_cho_v, X_b.T)
     B_xvx = X_b.dot(B_vx)
+    inner_start_time = time.time()
     for t in range(n_trial):
+        # progress print
+        if t % (n_trial//10) == 0 and t != 0:
+            elapsed_time = time.time() - inner_start_time
+            etr = (n_trial - t)*(elapsed_time/t)
+            etr_unit = 's'
+            if etr >= 60:
+                etr /= 60
+                etr_unit = 'min'
+                if etr >= 60:
+                    etr /= 60
+                    etr_unit = 'h'
+            etr = int(np.ceil(etr))
+            print(
+                '{}/{}, etr: {} {}'.format(t, n_trial, etr, etr_unit),
+                flush=True
+            )
+        # for cur trial
         y_t = ys[t]
         # A
         A_beta_hat = A_vx.dot(y_t)
@@ -191,7 +209,7 @@ print(
 outer_start_time = time.time()
 
 # mbootloo
-print('mbootloo')
+print('mbootloo', flush=True)
 mbootloo_tb = calc_mbootloo_tb_AB(ys, X_mat)
 
 # progress print
