@@ -31,7 +31,7 @@ beta_t_s = [0.0, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0]
 beta_t_def = 1.0
 # percentage of outliers
 prc_out_s = [0.0, 0.01, 0.02, 0.05, 0.1]
-prc_out_def = 0.02
+prc_out_def = 0.0
 
 # fixed model sigma2_m value
 sigma2_m = 1.0
@@ -72,24 +72,22 @@ seed_mboot = 1118669156
 
 # set grid
 n_runs = sum(map(len, (n_obs_s, sigma2_d_s, beta_t_s, prc_out_s)))
-n_obs_grid = np.array(
-    n_obs_s +
-    sum(map(len, (sigma2_d_s, beta_t_s, prc_out_s)))*[n_obs_def]
-)
-sigma2_d_grid = np.array(
-    len(n_obs_s)*[sigma2_d_def] +
-    sigma2_d_s +
-    sum(map(len, (beta_t_s, prc_out_s)))*[sigma2_d_def]
-)
-beta_t_grid = np.array(
-    sum(map(len, (n_obs_s, sigma2_d_s)))*[beta_t_def] +
-    beta_t_s +
-    len(prc_out_s)*[beta_t_def]
-)
-prc_out_grid = np.array(
-    sum(map(len, (n_obs_s, sigma2_d_s, beta_t_s)))*[prc_out_def] +
-    prc_out_s
-)
+
+n_obs_idxs = np.arange(len(n_obs_s))
+n_obs_grid = np.full(n_runs, n_obs_def)
+n_obs_grid[n_obs_idxs] = n_obs_s
+
+sigma2_d_idxs = np.arange(len(sigma2_d_s)) + n_obs_idxs[-1] + 1
+sigma2_d_grid = np.full(n_runs, sigma2_d_def)
+sigma2_d_grid[sigma2_d_idxs] = sigma2_d_s
+
+beta_t_idxs = np.arange(len(beta_t_s)) + sigma2_d_idxs[-1] + 1
+beta_t_grid = np.full(n_runs, beta_t_def)
+beta_t_grid[beta_t_idxs] = beta_t_s
+
+prc_out_idxs = np.arange(len(prc_out_s)) + beta_t_idxs[-1] + 1
+prc_out_grid = np.full(n_runs, prc_out_def)
+prc_out_grid[prc_out_idxs] = prc_out_s
 
 
 def run_i_to_params(run_i):
