@@ -194,7 +194,7 @@ else:
 
 # get params and data
 n_obs, beta_t, prc_out, sigma2_d = run_i_to_params(run_i)
-X_mat, ys, X_test, ys_test, _ = make_data(run_i)
+X_mat, ys, X_test, ys_test, _ = make_data(n_obs, beta_t, prc_out, sigma2_d)
 
 print('Run {}/{}'.format(run_i, n_runs-1))
 print(

@@ -48,11 +48,11 @@ intercept = True
 beta_other = 1.0
 # intercept coef (if applied)
 beta_intercept = 0.0
-# suffle observations
-suffle_obs = True
+# shuffle observations
+shuffle_obs = True
 
-# independent test set for true elpd
-elpd_test_set_size = 20000
+# independent test set for true elpd (should be divisible by all n_ob_s)
+elpd_test_set_size = 2**15  # 32768
 # outliers in the independent test set for true elpd
 elpd_test_outliers = True
 
@@ -91,18 +91,26 @@ prc_out_grid = np.full(n_runs, prc_out_def)
 prc_out_grid[prc_out_idxs] = prc_out_s
 
 
+def determine_n_obs_out(n_obs, prc_out):
+    if prc_out > 0.0:
+        n_obs_out = max(int(np.round(prc_out*n_obs)), 2)
+    else:
+        n_obs_out = 0
+    return n_obs_out
+
+
 def run_i_to_params(run_i):
     n_obs = n_obs_grid[run_i]
     beta_t = beta_t_grid[run_i]
     prc_out = prc_out_grid[run_i]
     sigma2_d = sigma2_d_grid[run_i]
+    # fix prc_out
+    n_obs_out = determine_n_obs_out(n_obs, prc_out)
+    prc_out = n_obs_out/n_obs
     return n_obs, beta_t, prc_out, sigma2_d
 
 
-def make_data(run_i):
-
-    # set params for this run
-    n_obs, beta_t, prc_out, sigma2_d = run_i_to_params(run_i)
+def make_data(n_obs, beta_t, prc_out, sigma2_d):
 
     # random number generator
     rng = np.random.RandomState(seed=seed)
@@ -122,7 +130,7 @@ def make_data(run_i):
     else:
         X_last = sobol_seq.i4_sobol_generate_std_normal(n_dim, n_obs_s[-1])
     # data for the biggest sample size
-    n_obs_out_last = max(int(np.ceil(prc_out_s[-1]*n_obs_s[-1])), 2)
+    n_obs_out_last = determine_n_obs_out(n_obs_s[-1], prc_out_s[-1])
     n_obs_out_m_last = n_obs_out_last // 2
     n_obs_out_p_last = n_obs_out_last - n_obs_out_m_last
     eps_in_last = rng.normal(size=(n_trial, n_obs_s[-1]))
@@ -133,7 +141,7 @@ def make_data(run_i):
     # take current size observations (copy in order to get contiguous)
     X_mat = X_last[:n_obs,:].copy()
     if prc_out > 0.0:
-        n_obs_out = max(int(np.ceil(prc_out*n_obs)), 2)
+        n_obs_out = determine_n_obs_out(n_obs, prc_out)
         n_obs_out_m = n_obs_out // 2
         n_obs_out_p = n_obs_out - n_obs_out_m
         eps_in = eps_in_last[:,:n_obs-n_obs_out]
@@ -151,7 +159,7 @@ def make_data(run_i):
         mu_d = np.zeros(n_obs)
     eps *= np.sqrt(sigma2_d)
     mu_d *= np.sqrt(sigma2_d)
-    if suffle_obs:
+    if shuffle_obs:
         idx = np.arange(n_obs)
         rng.shuffle(idx)
         eps = eps[:,idx]
@@ -162,22 +170,24 @@ def make_data(run_i):
     ys = X_mat.dot(beta) + eps
 
     # elpd test set
+    elpd_size_multip = elpd_test_set_size // n_obs
+    elpd_size_fixed = elpd_test_set_size*elpd_size_multip
     if intercept:
         # firs dim (column) ones for intercept
         X_test = np.hstack((
-            np.ones((elpd_test_set_size, 1)),
+            np.ones((elpd_size_fixed, 1)),
             sobol_seq.i4_sobol_generate_std_normal(
-                n_dim-1, elpd_test_set_size, skip=n_obs_s[-1]+1)
+                n_dim-1, elpd_size_fixed, skip=n_obs_s[-1]+1)
         ))
     else:
         X_test = sobol_seq.i4_sobol_generate_std_normal(
-            n_dim, elpd_test_set_size, skip=n_obs_s[-1]+1)
+            n_dim, elpd_size_fixed, skip=n_obs_s[-1]+1)
     if elpd_test_outliers and prc_out > 0.0:
-        n_obs_out_test = max(int(np.ceil(prc_out*elpd_test_set_size)), 2)
-        n_obs_out_test_m = n_obs_out_test // 2
+        n_obs_out_test = elpd_size_multip*n_obs_out
+        n_obs_out_test_m = elpd_size_multip*n_obs_out_test_m
         n_obs_out_test_p = n_obs_out_test - n_obs_out_test_m
         eps_test_in = rng.normal(
-            size=(elpd_test_set_size-n_obs_out_test,))
+            size=(elpd_size_fixed-n_obs_out_test,))
         eps_test_out_p = rng.normal(
             loc=outlier_dev, size=(n_obs_out_test_p,))
         eps_test_out_m = rng.normal(
@@ -189,9 +199,9 @@ def make_data(run_i):
         n_obs_out_test = 0
         n_obs_out_test_m = 0
         n_obs_out_test_p = 0
-        eps_test = rng.normal(size=(elpd_test_set_size,))
+        eps_test = rng.normal(size=(elpd_size_fixed,))
     eps_test *= np.sqrt(sigma2_d)
-    if suffle_obs:
+    if shuffle_obs:
         rng.shuffle(eps_test.T)
     # calc y
     ys_test = X_test.dot(beta) + eps_test
@@ -230,16 +240,17 @@ def get_analytic_params(X_mat, beta_t):
                 # off-diag
                 Pa[i,j] = X_mat[j,:-1].dot(XXinvX_a)/sXX_a
                 Pb[i,j] = X_mat[j,:].dot(XXinvX_b)/sXX_b
+    #
+    PaX = Pa.dot(X_mat[:,-1])
     # calc A
     A_mat = Pa.T.dot(Pa)
     A_mat -= Pb.T.dot(Pb)
     A_mat /= -2*sigma2_m
     # calc b
-    b_vec = Pa.T.dot(Pa).dot(X_mat[:,-1])
+    b_vec = Pa.T.dot(PaX)
     b_vec *= -beta_t/sigma2_m
     # calc c
-    c_sca = Pa.dot(X_mat[:,-1])
-    c_sca = c_sca.T.dot(c_sca)
+    c_sca = PaX.T.dot(PaX)
     c_sca *= -beta_t**2/(2*sigma2_m)
     c_sca += np.sum(np.log(-np.diag(Pa))) - np.sum(np.log(-np.diag(Pb)))
     return A_mat, b_vec, c_sca
