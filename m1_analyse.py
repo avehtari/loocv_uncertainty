@@ -5,8 +5,7 @@ First run results with m1_run.py
 """
 
 import numpy as np
-from scipy import linalg
-from scipy import stats
+from scipy import linalg, stats
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -30,20 +29,22 @@ else:
     folder_name = 'unfixed'
 
 
+
+
 # ============================================================================
 # As a function of ...
 
-run_i_s = n_obs_idxs
-var_name = 'n_obs'
-var_vals = n_obs_s
+# run_i_s = n_obs_idxs
+# var_name = 'n_obs'
+# var_vals = n_obs_s
 
 # run_i_s = sigma2_d_idxs
 # var_name = 'sigma2_d'
 # var_vals = sigma2_d_s
 
-# run_i_s = beta_t_idxs
-# var_name = 'beta_t'
-# var_vals = beta_t_s
+run_i_s = beta_t_idxs
+var_name = 'beta_t'
+var_vals = beta_t_s
 
 # run_i_s = prc_out_idxs
 # var_name = 'prc_out'
@@ -86,17 +87,41 @@ for probl_i in range(n_probls):
             res_A[probl_i][trial_i], res_B[probl_i][trial_i])[0, 1]
 coef_var_s = np.sqrt(var_estim_s)/loo_s
 
-# calc some test values
-true_mean_s = np.zeros((n_probls))
-true_var_s = np.zeros((n_probls))
-true_plooneg = np.zeros((n_probls))
+# calc some target values
+target_mean_s = np.zeros((n_probls))
+target_var_s = np.zeros((n_probls))
+target_skew_s = np.zeros((n_probls))
+target_plooneg = np.zeros((n_probls))
 elpd_s = np.zeros((n_probls, n_trial))
 for probl_i in range(n_probls):
-    true_mean_s[probl_i] = np.mean(loo_s[probl_i])
-    true_var_s[probl_i] = np.var(loo_s[probl_i], ddof=1)
-    true_plooneg[probl_i] = np.mean(loo_s[probl_i]<0)
+    target_mean_s[probl_i] = np.mean(loo_s[probl_i])
+    target_var_s[probl_i] = np.var(loo_s[probl_i], ddof=1)
+    target_skew_s[probl_i] = stats.skew(loo_s[probl_i], bias=False)
+    target_plooneg[probl_i] = np.mean(loo_s[probl_i]<0)
     elpd_s[probl_i] = res_test_A[probl_i] - res_test_B[probl_i]
-true_coef_var_s = np.sqrt(true_var_s)/true_mean_s
+target_coefvar_s = np.sqrt(target_var_s)/target_mean_s
+
+# calc true analytic values
+analytic_mean_s = np.full((n_probls), np.nan)
+analytic_var_s = np.full((n_probls), np.nan)
+analytic_skew_s = np.full((n_probls), np.nan)
+analytic_coefvar_s = np.full((n_probls), np.nan)
+if fixed_sigma2_m:
+    for probl_i in range(n_probls):
+        run_i = run_i_s[probl_i]
+        n_obs_i, beta_t_i, prc_out_i, sigma2_d_i = run_i_to_params(run_i)
+        X_mat_i, _, _, _, mu_d_i = make_data(run_i)
+        if prc_out_i == 0.0:
+            mu_d_i = None
+        A_mat, b_vec, c_sca = get_analytic_params(X_mat_i, beta_t_i)
+        analytic_mean_s[probl_i] = calc_analytic_mean(
+            A_mat, b_vec, c_sca, sigma2_d_i, mu_d_i)
+        analytic_var_s[probl_i] = calc_analytic_var(
+            A_mat, b_vec, c_sca, sigma2_d_i, mu_d_i)
+        analytic_skew_s[probl_i] = calc_analytic_skew(
+            A_mat, b_vec, c_sca, sigma2_d_i, mu_d_i)
+        analytic_coefvar_s[probl_i] = calc_analytic_coefvar(
+            A_mat, b_vec, c_sca, sigma2_d_i, mu_d_i)
 
 # plots
 use_sea = True
@@ -114,6 +139,8 @@ for ax, probl_i in zip(axes, range(n_probls)):
     else:
         ax.hist(elpd_s[probl_i], 20, color='C1')
         ax.hist(loo_s[probl_i], 20, color='C0')
+    if fixed_sigma2_m:
+        ax.axhline(analytic_mean_s[probl_i], color='red')
     ax.set_title(var_vals[probl_i])
 fig.suptitle('LOO and test elpd (y={})'.format(var_name))
 fig.tight_layout()
@@ -125,7 +152,7 @@ for ax, probl_i in zip(axes, range(n_probls)):
         sns.violinplot(coef_var_s[probl_i], orient='v', ax=ax)
     else:
         ax.hist(coef_var_s[probl_i], 20)
-    ax.axhline(true_coef_var_s[probl_i], color='r')
+    ax.axhline(target_coefvar_s[probl_i], color='r')
     ax.set_title(var_vals[probl_i])
 fig.suptitle(var_name)
 fig.tight_layout()
@@ -140,7 +167,37 @@ for ax, probl_i in zip(axes, range(n_probls)):
     ax.set_title(var_vals[probl_i])
 fig.suptitle(var_name)
 fig.tight_layout()
-
+#
 fig, axes = plt.subplots(2, 1, sharex=True)
-axes[0].plot(np.mean(cor_s, axis=-1), true_coef_var_s, '.')
-axes[1].plot(np.mean(cor_s, axis=-1), true_plooneg, '.')
+axes[0].plot(np.mean(cor_s, axis=-1), target_coefvar_s, '.')
+axes[1].plot(np.mean(cor_s, axis=-1), target_plooneg, '.')
+
+if fixed_sigma2_m:
+
+    # compare target and analytic mean
+    plt.figure()
+    plt.plot(target_mean_s, analytic_mean_s, '+')
+    plt.plot(plt.xlim(), plt.ylim(), color='red', zorder=-1)
+    plt.xlabel('target mean')
+    plt.ylabel('analytic mean')
+
+    # compare target and analytic var
+    plt.figure()
+    plt.plot(target_var_s, analytic_var_s, '+')
+    plt.plot(plt.xlim(), plt.ylim(), color='red', zorder=-1)
+    plt.xlabel('target var')
+    plt.ylabel('analytic var')
+
+    # compare target and analytic skew
+    plt.figure()
+    plt.plot(target_skew_s, analytic_skew_s, '+')
+    plt.plot(plt.xlim(), plt.ylim(), color='red', zorder=-1)
+    plt.xlabel('target skew')
+    plt.ylabel('analytic skew')
+
+    # compare target and analytic coefficient of variation
+    plt.figure()
+    plt.plot(target_coefvar_s, analytic_coefvar_s, '+')
+    plt.plot(plt.xlim(), plt.ylim(), color='red', zorder=-1)
+    plt.xlabel('target coefvar')
+    plt.ylabel('analytic coefvar')

@@ -9,6 +9,7 @@ eps = sqrt(sigma2_d_s) * (
 """
 
 import numpy as np
+from scipy import linalg
 import sobol_seq
 
 
@@ -31,7 +32,7 @@ beta_t_s = [0.0, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0]
 beta_t_def = 1.0
 # percentage of outliers
 prc_out_s = [0.0, 0.01, 0.02, 0.05, 0.1]
-prc_out_def = 0.0
+prc_out_def = 0.02
 
 # fixed model sigma2_m value
 sigma2_m = 1.0
@@ -139,14 +140,22 @@ def make_data(run_i):
         eps_out_p = eps_out_p_last[:,:n_obs_out_p]
         eps_out_m = eps_out_m_last[:,:n_obs_out_m]
         eps = np.concatenate((eps_in, eps_out_p, eps_out_m), axis=1)
+        mu_d = np.zeros(n_obs)
+        mu_d[n_obs-n_obs_out:n_obs-n_obs_out+n_obs_out_p] = outlier_dev
+        mu_d[n_obs-n_obs_out+n_obs_out_p:] = -outlier_dev
     else:
         n_obs_out = 0
         n_obs_out_m = 0
         n_obs_out_p = 0
         eps = eps_in_last[:,:n_obs].copy()
+        mu_d = np.zeros(n_obs)
     eps *= np.sqrt(sigma2_d)
+    mu_d *= np.sqrt(sigma2_d)
     if suffle_obs:
-        rng.shuffle(eps.T)
+        idx = np.arange(n_obs)
+        rng.shuffle(idx)
+        eps = eps[:,idx]
+        mu_d = mu_d[idx]
     # drop unnecessary data
     del(X_last, eps_in_last, eps_out_p_last, eps_out_m_last)
     # calc y
@@ -187,4 +196,92 @@ def make_data(run_i):
     # calc y
     ys_test = X_test.dot(beta) + eps_test
 
-    return X_mat, ys, X_test, ys_test
+    return X_mat, ys, X_test, ys_test, mu_d
+
+
+def get_analytic_params(X_mat, beta_t):
+    """Analytic result for fixed sigma2 parameters."""
+    n_obs, _ = X_mat.shape
+    # calc Ps
+    Pa = np.zeros((n_obs, n_obs))
+    Pb = np.zeros((n_obs, n_obs))
+    for i in range(n_obs):
+        X_mi = np.delete(X_mat, i, axis=0)
+        # a
+        XXinvX_a = linalg.solve(
+            X_mi[:,:-1].T.dot(X_mi[:,:-1]),
+            X_mat[i,:-1],
+            assume_a='sym'
+        )
+        sXX_a = np.sqrt(X_mat[i,:-1].dot(XXinvX_a) + 1)
+        # b
+        XXinvX_b = linalg.solve(
+            X_mi.T.dot(X_mi),
+            X_mat[i,:],
+            assume_a='sym'
+        )
+        sXX_b = np.sqrt(X_mat[i,:].dot(XXinvX_b) + 1)
+        for j in range(n_obs):
+            if i == j:
+                # diag
+                Pa[i,i] = -1.0/sXX_a
+                Pb[i,i] = -1.0/sXX_b
+            else:
+                # off-diag
+                Pa[i,j] = X_mat[j,:-1].dot(XXinvX_a)/sXX_a
+                Pb[i,j] = X_mat[j,:].dot(XXinvX_b)/sXX_b
+    # calc A
+    A_mat = Pa.T.dot(Pa)
+    A_mat -= Pb.T.dot(Pb)
+    A_mat /= -2*sigma2_m
+    # calc b
+    b_vec = Pa.T.dot(Pa).dot(X_mat[:,-1])
+    b_vec *= -beta_t/sigma2_m
+    # calc c
+    c_sca = Pa.dot(X_mat[:,-1])
+    c_sca = c_sca.T.dot(c_sca)
+    c_sca *= -beta_t**2/(2*sigma2_m)
+    c_sca += np.sum(np.log(-np.diag(Pa))) - np.sum(np.log(-np.diag(Pb)))
+    return A_mat, b_vec, c_sca
+
+
+def calc_analytic_mean(A_mat, b_vec, c_sca, sigma2_d, mu_d=None):
+    """Calc analytic loo mean for fixed sigma2."""
+    out = c_sca
+    if mu_d is not None:
+        out += np.sqrt(sigma2_d)*(b_vec.T.dot(mu_d))
+        out += sigma2_d*(mu_d.T.dot(A_mat).dot(mu_d))
+    return out
+
+def calc_analytic_var(A_mat, b_vec, c_sca, sigma2_d, mu_d=None):
+    """Calc analytic loo var for fixed sigma2."""
+    A2 = A_mat.dot(A_mat)
+    out = 2*sigma2_d**2*np.trace(A2)
+    out += sigma2_d*(b_vec.T.dot(b_vec))
+    if mu_d is not None:
+        out += 4*np.sqrt(sigma2_d)**3*(b_vec.T.dot(A_mat).dot(mu_d))
+        out += 4*sigma2_d**2*(mu_d.T.dot(A2).dot(mu_d))
+    return out
+
+def calc_analytic_moment3(A_mat, b_vec, c_sca, sigma2_d, mu_d=None):
+    """Calc analytic loo 3rd central moment for fixed sigma2."""
+    A2 = A_mat.dot(A_mat)
+    A3 = A2.dot(A_mat)
+    out = 8*sigma2_d**3*np.trace(A3)
+    out += 6*sigma2_d**2*(b_vec.T.dot(A_mat).dot(b_vec))
+    if mu_d is not None:
+        out += 24*np.sqrt(sigma2_d)**5*(b_vec.T.dot(A2).dot(mu_d))
+        out += 24*sigma2_d**3*(mu_d.T.dot(A3).dot(mu_d))
+    return out
+
+def calc_analytic_coefvar(A_mat, b_vec, c_sca, sigma2_d, mu_d=None):
+    """Calc analytic loo coefficient of variation for fixed sigma2."""
+    mean = calc_analytic_mean(A_mat, b_vec, c_sca, sigma2_d, mu_d)
+    var = calc_analytic_var(A_mat, b_vec, c_sca, sigma2_d, mu_d)
+    return np.sqrt(var)/mean
+
+def calc_analytic_skew(A_mat, b_vec, c_sca, sigma2_d, mu_d=None):
+    """Calc analytic loo skewness for fixed sigma2."""
+    var = calc_analytic_var(A_mat, b_vec, c_sca, sigma2_d, mu_d)
+    moment3 = calc_analytic_moment3(A_mat, b_vec, c_sca, sigma2_d, mu_d)
+    return moment3 / np.sqrt(var)**3
