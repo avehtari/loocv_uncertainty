@@ -38,8 +38,8 @@ prc_out_def = 0.02
 sigma2_m = 1.0
 # outlier loc deviation
 outlier_dev = 20.0
-# even number of outliers
-outliers_even = False
+# outliers style (if ``prc_out>0.0``): ['even', 'pos', 'neg']
+outliers_style = 'even'
 # number of trials
 n_trial = 2000
 # dimensionality of beta
@@ -93,16 +93,22 @@ prc_out_grid = np.full(n_runs, prc_out_def)
 prc_out_grid[prc_out_idxs] = prc_out_s
 
 
-def determine_n_obs_out_p_m(n_obs, prc_out):
+def determine_n_obs_out_p_m(n_obs, prc_out, outliers_style):
     if prc_out > 0.0:
-        if outliers_even:
+        if outliers_style == 'even':
             n_obs_out = max(int(np.round(prc_out*n_obs/2)), 1)
             n_obs_out_p = n_obs_out
             n_obs_out_m = n_obs_out
-        else:
+        elif outliers_style == 'pos':
             n_obs_out = max(int(np.round(prc_out*n_obs)), 1)
             n_obs_out_p = n_obs_out
             n_obs_out_m = 0
+        elif outliers_style == 'neg':
+            n_obs_out = max(int(np.round(prc_out*n_obs)), 1)
+            n_obs_out_p = 0
+            n_obs_out_m = n_obs_out
+        else:
+            raise ValueError('invalid arg `outliers_style`')
     else:
         n_obs_out = 0
         n_obs_out_p = 0
@@ -116,7 +122,8 @@ def run_i_to_params(run_i):
     prc_out = prc_out_grid[run_i]
     sigma2_d = sigma2_d_grid[run_i]
     # fix prc_out
-    n_obs_out_p, n_obs_out_m = determine_n_obs_out_p_m(n_obs, prc_out)
+    n_obs_out_p, n_obs_out_m = determine_n_obs_out_p_m(
+        n_obs, prc_out, outliers_style)
     n_obs_out = n_obs_out_p + n_obs_out_m
     prc_out = n_obs_out/n_obs
     return n_obs, beta_t, prc_out, sigma2_d
@@ -143,7 +150,7 @@ def make_data(n_obs, beta_t, prc_out, sigma2_d):
         X_last = sobol_seq.i4_sobol_generate_std_normal(n_dim, n_obs_s[-1])
     # data for the biggest sample size
     n_obs_out_p_last, n_obs_out_m_last = determine_n_obs_out_p_m(
-        n_obs_s[-1], prc_out_s[-1])
+        n_obs_s[-1], prc_out_s[-1], outliers_style)
     eps_in_last = rng.normal(size=(n_trial, n_obs_s[-1]))
     eps_out_p_last = rng.normal(
         loc=outlier_dev, size=(n_trial, n_obs_out_p_last))
@@ -152,7 +159,8 @@ def make_data(n_obs, beta_t, prc_out, sigma2_d):
     # take current size observations (copy in order to get contiguous)
     X_mat = X_last[:n_obs,:].copy()
     if prc_out > 0.0:
-        n_obs_out_p, n_obs_out_m = determine_n_obs_out_p_m(n_obs, prc_out)
+        n_obs_out_p, n_obs_out_m = determine_n_obs_out_p_m(
+            n_obs, prc_out, outliers_style)
         n_obs_out = n_obs_out_p + n_obs_out_m
         eps_in = eps_in_last[:,:n_obs-n_obs_out]
         eps_out_p = eps_out_p_last[:,:n_obs_out_p]
