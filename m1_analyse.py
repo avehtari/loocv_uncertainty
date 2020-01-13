@@ -20,6 +20,8 @@ from m1_problem import *
 # fixed or unfixed sigma
 fixed_sigma2_m = False
 
+# plot using seaborn
+use_sea = True
 
 # ============================================================================
 
@@ -124,8 +126,8 @@ if fixed_sigma2_m:
         analytic_coefvar_s[probl_i] = calc_analytic_coefvar(
             A_mat, b_vec, c_sca, sigma2_d_i, mu_d_i)
 
+# ===========================================================================
 # plots
-use_sea = True
 
 # LOO and elpd
 fig, axes = plt.subplots(1, n_probls, sharey=False, figsize=(16,8))
@@ -202,3 +204,50 @@ if fixed_sigma2_m:
     plt.plot(plt.xlim(), plt.ylim(), color='red', zorder=-1)
     plt.xlabel('target coefvar')
     plt.ylabel('analytic coefvar')
+
+
+# ============================================================================
+# boots
+
+
+# load results
+bootloo_tb = np.zeros((n_probls, n_trial, n_boot_trial))
+mbootloo_tb = np.zeros((n_probls, n_trial, n_mboot_trial))
+for probl_i in range(n_probls):
+    run_i = run_i_s[probl_i]
+    # boot
+    res_file = np.load(
+        'res_1/{}/boot/{}.npz'
+        .format(folder_name, str(run_i).zfill(4))
+    )
+    bootloo_tb[probl_i] = res_file['bootloo_tb']
+    res_file.close()
+    # mboot
+    res_file = np.load(
+        'res_1/{}/mboot/{}.npz'
+        .format(folder_name, str(run_i).zfill(4))
+    )
+    mbootloo_tb[probl_i] = res_file['mbootloo_tb']
+    res_file.close()
+
+# calc probability of LOO being negative
+boot_plooneg = np.mean(bootloo_tb<0.0, axis=-1)
+mboot_plooneg = np.mean(mbootloo_tb<0.0, axis=-1)
+
+# plot this for boot and mboot
+fig, axes = plt.subplots(1, n_probls, sharey=False, figsize=(16,8))
+for ax, probl_i in zip(axes, range(n_probls)):
+    if use_sea:
+        sns.violinplot(
+            data=[boot_plooneg[probl_i], mboot_plooneg[probl_i]],
+            orient='v',
+            scale='width',
+            ax=ax
+        )
+    else:
+        ax.hist(moot_plooneg[probl_i], 20, color='C1')
+        ax.hist(boot_plooneg[probl_i], 20, color='C0')
+    ax.axhline(target_plooneg[probl_i], color='r')
+    ax.set_title(var_vals[probl_i])
+fig.suptitle(var_name)
+fig.tight_layout()
