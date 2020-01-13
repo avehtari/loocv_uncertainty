@@ -69,6 +69,7 @@ def calc_loo_ti(ys, X_mat):
 
 def calc_test_t(ys, X_mat, ys_test, X_test):
     _, n_dim_cur = X_mat.shape
+    elpd_test_set_size, _ = X_test.shape
     # test set pred distr params working array
     mu_pred_test = np.empty((elpd_test_set_size,))
     sigma2_pred_test = np.empty((elpd_test_set_size,))
@@ -143,6 +144,9 @@ else:
 # get params and data
 n_obs, beta_t, prc_out, sigma2_d = run_i_to_params(run_i)
 X_mat, ys, X_test, ys_test, _ = make_data(n_obs, beta_t, prc_out, sigma2_d)
+
+elpd_test_set_size, _ = X_test.shape
+
 
 print('Run {}/{}'.format(run_i, n_runs-1))
 print(

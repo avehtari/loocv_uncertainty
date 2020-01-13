@@ -52,7 +52,7 @@ beta_intercept = 0.0
 shuffle_obs = True
 
 # independent test set for true elpd (should be divisible by all n_ob_s)
-elpd_test_set_size = 2**15  # 32768
+elpd_test_set_size_target = 2**15  # 32768
 # outliers in the independent test set for true elpd
 elpd_test_outliers = True
 
@@ -170,24 +170,24 @@ def make_data(n_obs, beta_t, prc_out, sigma2_d):
     ys = X_mat.dot(beta) + eps
 
     # elpd test set
-    elpd_size_multip = elpd_test_set_size // n_obs
-    elpd_size_fixed = elpd_test_set_size*elpd_size_multip
+    elpd_size_multip = elpd_test_set_size_target // n_obs
+    elpd_test_set_size = elpd_test_set_size_target*elpd_size_multip
     if intercept:
         # firs dim (column) ones for intercept
         X_test = np.hstack((
-            np.ones((elpd_size_fixed, 1)),
+            np.ones((elpd_test_set_size, 1)),
             sobol_seq.i4_sobol_generate_std_normal(
-                n_dim-1, elpd_size_fixed, skip=n_obs_s[-1]+1)
+                n_dim-1, elpd_test_set_size, skip=n_obs_s[-1]+1)
         ))
     else:
         X_test = sobol_seq.i4_sobol_generate_std_normal(
-            n_dim, elpd_size_fixed, skip=n_obs_s[-1]+1)
+            n_dim, elpd_test_set_size, skip=n_obs_s[-1]+1)
     if elpd_test_outliers and prc_out > 0.0:
         n_obs_out_test = elpd_size_multip*n_obs_out
         n_obs_out_test_m = elpd_size_multip*n_obs_out_test_m
         n_obs_out_test_p = n_obs_out_test - n_obs_out_test_m
         eps_test_in = rng.normal(
-            size=(elpd_size_fixed-n_obs_out_test,))
+            size=(elpd_test_set_size-n_obs_out_test,))
         eps_test_out_p = rng.normal(
             loc=outlier_dev, size=(n_obs_out_test_p,))
         eps_test_out_m = rng.normal(
@@ -199,7 +199,7 @@ def make_data(n_obs, beta_t, prc_out, sigma2_d):
         n_obs_out_test = 0
         n_obs_out_test_m = 0
         n_obs_out_test_p = 0
-        eps_test = rng.normal(size=(elpd_size_fixed,))
+        eps_test = rng.normal(size=(elpd_test_set_size,))
     eps_test *= np.sqrt(sigma2_d)
     if shuffle_obs:
         rng.shuffle(eps_test.T)
