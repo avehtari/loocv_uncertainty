@@ -1,10 +1,13 @@
 """LOOCV linear regression problem setup module.
 
 data:
-y = beta'*x + eps
+y = X*beta + eps
 x = standard normal Quasi MC with Sobol sequence
-eps = sqrt(sigma2_d_s) * (
-    norm_rng(0,1) if nonoutlier else norm_rng(+-outlier_dev,1))
+eps = (
+    norm_rng(0, sigma2_d)
+    if nonoutlier else
+    norm_rng(+-outlier_dev*sqrt(sigma2_d + sum_i beta_i^2), sigma2_d)
+)
 
 """
 
@@ -22,17 +25,13 @@ seed = 2958319585
 
 # grid params and default values
 # number of obs in one trial
-n_obs_s = [16, 32, 64, 128, 256, 512, 1024]
-n_obs_def = 256
+n_obs_s = [16, 32, 64, 128, 256, 512, 1024, 2048]
 # epsilon sigma2_d_s
-sigma2_d_s = [0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]
-sigma2_d_def = 1.0
+sigma2_d_s = [0.01, 1.0, 100.0]
 # last covariate effect not used in model A
-beta_t_s = [0.0, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0]
-beta_t_def = 1.0
-# percentage of outliers
-prc_out_s = [0.0, 0.01, 0.02, 0.05, 0.1]
-prc_out_def = 0.02
+beta_t_s = [0.0, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0]
+# percentage of outliers (np.nextafter(0,1) corresponds to always 1 or 2 outs)
+prc_out_s = [0.0, 0.01, 0.08]
 
 # fixed model sigma2_m value
 sigma2_m = 1.0
@@ -74,23 +73,9 @@ seed_mboot = 1118669156
 # ===========================================================================
 
 # set grid
-n_runs = sum(map(len, (n_obs_s, sigma2_d_s, beta_t_s, prc_out_s)))
-
-n_obs_idxs = np.arange(len(n_obs_s))
-n_obs_grid = np.full(n_runs, n_obs_def)
-n_obs_grid[n_obs_idxs] = n_obs_s
-
-sigma2_d_idxs = np.arange(len(sigma2_d_s)) + n_obs_idxs[-1] + 1
-sigma2_d_grid = np.full(n_runs, sigma2_d_def)
-sigma2_d_grid[sigma2_d_idxs] = sigma2_d_s
-
-beta_t_idxs = np.arange(len(beta_t_s)) + sigma2_d_idxs[-1] + 1
-beta_t_grid = np.full(n_runs, beta_t_def)
-beta_t_grid[beta_t_idxs] = beta_t_s
-
-prc_out_idxs = np.arange(len(prc_out_s)) + beta_t_idxs[-1] + 1
-prc_out_grid = np.full(n_runs, prc_out_def)
-prc_out_grid[prc_out_idxs] = prc_out_s
+n_obs_grid, sigma2_d_grid, beta_t_grid, prc_out_grid = np.meshgrid(
+    n_obs_s, sigma2_d_s, beta_t_s, prc_out_s)
+n_runs = n_obs_grid.size
 
 
 def determine_n_obs_out_p_m(n_obs, prc_out, outliers_style):
@@ -117,10 +102,10 @@ def determine_n_obs_out_p_m(n_obs, prc_out, outliers_style):
 
 
 def run_i_to_params(run_i):
-    n_obs = n_obs_grid[run_i]
-    beta_t = beta_t_grid[run_i]
-    prc_out = prc_out_grid[run_i]
-    sigma2_d = sigma2_d_grid[run_i]
+    n_obs = n_obs_grid.flat[run_i]
+    beta_t = beta_t_grid.flat[run_i]
+    prc_out = prc_out_grid.flat[run_i]
+    sigma2_d = sigma2_d_grid.flat[run_i]
     # fix prc_out
     n_obs_out_p, n_obs_out_m = determine_n_obs_out_p_m(
         n_obs, prc_out, outliers_style)
@@ -139,6 +124,10 @@ def make_data(n_obs, beta_t, prc_out, sigma2_d):
     if intercept:
         beta[0] = beta_intercept
 
+    # calc outlier deviation for eps
+    outlier_dev_eps = outlier_dev*np.sqrt(sigma2_d + np.sum(beta**2))
+    sigma_d = np.sqrt(sigma2_d)
+
     # data for all cases
     if intercept:
         # firs dim (column) ones for intercept
@@ -151,11 +140,21 @@ def make_data(n_obs, beta_t, prc_out, sigma2_d):
     # data for the biggest sample size
     n_obs_out_p_last, n_obs_out_m_last = determine_n_obs_out_p_m(
         n_obs_s[-1], prc_out_s[-1], outliers_style)
-    eps_in_last = rng.normal(size=(n_trial, n_obs_s[-1]))
+    eps_in_last = rng.normal(
+        loc=0.0,
+        scale=sigma_d,
+        size=(n_trial, n_obs_s[-1])
+    )
     eps_out_p_last = rng.normal(
-        loc=outlier_dev, size=(n_trial, n_obs_out_p_last))
+        loc=outlier_dev_eps,
+        scale=sigma_d,
+        size=(n_trial, n_obs_out_p_last)
+    )
     eps_out_m_last = rng.normal(
-        loc=-outlier_dev, size=(n_trial, n_obs_out_m_last))
+        loc=-outlier_dev_eps,
+        scale=sigma_d,
+        size=(n_trial, n_obs_out_m_last)
+    )
     # take current size observations (copy in order to get contiguous)
     X_mat = X_last[:n_obs,:].copy()
     if prc_out > 0.0:
@@ -167,16 +166,14 @@ def make_data(n_obs, beta_t, prc_out, sigma2_d):
         eps_out_m = eps_out_m_last[:,:n_obs_out_m]
         eps = np.concatenate((eps_in, eps_out_p, eps_out_m), axis=1)
         mu_d = np.zeros(n_obs)
-        mu_d[n_obs-n_obs_out:n_obs-n_obs_out+n_obs_out_p] = outlier_dev
-        mu_d[n_obs-n_obs_out+n_obs_out_p:] = -outlier_dev
+        mu_d[n_obs-n_obs_out:n_obs-n_obs_out+n_obs_out_p] = outlier_dev_eps
+        mu_d[n_obs-n_obs_out+n_obs_out_p:] = -outlier_dev_eps
     else:
         n_obs_out = 0
         n_obs_out_m = 0
         n_obs_out_p = 0
         eps = eps_in_last[:,:n_obs].copy()
         mu_d = np.zeros(n_obs)
-    eps *= np.sqrt(sigma2_d)
-    mu_d *= np.sqrt(sigma2_d)
     if shuffle_obs:
         idx = np.arange(n_obs)
         rng.shuffle(idx)
@@ -205,11 +202,20 @@ def make_data(n_obs, beta_t, prc_out, sigma2_d):
         n_obs_out_test_p = elpd_size_multip*n_obs_out_p
         n_obs_out_test_m = n_obs_out_test - n_obs_out_test_p
         eps_test_in = rng.normal(
-            size=(elpd_test_set_size-n_obs_out_test,))
+            loc=0.0,
+            scale=sigma_d,
+            size=(elpd_test_set_size-n_obs_out_test,)
+        )
         eps_test_out_p = rng.normal(
-            loc=outlier_dev, size=(n_obs_out_test_p,))
+            loc=outlier_dev_eps,
+            scale=sigma_d,
+            size=(n_obs_out_test_p,)
+        )
         eps_test_out_m = rng.normal(
-            loc=-outlier_dev, size=(n_obs_out_test_m,))
+            loc=-outlier_dev_eps,
+            scale=sigma_d,
+            size=(n_obs_out_test_m,)
+        )
         eps_test = np.concatenate(
             (eps_test_in, eps_test_out_p, eps_test_out_m), axis=0)
         del(eps_test_in, eps_test_out_p, eps_test_out_m)
@@ -218,7 +224,6 @@ def make_data(n_obs, beta_t, prc_out, sigma2_d):
         n_obs_out_test_m = 0
         n_obs_out_test_p = 0
         eps_test = rng.normal(size=(elpd_test_set_size,))
-    eps_test *= np.sqrt(sigma2_d)
     if shuffle_obs:
         rng.shuffle(eps_test.T)
     # calc y

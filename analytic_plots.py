@@ -32,6 +32,10 @@ outlier_dev = 20.0
 n_dim = 3
 # first covariate as intercept
 intercept = True
+# other covariates' effects
+beta_other = 1.0
+# intercept coef (if applied)
+beta_intercept = 0.0
 
 # shuffle outlier observations
 shuffle_mu_d = True
@@ -86,12 +90,15 @@ def make_x(n_obs):
     return X_mat
 
 
-def make_mu_d(n_obs, n_obs_out_p, n_obs_out_m, sigma2_d):
+def make_mu_d(n_obs, n_obs_out_p, n_obs_out_m, sigma2_d, beta_t):
+    beta = np.array([beta_other]*(n_dim-1)+[beta_t])
+    if intercept:
+        beta[0] = beta_intercept
+    outlier_dev_eps = outlier_dev*np.sqrt(sigma2_d + np.sum(beta**2))
     n_obs_out = n_obs_out_p + n_obs_out_m
     mu_d = np.zeros(n_obs)
-    mu_d[n_obs-n_obs_out:n_obs-n_obs_out+n_obs_out_p] = outlier_dev
-    mu_d[n_obs-n_obs_out+n_obs_out_p:] = -outlier_dev
-    mu_d *= np.sqrt(sigma2_d)
+    mu_d[n_obs-n_obs_out:n_obs-n_obs_out+n_obs_out_p] = outlier_dev_eps
+    mu_d[n_obs-n_obs_out+n_obs_out_p:] = -outlier_dev_eps
     if shuffle_mu_d:
         rng = np.random.RandomState(seed=shuffle_seed)
         rng.shuffle(mu_d)
@@ -112,7 +119,6 @@ out_confs = [(0.0, 'none'), (0.04, 'even'), (0.04, 'pos'), (0.04, 'neg')]
 # constants
 beta_t = 1.0
 sigma2_d = 1.0
-n_dim = 3
 
 
 analytic_mean_s = np.full((len(out_confs), len(n_obs_s)), np.nan)
@@ -126,7 +132,7 @@ for i1, n_obs in enumerate(n_obs_s):
         n_obs_out = n_obs_out_p + n_obs_out_m
         prc_out_fixed = n_obs_out/n_obs
         X_mat = make_x(n_obs)
-        mu_d = make_mu_d(n_obs, n_obs_out_p, n_obs_out_m, sigma2_d)
+        mu_d = make_mu_d(n_obs, n_obs_out_p, n_obs_out_m, sigma2_d, beta_t)
         if prc_out_fixed == 0.0:
             mu_d = None
         A_mat, b_vec, c_sca = get_analytic_params(X_mat, beta_t)
@@ -203,7 +209,7 @@ else:
 
 # variables
 # beta_t_s = [0.0, 0.01, 0.1, 1.0, 10.0, 100.0, 200.0]
-beta_t_s = np.linspace(0.0, 3.0, 20)
+beta_t_s = np.linspace(0.0, 20.0, 60)
 # beta_t_s = np.linspace(1.0, 1.5, 20)
 # (prc_out, outliers_style)
 out_confs = [(0.0, 'none'), (2/32, 'even'), (2/32, 'pos'), (2/32, 'neg')]
@@ -211,7 +217,6 @@ out_confs = [(0.0, 'none'), (2/32, 'even'), (2/32, 'pos'), (2/32, 'neg')]
 # constants
 n_obs = 32
 sigma2_d = 1.0
-n_dim = 3
 
 
 analytic_mean_s = np.full((len(out_confs), len(beta_t_s)), np.nan)
@@ -225,7 +230,7 @@ for i1, beta_t in enumerate(beta_t_s):
         n_obs_out = n_obs_out_p + n_obs_out_m
         prc_out_fixed = n_obs_out/n_obs
         X_mat = make_x(n_obs)
-        mu_d = make_mu_d(n_obs, n_obs_out_p, n_obs_out_m, sigma2_d)
+        mu_d = make_mu_d(n_obs, n_obs_out_p, n_obs_out_m, sigma2_d, beta_t)
         if prc_out_fixed == 0.0:
             mu_d = None
         A_mat, b_vec, c_sca = get_analytic_params(X_mat, beta_t)
@@ -316,7 +321,6 @@ out_confs = [(0.0, 'none'), (2/32, 'even'), (2/32, 'pos'), (2/32, 'neg')]
 # constants
 n_obs = 32
 beta_t = 1.0
-n_dim = 3
 
 
 analytic_mean_s = np.full((len(out_confs), len(sigma2_d_s)), np.nan)
@@ -330,7 +334,7 @@ for i1, sigma2_d in enumerate(sigma2_d_s):
         n_obs_out = n_obs_out_p + n_obs_out_m
         prc_out_fixed = n_obs_out/n_obs
         X_mat = make_x(n_obs)
-        mu_d = make_mu_d(n_obs, n_obs_out_p, n_obs_out_m, sigma2_d)
+        mu_d = make_mu_d(n_obs, n_obs_out_p, n_obs_out_m, sigma2_d, beta_t)
         if prc_out_fixed == 0.0:
             mu_d = None
         A_mat, b_vec, c_sca = get_analytic_params(X_mat, beta_t)
