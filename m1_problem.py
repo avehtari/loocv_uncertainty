@@ -53,7 +53,7 @@ beta_intercept = 0.0
 shuffle_obs = True
 
 # independent test set for true elpd (should be divisible by all n_ob_s)
-elpd_test_set_size_target = 2**14  # 32768
+elpd_test_set_size_target = 2**14  # 16384
 # outliers in the independent test set for true elpd
 elpd_test_outliers = True
 
@@ -187,7 +187,7 @@ def make_data(n_obs, beta_t, prc_out, sigma2_d):
     # elpd test set
     elpd_size_multip = max(
         int(np.round(elpd_test_set_size_target/n_obs)), 1)
-    elpd_test_set_size = elpd_test_set_size_target*elpd_size_multip
+    elpd_test_set_size = n_obs*elpd_size_multip
     if intercept:
         # firs dim (column) ones for intercept
         X_test = np.hstack((
