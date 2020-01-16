@@ -109,12 +109,13 @@ def make_mu_d(n_obs, n_obs_out_p, n_obs_out_m, sigma2_d, beta_t):
 # As a function of n
 
 # variables
-n_obs_s = np.concatenate((
-    np.arange(8,64),
-    2**np.arange(7,10)
-))
+# n_obs_s = np.concatenate((
+#     np.arange(8,64),
+#     2**np.arange(7,10)
+# ))
+n_obs_s = np.round(np.logspace(4, 10, 20, base=2)).astype(int)
 # (prc_out, outliers_style)
-out_confs = [(0.0, 'none'), (0.04, 'even'), (0.04, 'pos'), (0.04, 'neg')]
+out_confs = [(0.0, 'none'), (0.01, 'even'), (0.01, 'pos'), (0.01, 'neg')]
 
 # constants
 beta_t = 1.0
@@ -126,7 +127,7 @@ analytic_var_s = np.full((len(out_confs), len(n_obs_s)), np.nan)
 analytic_skew_s = np.full((len(out_confs), len(n_obs_s)), np.nan)
 analytic_coefvar_s = np.full((len(out_confs), len(n_obs_s)), np.nan)
 for i1, n_obs in enumerate(n_obs_s):
-    for i, (prc_out, outliers_style) in enumerate(out_confs):
+    for i2, (prc_out, outliers_style) in enumerate(out_confs):
         n_obs_out_p, n_obs_out_m = determine_n_obs_out_p_m(
             n_obs, prc_out, outliers_style)
         n_obs_out = n_obs_out_p + n_obs_out_m
@@ -209,7 +210,7 @@ else:
 
 # variables
 # beta_t_s = [0.0, 0.01, 0.1, 1.0, 10.0, 100.0, 200.0]
-beta_t_s = np.linspace(0.0, 20.0, 60)
+beta_t_s = np.linspace(0.0, 20.0, 40)
 # beta_t_s = np.linspace(1.0, 1.5, 20)
 # (prc_out, outliers_style)
 out_confs = [(0.0, 'none'), (2/32, 'even'), (2/32, 'pos'), (2/32, 'neg')]
