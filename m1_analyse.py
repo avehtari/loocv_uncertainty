@@ -32,14 +32,59 @@ n_booti_trial = 123
 
 
 # ============================================================================
+# Select problems
 
-if fixed_sigma2_m:
-    folder_name = 'fixed'
-else:
-    folder_name = 'unfixed'
+# grid dims:
+#   sigma2_d  [0.01, 1.0, 100.0]
+#   n_obs     [16, 32, 64, 128, 256, 512, 1024, 2048]
+#   beta_t    [0.0, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0]
+#   prc_out   [0.0, 0.01, 0.08]
 
-rng = np.random.RandomState(seed=seed_analysis)
 
+# # as a function of n
+# idxs = (
+#     [1]*grid_shape[1]*2,
+#     list(range(grid_shape[1]))*2,
+#     [5]*grid_shape[1]*2,
+#     [0]*grid_shape[1] + [1]*grid_shape[1],
+# )
+# run_i_s = np.ravel_multi_index(idxs, grid_shape)
+# probl_names = []
+# for run_i in run_i_s:
+#     n_obs_i, beta_t_i, prc_out_i, sigma2_d_i = run_i_to_params(run_i)
+#     probl_names.append('n_obs={}, out_prc={:.2}'.format(n_obs_i, prc_out_i))
+
+
+# # as a function of beta_t with no out and out
+# idxs = (
+#     [1]*grid_shape[2]*2,
+#     [4]*grid_shape[2]*2,
+#     list(range(grid_shape[2]))*2,
+#     [0]*grid_shape[2] + [1]*grid_shape[2],
+# )
+# run_i_s = np.ravel_multi_index(idxs, grid_shape)
+# probl_names = []
+# for run_i in run_i_s:
+#     n_obs_i, beta_t_i, prc_out_i, sigma2_d_i = run_i_to_params(run_i)
+#     if prc_out_i > 0.0:
+#         probl_names.append('b={}, out'.format(beta_t_i))
+#     else:
+#         probl_names.append('b={}'.format(beta_t_i))
+
+# as a function of prc_out with beta_t=[0.0, 1.0]
+idxs = (
+    [1]*grid_shape[3]*2,
+    [4]*grid_shape[3]*2,
+    [0]*grid_shape[3] + [5]*grid_shape[3],
+    list(range(grid_shape[3]))*2,
+)
+run_i_s = np.ravel_multi_index(idxs, grid_shape)
+probl_names = []
+for run_i in run_i_s:
+    n_obs_i, beta_t_i, prc_out_i, sigma2_d_i = run_i_to_params(run_i)
+    probl_names.append('pout={:.2}, b={}'.format(prc_out_i, beta_t_i))
+
+# ============================================================================
 
 def remove_frame(ax):
     ax.spines['top'].set_visible(False)
@@ -48,25 +93,20 @@ def remove_frame(ax):
     ax.spines['left'].set_visible(False)
 
 # ============================================================================
-# As a function of ...
 
-run_i_s = n_obs_idxs
-var_name = 'n_obs'
-var_vals = n_obs_s
+print('selected problems:')
+print('fixed sigma2_m: {}'.format(fixed_sigma2_m))
+print('sigma2_d: {}'.format(sigma2_d_grid[idxs]))
+print('n_obs: {}'.format(n_obs_grid[idxs]))
+print('beta_t: {}'.format(beta_t_grid[idxs]))
+print('prc_out: {}'.format(prc_out_grid[idxs]))
 
-# run_i_s = sigma2_d_idxs
-# var_name = 'sigma2_d'
-# var_vals = sigma2_d_s
+if fixed_sigma2_m:
+    folder_name = 'fixed'
+else:
+    folder_name = 'unfixed'
 
-# run_i_s = beta_t_idxs
-# var_name = 'beta_t'
-# var_vals = beta_t_s
-
-# run_i_s = prc_out_idxs
-# var_name = 'prc_out'
-# var_vals = prc_out_s
-
-
+rng = np.random.RandomState(seed=seed_analysis)
 
 n_probls = len(run_i_s)
 
@@ -92,7 +132,7 @@ for probl_i in range(n_probls):
 # calc some normally obtainable values
 loo_s = np.zeros((n_probls, n_trial))
 naive_var_s = np.zeros((n_probls, n_trial))
-cor_s = np.zeros((n_probls, n_trial))
+cor_loo_i_s = np.zeros((n_probls, n_trial))
 skew_loo_i_s = np.zeros((n_probls, n_trial))
 for probl_i in range(n_probls):
     n_cur = res_A[probl_i].shape[-1]
@@ -100,11 +140,11 @@ for probl_i in range(n_probls):
     naive_var_s[probl_i] = n_cur*np.var(
         res_A[probl_i]-res_B[probl_i], ddof=1, axis=-1)
     for trial_i in range(n_trial):
-        cor_s[probl_i, trial_i] = np.corrcoef(
+        cor_loo_i_s[probl_i, trial_i] = np.corrcoef(
             res_A[probl_i][trial_i], res_B[probl_i][trial_i])[0, 1]
     skew_loo_i_s[probl_i] = stats.skew(
         res_A[probl_i]-res_B[probl_i], axis=-1, bias=False)
-coef_var_s = np.sqrt(naive_var_s)/loo_s
+naive_coef_var_s = np.sqrt(naive_var_s)/loo_s
 naive_plooneg_s = stats.norm.cdf(0, loc=loo_s, scale=np.sqrt(naive_var_s))
 
 # calc some target values
@@ -117,6 +157,7 @@ for probl_i in range(n_probls):
     target_mean_s[probl_i] = np.mean(loo_s[probl_i])
     target_var_s[probl_i] = np.var(loo_s[probl_i], ddof=1)
     target_skew_s[probl_i] = stats.skew(loo_s[probl_i], bias=False)
+    # TODO calc se of this ... formulas online
     target_plooneg_s[probl_i] = np.mean(loo_s[probl_i]<0)
     elpd_s[probl_i] = res_test_A[probl_i] - res_test_B[probl_i]
 target_coefvar_s = np.sqrt(target_var_s)/target_mean_s
@@ -144,59 +185,175 @@ if fixed_sigma2_m:
         analytic_coefvar_s[probl_i] = calc_analytic_coefvar(
             A_mat, b_vec, c_sca, sigma2_d_i, mu_d_i)
 
+# confusion: p(B(naive_plooneg)!=B(plooneg))
+naive_confusion_s = (
+    naive_plooneg_s*(1-target_plooneg_s[:,None])
+    + (1-naive_plooneg_s)*target_plooneg_s[:,None]
+)
+
+
 # ===========================================================================
 # plots
 
 if False:
-    # LOO and elpd
-    fig, axes = plt.subplots(1, n_probls, sharey=False, figsize=(16,8))
-    for ax, probl_i in zip(axes, range(n_probls)):
+
+    # LOO and elpd normalised
+    fig, axes = plt.subplots(
+        2, n_probls//2 + n_probls%2,
+        sharey='row',
+        figsize=(16,12)
+    )
+    for probl_i in range(axes.size):
+        ax = axes.flat[probl_i]
+        if probl_i >= n_probls:
+            ax.axis('off')
+            continue
+        n_obs_i = n_obs_grid.flat[run_i_s[probl_i]]
+        if fixed_sigma2_m:
+            ax.axhline(analytic_mean_s[probl_i]/n_obs_i, color='red')
         if use_sea:
             sns.violinplot(
-                data=[loo_s[probl_i], elpd_s[probl_i]],
+                data=[loo_s[probl_i]/n_obs_i, elpd_s[probl_i]/n_obs_i],
                 orient='v',
                 scale='width',
                 ax=ax
             )
         else:
-            ax.hist(elpd_s[probl_i], 20, color='C1')
-            ax.hist(loo_s[probl_i], 20, color='C0')
+            ax.hist(elpd_s[probl_i]/n_obs_i, 20, color='C1')
+            ax.hist(loo_s[probl_i]/n_obs_i, 20, color='C0')
+        ax.set_title(probl_names[probl_i])
+    fig.suptitle('LOO and test elpd (normalised)')
+    # fig.tight_layout()
+
+    # naive coef of vars
+    fig, axes = plt.subplots(
+        2, n_probls//2 + n_probls%2,
+        # sharey='row',
+        figsize=(16,12)
+    )
+    for probl_i in range(axes.size):
+        ax = axes.flat[probl_i]
+        if probl_i >= n_probls:
+            ax.axis('off')
+            continue
+        if use_sea:
+            sns.violinplot(
+                naive_coef_var_s[probl_i], orient='v', ax=ax,
+                label='naive coef of var')
+        else:
+            ax.hist(naive_coef_var_s[probl_i], 20, label='naive coef of var')
         if fixed_sigma2_m:
-            ax.axhline(analytic_mean_s[probl_i], color='red')
-        ax.set_title(var_vals[probl_i])
-    fig.suptitle('LOO and test elpd (y={})'.format(var_name))
-    fig.tight_layout()
-
-    # coef of vars
-    fig, axes = plt.subplots(1, n_probls, sharey=False, figsize=(16,8))
-    for ax, probl_i in zip(axes, range(n_probls)):
-        if use_sea:
-            sns.violinplot(coef_var_s[probl_i], orient='v', ax=ax)
+            ax.axhline(analytic_coefvar_s[probl_i],
+                color='r', label='analytic')
         else:
-            ax.hist(coef_var_s[probl_i], 20)
-        ax.axhline(target_coefvar_s[probl_i], color='r')
-        ax.set_title(var_vals[probl_i])
-    fig.suptitle(var_name)
-    fig.tight_layout()
+            ax.axhline(target_coefvar_s[probl_i],
+                color='r', label='estimated over trials')
+        ax.set_title(probl_names[probl_i])
+    axes.flat[-1].legend()
+    fig.suptitle('naive coef of var')
+    # fig.tight_layout()
 
-    # cors
-    fig, axes = plt.subplots(1, n_probls, sharey=False, figsize=(16,8))
-    for ax, probl_i in zip(axes, range(n_probls)):
+
+    # ===========
+    # cor_loo_i_s
+    # ===========
+
+    # loo_i cors
+    fig, axes = plt.subplots(
+        2, n_probls//2 + n_probls%2,
+        sharey='row',
+        figsize=(16,12)
+    )
+    for probl_i in range(axes.size):
+        ax = axes.flat[probl_i]
+        if probl_i >= n_probls:
+            ax.axis('off')
+            continue
         if use_sea:
-            sns.violinplot(cor_s[probl_i], orient='v', ax=ax)
+            sns.violinplot(cor_loo_i_s[probl_i], orient='v', ax=ax)
         else:
-            ax.hist(cor_s[probl_i], 20)
-        ax.set_title(var_vals[probl_i])
-    fig.suptitle(var_name)
-    fig.tight_layout()
+            ax.hist(cor_loo_i_s[probl_i], 20)
+        ax.set_title(probl_names[probl_i])
+    fig.suptitle('loo_i cors')
+    # fig.tight_layout()
     #
     fig, axes = plt.subplots(2, 1, sharex=True)
-    axes[0].plot(np.mean(cor_s, axis=-1), target_coefvar_s, '.')
-    axes[1].plot(np.mean(cor_s, axis=-1), target_plooneg_s, '.')
+    axes[0].plot(np.mean(cor_loo_i_s, axis=-1), target_coefvar_s, '.')
+    axes[1].plot(np.mean(cor_loo_i_s, axis=-1), target_plooneg_s, '.')
 
-    # skew
-    fig, axes = plt.subplots(1, n_probls, sharey=True, figsize=(16,8))
-    for ax, probl_i in zip(axes, range(n_probls)):
+    # loo_i_cors vs naive_coef_var/coef_var
+    fig, axes = plt.subplots(
+        2, n_probls//2 + n_probls%2,
+        sharex=True,
+        sharey='row',
+        figsize=(16,12)
+    )
+    for probl_i in range(axes.size):
+        ax = axes.flat[probl_i]
+        if probl_i >= n_probls:
+            ax.axis('off')
+            continue
+        if fixed_sigma2_m:
+            y_i = naive_coef_var_s[probl_i]/analytic_coefvar_s[probl_i]
+        else:
+            y_i = naive_coef_var_s[probl_i]/target_coefvar_s[probl_i]
+        ax.plot(cor_loo_i_s[probl_i], y_i,'.')
+        ax.set_title(probl_names[probl_i])
+    fig.suptitle('loo_i_cors vs naive_coef_var/coef_var')
+
+    # loo_i_cors vs p(B(naive_plooneg)!=B(plooneg))
+    fig, axes = plt.subplots(
+        2, n_probls//2 + n_probls%2,
+        sharex=True,
+        sharey='row',
+        figsize=(16,12)
+    )
+    for probl_i in range(axes.size):
+        ax = axes.flat[probl_i]
+        if probl_i >= n_probls:
+            ax.axis('off')
+            continue
+        ax.plot(cor_loo_i_s[probl_i], naive_confusion_s[probl_i], '.')
+        ax.set_title(probl_names[probl_i])
+    fig.suptitle('loo_i_cors vs p(B(naive_plooneg)!=B(plooneg))')
+
+    # loo_i_cors vs (elpd-loo)/n_obs
+    fig, axes = plt.subplots(
+        2, n_probls//2 + n_probls%2,
+        sharex=True,
+        sharey='row',
+        figsize=(16,12)
+    )
+    for probl_i in range(axes.size):
+        ax = axes.flat[probl_i]
+        if probl_i >= n_probls:
+            ax.axis('off')
+            continue
+        n_obs_i = n_obs_grid.flat[run_i_s[probl_i]]
+        ax.plot(
+            cor_loo_i_s[probl_i],
+            (loo_s[probl_i]-elpd_s[probl_i])/n_obs_i,
+            '.'
+        )
+        ax.set_title(probl_names[probl_i])
+    fig.suptitle('loo_i_cors vs (elpd-loo)/n_obs')
+
+
+    # ===========
+    # skews
+    # ===========
+
+    # skew_loo_i
+    fig, axes = plt.subplots(
+        2, n_probls//2 + n_probls%2,
+        sharey='row',
+        figsize=(16,12)
+    )
+    for probl_i in range(axes.size):
+        ax = axes.flat[probl_i]
+        if probl_i >= n_probls:
+            ax.axis('off')
+            continue
         if use_sea:
             sns.violinplot(skew_loo_i_s[probl_i], orient='v', ax=ax)
         else:
@@ -205,11 +362,71 @@ if False:
             ax.axhline(analytic_skew_s[probl_i], color='red')
         else:
             ax.axhline(target_skew_s[probl_i], color='red')
-        ax.set_title(var_vals[probl_i])
-    fig.suptitle(var_name)
-    fig.tight_layout()
+        ax.set_title(probl_names[probl_i])
+    fig.suptitle('skew_loo_i')
+    # fig.tight_layout()
+
+    # skew_loo_i vs naive_coef_var/coef_var
+    fig, axes = plt.subplots(
+        2, n_probls//2 + n_probls%2,
+        sharex=False,
+        sharey='row',
+        figsize=(16,12)
+    )
+    for probl_i in range(axes.size):
+        ax = axes.flat[probl_i]
+        if probl_i >= n_probls:
+            ax.axis('off')
+            continue
+        if fixed_sigma2_m:
+            y_i = naive_coef_var_s[probl_i]/analytic_coefvar_s[probl_i]
+        else:
+            y_i = naive_coef_var_s[probl_i]/target_coefvar_s[probl_i]
+        ax.plot(skew_loo_i_s[probl_i], y_i,'.')
+        ax.set_title(probl_names[probl_i])
+    fig.suptitle('skew_loo_i vs naive_coef_var/coef_var')
+
+    # skew_loo_i vs p(B(naive_plooneg)!=B(plooneg))
+    fig, axes = plt.subplots(
+        2, n_probls//2 + n_probls%2,
+        sharex=False,
+        sharey='row',
+        figsize=(16,12)
+    )
+    for probl_i in range(axes.size):
+        ax = axes.flat[probl_i]
+        if probl_i >= n_probls:
+            ax.axis('off')
+            continue
+        ax.plot(skew_loo_i_s[probl_i], naive_confusion_s[probl_i], '.')
+        ax.set_title(probl_names[probl_i])
+    fig.suptitle('skew_loo_i vs p(B(naive_plooneg)!=B(plooneg))')
+
+    # skew_loo_i vs (elpd-loo)/n_obs
+    fig, axes = plt.subplots(
+        2, n_probls//2 + n_probls%2,
+        sharex=False,
+        sharey='row',
+        figsize=(16,12)
+    )
+    for probl_i in range(axes.size):
+        ax = axes.flat[probl_i]
+        if probl_i >= n_probls:
+            ax.axis('off')
+            continue
+        n_obs_i = n_obs_grid.flat[run_i_s[probl_i]]
+        ax.plot(
+            skew_loo_i_s[probl_i],
+            (loo_s[probl_i]-elpd_s[probl_i])/n_obs_i,
+            '.'
+        )
+        ax.set_title(probl_names[probl_i])
+    fig.suptitle('skew_loo_i vs (elpd-loo)/n_obs')
 
 
+    # ===========================
+    # check analytic vs estimated
+    # ===========================
 
     if fixed_sigma2_m:
 
@@ -287,7 +504,7 @@ booti_plooneg = np.mean(bootlooi_tb<0.0, axis=-1)
 
 if False:
     # plot this for them all
-    fig, axes = plt.subplots(1, n_probls, sharey=True, figsize=(16,8))
+    fig, axes = plt.subplots(1, n_probls, sharey=True, figsize=(16,12))
     for ax, probl_i in zip(axes, range(n_probls)):
         if use_sea:
             sns.violinplot(
@@ -315,13 +532,13 @@ if False:
                 bins=np.linspace(0,1,30),
                 alpha=0.5)
         ax.axhline(target_plooneg_s[probl_i], color='r')
-        ax.set_title(var_vals[probl_i])
-    fig.suptitle(var_name)
+        ax.set_title(probl_names[probl_i])
+    fig.suptitle(probl_name)
     fig.tight_layout()
 
     # plot trial vice boot vs naive normal ploonegs
     fig, axes = plt.subplots(
-        2, n_probls//2 + n_probls%2, figsize=(16,8))
+        2, n_probls//2 + n_probls%2, figsize=(16,12))
     for probl_i in range(axes.size):
         ax = axes.flat[probl_i]
         if probl_i >= n_probls:

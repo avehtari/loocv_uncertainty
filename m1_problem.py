@@ -75,6 +75,7 @@ seed_mboot = 1118669156
 # set grid
 n_obs_grid, sigma2_d_grid, beta_t_grid, prc_out_grid = np.meshgrid(
     n_obs_s, sigma2_d_s, beta_t_s, prc_out_s)
+grid_shape = n_obs_grid.shape
 n_runs = n_obs_grid.size
 
 
