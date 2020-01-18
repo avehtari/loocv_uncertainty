@@ -67,14 +67,14 @@ def calc_loo_ti(ys, X_mat):
     return loo_ti
 
 
-def calc_test_t(ys, X_mat, ys_test, X_test):
-    _, n_dim_cur = X_mat.shape
-    elpd_test_set_size, _ = X_test.shape
+def calc_test_ti(ys, X_mat, ys_test, X_test):
+    n_obs, n_dim_cur = X_mat.shape
+    elpd_test_n, _ = ys_test.shape
     # test set pred distr params working array
-    mu_pred_test = np.empty((elpd_test_set_size,))
-    sigma2_pred_test = np.empty((elpd_test_set_size,))
+    mu_pred_test = np.empty((n_obs,))
+    sigma2_pred_test = np.empty((n_obs,))
     # test set logpdf
-    test_t = np.empty((n_trial,))
+    test_ti = np.empty((n_trial, n_obs))
     # As we have fixed X for each trial,
     # reuse some calcs for the trial iterations.
     cho_test = linalg.cho_factor(X_mat.T.dot(X_mat).T, overwrite_a=True)
@@ -101,19 +101,19 @@ def calc_test_t(ys, X_mat, ys_test, X_test):
         if fixed_sigma2_m:
             test_logpdf = stats.norm.logpdf(
                 ys_test,
-                loc=mu_pred_test,
-                scale=np.sqrt(sigma2_pred_test)
+                loc=mu_pred_test[None,:],
+                scale=np.sqrt(sigma2_pred_test[None,:])
             )
-            test_t[t] = n_obs*np.mean(test_logpdf)
+            test_ti[t] = np.mean(test_logpdf, axis=0)
         else:
             test_logpdf = stats.t.logpdf(
                 ys_test,
                 n_obs - n_dim_cur,
-                loc=mu_pred_test,
-                scale=np.sqrt(sigma2_pred_test)
+                loc=mu_pred_test[None,:],
+                scale=np.sqrt(sigma2_pred_test[None,:])
             )
-            test_t[t] = n_obs*np.mean(test_logpdf)
-    return test_t
+            test_ti[t] = np.mean(test_logpdf, axis=0)
+    return test_ti
 
 
 # ============================================================================
@@ -169,10 +169,12 @@ loo_ti_B = calc_loo_ti(ys, X_mat)
 
 # model A test
 print('model A test', flush=True)
-test_t_A = calc_test_t(ys, X_mat[:,:-1], ys_test, X_test[:,:-1])
+test_ti_A = calc_test_ti(ys, X_mat[:,:-1], ys_test, X_test[:,:-1])
 # model B test
 print('model B test', flush=True)
-test_t_B = calc_test_t(ys, X_mat, ys_test, X_test)
+test_ti_B = calc_test_ti(ys, X_mat, ys_test, X_test)
+
+print('done', flush=True)
 
 # progress print
 time_per_1000 = (time.time() - outer_start_time) * 1000 / n_trial
@@ -195,8 +197,8 @@ np.savez_compressed(
     'res_1/{}/{}.npz'.format(folder_name, run_i_str),
     loo_ti_A=loo_ti_A,
     loo_ti_B=loo_ti_B,
-    test_t_A=test_t_A,
-    test_t_B=test_t_B,
+    test_ti_A=test_ti_A,
+    test_ti_B=test_ti_B,
     run_i=run_i,
     fixed_sigma2_m=fixed_sigma2_m,
 )
@@ -253,27 +255,27 @@ if False:
     # ok
 
     # test A
-    test_test_a = np.zeros(elpd_test_set_size)
-    for t_i in range(elpd_test_set_size):
+    test_test_a = np.zeros(elpd_test_n)
+    for t_i in range(elpd_test_n):
         test_test_a[t_i] = calc_logpdf_for_one_pred(
             X_mat[:,:-1],
             ys[t],
-            X_test[t_i,:-1],
-            ys_test[t_i]
+            X_test[i,:-1],
+            ys_test[t_i,i]
         )
-    test_test_a = n_obs*np.mean(test_test_a)
-    print('test_a:\n{}\n{}'.format(test_test_a, test_t_A[t]))
+    test_test_a = np.mean(test_test_a)
+    print('test_a:\n{}\n{}'.format(test_test_a, test_ti_A[t,i]))
     # not ok
 
     # test B
-    test_test_b = np.zeros(elpd_test_set_size)
-    for t_i in range(elpd_test_set_size):
+    test_test_b = np.zeros(elpd_test_n)
+    for t_i in range(elpd_test_n):
         test_test_b[t_i] = calc_logpdf_for_one_pred(
             X_mat,
             ys[t],
-            X_test[t_i],
-            ys_test[t_i]
+            X_test[i],
+            ys_test[t_i,i]
         )
-    test_test_b = n_obs*np.mean(test_test_b)
-    print('test_b:\n{}\n{}'.format(test_test_b, test_t_B[t]))
+    test_test_b = np.mean(test_test_b)
+    print('test_b:\n{}\n{}'.format(test_test_b, test_ti_B[t,i]))
     # not ok

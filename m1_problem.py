@@ -31,7 +31,7 @@ sigma2_d_s = [0.01, 1.0, 100.0]
 # last covariate effect not used in model A
 beta_t_s = [0.0, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0]
 # percentage of outliers (np.nextafter(0,1) corresponds to always 1 or 2 outs)
-prc_out_s = [0.0, 0.01, 0.08]
+prc_out_s = [0/128, 2/128, 10/128]
 
 # fixed model sigma2_m value
 sigma2_m = 1.0
@@ -50,10 +50,10 @@ beta_other = 1.0
 # intercept coef (if applied)
 beta_intercept = 0.0
 # shuffle observations
-shuffle_obs = True
+shuffle_obs = False
 
-# independent test set for true elpd (should be divisible by all n_ob_s)
-elpd_test_set_size_target = 2**14  # 16384
+# number of independent test data sets of size n_obs for true elpd
+elpd_test_n = 123
 # outliers in the independent test set for true elpd
 elpd_test_outliers = True
 
@@ -129,43 +129,70 @@ def make_data(n_obs, beta_t, prc_out, sigma2_d):
     outlier_dev_eps = outlier_dev*np.sqrt(sigma2_d + np.sum(beta**2))
     sigma_d = np.sqrt(sigma2_d)
 
-    # data for all cases
+    # data for the biggest sample size
+    n_obs_out_p_all, n_obs_out_m_all = determine_n_obs_out_p_m(
+        n_obs_s[-1], prc_out_s[-1], outliers_style)
     if intercept:
         # firs dim (column) ones for intercept
-        X_last = np.hstack((
+        X_in_all = np.hstack((
             np.ones((n_obs_s[-1], 1)),
             sobol_seq.i4_sobol_generate_std_normal(n_dim-1, n_obs_s[-1])
         ))
+        X_out_p_all = np.hstack((
+            np.ones((n_obs_out_p_all, 1)),
+            sobol_seq.i4_sobol_generate_std_normal(
+                n_dim-1,
+                n_obs_out_p_all,
+                skip=X_in_all.shape[0]
+            )
+        ))
+        X_out_m_all = np.hstack((
+            np.ones((n_obs_out_p_all, 1)),
+            sobol_seq.i4_sobol_generate_std_normal(
+                n_dim-1,
+                n_obs_out_p_all,
+                skip=X_in_all.shape[0]+X_out_p_all.shape[0]
+            )
+        ))
     else:
-        X_last = sobol_seq.i4_sobol_generate_std_normal(n_dim, n_obs_s[-1])
-    # data for the biggest sample size
-    n_obs_out_p_last, n_obs_out_m_last = determine_n_obs_out_p_m(
-        n_obs_s[-1], prc_out_s[-1], outliers_style)
-    eps_in_last = rng.normal(
+        # no intercept
+        X_in_all = sobol_seq.i4_sobol_generate_std_normal(n_dim, n_obs_s[-1])
+        X_out_p_all = sobol_seq.i4_sobol_generate_std_normal(
+            n_dim, n_obs_s[-1], skip=X_in_all.shape[0])
+        X_out_m_all = sobol_seq.i4_sobol_generate_std_normal(
+            n_dim, n_obs_s[-1], skip=X_in_all.shape[0]+X_out_p_all.shape[0])
+    eps_in_all = rng.normal(
         loc=0.0,
         scale=sigma_d,
         size=(n_trial, n_obs_s[-1])
     )
-    eps_out_p_last = rng.normal(
+    eps_out_p_all = rng.normal(
         loc=outlier_dev_eps,
         scale=sigma_d,
-        size=(n_trial, n_obs_out_p_last)
+        size=(n_trial, n_obs_out_p_all)
     )
-    eps_out_m_last = rng.normal(
+    eps_out_m_all = rng.normal(
         loc=-outlier_dev_eps,
         scale=sigma_d,
-        size=(n_trial, n_obs_out_m_last)
+        size=(n_trial, n_obs_out_m_all)
     )
+    y_in_all = X_in_all.dot(beta) + eps_in_all
+    y_out_p_all = X_out_p_all.dot(beta) + eps_out_p_all
+    y_out_m_all = X_out_m_all.dot(beta) + eps_out_m_all
+    del(eps_in_all, eps_out_p_all, eps_out_m_all)
     # take current size observations (copy in order to get contiguous)
-    X_mat = X_last[:n_obs,:].copy()
     if prc_out > 0.0:
         n_obs_out_p, n_obs_out_m = determine_n_obs_out_p_m(
             n_obs, prc_out, outliers_style)
         n_obs_out = n_obs_out_p + n_obs_out_m
-        eps_in = eps_in_last[:,:n_obs-n_obs_out]
-        eps_out_p = eps_out_p_last[:,:n_obs_out_p]
-        eps_out_m = eps_out_m_last[:,:n_obs_out_m]
-        eps = np.concatenate((eps_in, eps_out_p, eps_out_m), axis=1)
+        X_in = X_in_all[:n_obs-n_obs_out,:]
+        X_out_p = X_out_p_all[:n_obs_out_p,:]
+        X_out_m = X_out_m_all[:n_obs_out_m,:]
+        X_mat = np.concatenate((X_in, X_out_p, X_out_m), axis=0)
+        y_in = y_in_all[:,:n_obs-n_obs_out]
+        y_out_p = y_out_p_all[:,:n_obs_out_p]
+        y_out_m = y_out_m_all[:,:n_obs_out_m]
+        ys = np.concatenate((y_in, y_out_p, y_out_m), axis=1)
         mu_d = np.zeros(n_obs)
         mu_d[n_obs-n_obs_out:n_obs-n_obs_out+n_obs_out_p] = outlier_dev_eps
         mu_d[n_obs-n_obs_out+n_obs_out_p:] = -outlier_dev_eps
@@ -173,63 +200,23 @@ def make_data(n_obs, beta_t, prc_out, sigma2_d):
         n_obs_out = 0
         n_obs_out_m = 0
         n_obs_out_p = 0
-        eps = eps_in_last[:,:n_obs].copy()
+        X_mat = X_in_all[:n_obs,:].copy()
+        ys = y_in_all[:,:n_obs].copy()
         mu_d = np.zeros(n_obs)
     if shuffle_obs:
         idx = np.arange(n_obs)
         rng.shuffle(idx)
-        eps = eps[:,idx]
+        X_mat = X_mat[idx,:]
+        ys = ys[:,idx]
         mu_d = mu_d[idx]
     # drop unnecessary data
-    del(X_last, eps_in_last, eps_out_p_last, eps_out_m_last)
-    # calc y
-    ys = X_mat.dot(beta) + eps
+    del(X_in_all, X_out_p_all, X_out_m_all, y_in_all, y_out_p_all, y_out_m_all)
 
     # elpd test set
-    elpd_size_multip = max(
-        int(np.round(elpd_test_set_size_target/n_obs)), 1)
-    elpd_test_set_size = n_obs*elpd_size_multip
-    if intercept:
-        # firs dim (column) ones for intercept
-        X_test = np.hstack((
-            np.ones((elpd_test_set_size, 1)),
-            sobol_seq.i4_sobol_generate_std_normal(
-                n_dim-1, elpd_test_set_size, skip=n_obs_s[-1]+1)
-        ))
-    else:
-        X_test = sobol_seq.i4_sobol_generate_std_normal(
-            n_dim, elpd_test_set_size, skip=n_obs_s[-1]+1)
-    if elpd_test_outliers and prc_out > 0.0:
-        n_obs_out_test = elpd_size_multip*n_obs_out
-        n_obs_out_test_p = elpd_size_multip*n_obs_out_p
-        n_obs_out_test_m = n_obs_out_test - n_obs_out_test_p
-        eps_test_in = rng.normal(
-            loc=0.0,
-            scale=sigma_d,
-            size=(elpd_test_set_size-n_obs_out_test,)
-        )
-        eps_test_out_p = rng.normal(
-            loc=outlier_dev_eps,
-            scale=sigma_d,
-            size=(n_obs_out_test_p,)
-        )
-        eps_test_out_m = rng.normal(
-            loc=-outlier_dev_eps,
-            scale=sigma_d,
-            size=(n_obs_out_test_m,)
-        )
-        eps_test = np.concatenate(
-            (eps_test_in, eps_test_out_p, eps_test_out_m), axis=0)
-        del(eps_test_in, eps_test_out_p, eps_test_out_m)
-    else:
-        n_obs_out_test = 0
-        n_obs_out_test_m = 0
-        n_obs_out_test_p = 0
-        eps_test = rng.normal(size=(elpd_test_set_size,))
-    if shuffle_obs:
-        rng.shuffle(eps_test.T)
-    # calc y
-    ys_test = X_test.dot(beta) + eps_test
+    X_test = X_mat
+    mu_test = np.tile(mu_d[None,:], (elpd_test_n, 1))
+    eps_test = rng.normal(loc=mu_test, scale=sigma_d)
+    ys_test = X_mat.dot(beta) + eps_test
 
     return X_mat, ys, X_test, ys_test, mu_d
 
