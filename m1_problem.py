@@ -25,13 +25,13 @@ seed = 2958319585
 
 # grid params and default values
 # number of obs in one trial
-n_obs_s = [16, 32, 64, 128, 256, 512, 1024, 2048]
+n_obs_s = [16, 32, 64, 128, 256, 512, 1024]
 # epsilon sigma2_d_s
 sigma2_d_s = [0.01, 1.0, 100.0]
 # last covariate effect not used in model A
-beta_t_s = [0.0, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0]
+beta_t_s = [0.0, 0.01, 0.1, 1.0, 10.0]
 # percentage of outliers (np.nextafter(0,1) corresponds to always 1 or 2 outs)
-prc_out_s = [0/128, 2/128, 10/128]
+prc_out_s = [0/128, np.nextafter(0,1), 2/128, 12/128]
 
 # fixed model sigma2_m value
 sigma2_m = 1.0
@@ -58,7 +58,7 @@ elpd_test_n = 123
 elpd_test_outliers = True
 
 # bootstrap loo repetitions
-n_boot_trial = 100
+n_boot_trial = 2000
 # bootrap sampling random seed
 # np.random.RandomState().randint(np.iinfo(np.uint32).max)
 seed_boot = 1584981854
@@ -213,12 +213,11 @@ def make_data(n_obs, beta_t, prc_out, sigma2_d):
     del(X_in_all, X_out_p_all, X_out_m_all, y_in_all, y_out_p_all, y_out_m_all)
 
     # elpd test set
-    X_test = X_mat
     mu_test = np.tile(mu_d[None,:], (elpd_test_n, 1))
     eps_test = rng.normal(loc=mu_test, scale=sigma_d)
     ys_test = X_mat.dot(beta) + eps_test
 
-    return X_mat, ys, X_test, ys_test, mu_d
+    return X_mat, mu_d, ys, ys_test
 
 
 def get_analytic_params(X_mat, beta_t):

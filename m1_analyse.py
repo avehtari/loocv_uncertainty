@@ -171,7 +171,7 @@ if fixed_sigma2_m:
     for probl_i in range(n_probls):
         run_i = run_i_s[probl_i]
         n_obs_i, beta_t_i, prc_out_i, sigma2_d_i = run_i_to_params(run_i)
-        X_mat_i, _, _, _, mu_d_i = make_data(
+        X_mat_i, mu_d_i, _, _,  = make_data(
             n_obs_i, beta_t_i, prc_out_i, sigma2_d_i)
         if prc_out_i == 0.0:
             mu_d_i = None

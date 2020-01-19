@@ -143,9 +143,7 @@ else:
 
 # get params and data
 n_obs, beta_t, prc_out, sigma2_d = run_i_to_params(run_i)
-X_mat, ys, X_test, ys_test, _ = make_data(n_obs, beta_t, prc_out, sigma2_d)
-
-elpd_test_set_size, _ = X_test.shape
+X_mat, _, ys, ys_test = make_data(n_obs, beta_t, prc_out, sigma2_d)
 
 
 print('Run {}/{}'.format(run_i, n_runs-1))
@@ -169,10 +167,10 @@ loo_ti_B = calc_loo_ti(ys, X_mat)
 
 # model A test
 print('model A test', flush=True)
-test_ti_A = calc_test_ti(ys, X_mat[:,:-1], ys_test, X_test[:,:-1])
+test_ti_A = calc_test_ti(ys, X_mat[:,:-1], ys_test, X_mat[:,:-1])
 # model B test
 print('model B test', flush=True)
-test_ti_B = calc_test_ti(ys, X_mat, ys_test, X_test)
+test_ti_B = calc_test_ti(ys, X_mat, ys_test, X_mat)
 
 print('done', flush=True)
 
@@ -255,6 +253,7 @@ if False:
     # ok
 
     # test A
+    X_test = X_mat
     test_test_a = np.zeros(elpd_test_n)
     for t_i in range(elpd_test_n):
         test_test_a[t_i] = calc_logpdf_for_one_pred(
@@ -268,6 +267,7 @@ if False:
     # not ok
 
     # test B
+    X_test = X_mat
     test_test_b = np.zeros(elpd_test_n)
     for t_i in range(elpd_test_n):
         test_test_b[t_i] = calc_logpdf_for_one_pred(
