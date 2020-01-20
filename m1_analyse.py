@@ -30,22 +30,29 @@ use_sea = True
 # bootstrap on LOO_i
 n_booti_trial = 123
 
+# calibration nbins
+cal_nbins = 5
+
+
+# pseudo-bma+
+do_bma = False
+
 
 # ============================================================================
 # Select problems
 
 # grid dims:
 #   sigma2_d  [0.01, 1.0, 100.0]
-#   n_obs     [16, 32, 64, 128, 256, 512, 1024, 2048]
-#   beta_t    [0.0, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0]
-#   prc_out   [0.0, 0.01, 0.08]
+#   n_obs     [16, 32, 64, 128, 256, 512, 1024]
+#   beta_t    [0.0, 0.01, 0.1, 1.0, 10.0]
+#   prc_out   [0/128, eps, 2/128, 12/128]
 
 
 # # as a function of n
 # idxs = (
 #     [1]*grid_shape[1]*2,
 #     list(range(grid_shape[1]))*2,
-#     [5]*grid_shape[1]*2,
+#     [3]*grid_shape[1]*2,
 #     [0]*grid_shape[1] + [1]*grid_shape[1],
 # )
 # run_i_s = np.ravel_multi_index(idxs, grid_shape)
@@ -55,34 +62,34 @@ n_booti_trial = 123
 #     probl_names.append('n_obs={}, out_prc={:.2}'.format(n_obs_i, prc_out_i))
 
 
-# # as a function of beta_t with no out and out
-# idxs = (
-#     [1]*grid_shape[2]*2,
-#     [4]*grid_shape[2]*2,
-#     list(range(grid_shape[2]))*2,
-#     [0]*grid_shape[2] + [1]*grid_shape[2],
-# )
-# run_i_s = np.ravel_multi_index(idxs, grid_shape)
-# probl_names = []
-# for run_i in run_i_s:
-#     n_obs_i, beta_t_i, prc_out_i, sigma2_d_i = run_i_to_params(run_i)
-#     if prc_out_i > 0.0:
-#         probl_names.append('b={}, out'.format(beta_t_i))
-#     else:
-#         probl_names.append('b={}'.format(beta_t_i))
-
-# as a function of prc_out with beta_t=[0.0, 1.0]
+# as a function of beta_t with no out and out
 idxs = (
-    [1]*grid_shape[3]*2,
-    [4]*grid_shape[3]*2,
-    [0]*grid_shape[3] + [5]*grid_shape[3],
-    list(range(grid_shape[3]))*2,
+    [1]*grid_shape[2]*2,
+    [3]*grid_shape[2]*2,
+    list(range(grid_shape[2]))*2,
+    [0]*grid_shape[2] + [1]*grid_shape[2],
 )
 run_i_s = np.ravel_multi_index(idxs, grid_shape)
 probl_names = []
 for run_i in run_i_s:
     n_obs_i, beta_t_i, prc_out_i, sigma2_d_i = run_i_to_params(run_i)
-    probl_names.append('pout={:.2}, b={}'.format(prc_out_i, beta_t_i))
+    if prc_out_i > 0.0:
+        probl_names.append('b={}, out'.format(beta_t_i))
+    else:
+        probl_names.append('b={}'.format(beta_t_i))
+
+# # as a function of prc_out with beta_t=[0.0, 1.0]
+# idxs = (
+#     [1]*grid_shape[3]*2,
+#     [3]*grid_shape[3]*2,
+#     [0]*grid_shape[3] + [3]*grid_shape[3],
+#     list(range(grid_shape[3]))*2,
+# )
+# run_i_s = np.ravel_multi_index(idxs, grid_shape)
+# probl_names = []
+# for run_i in run_i_s:
+#     n_obs_i, beta_t_i, prc_out_i, sigma2_d_i = run_i_to_params(run_i)
+#     probl_names.append('pout={:.2}, b={}'.format(prc_out_i, beta_t_i))
 
 # ============================================================================
 
@@ -124,8 +131,8 @@ for probl_i in range(n_probls):
     # fetch results
     res_A[probl_i] = res_file['loo_ti_A']
     res_B[probl_i] = res_file['loo_ti_B']
-    res_test_A[probl_i] = res_file['test_t_A']
-    res_test_B[probl_i] = res_file['test_t_B']
+    res_test_A[probl_i] = res_file['test_ti_A']
+    res_test_B[probl_i] = res_file['test_ti_B']
     # close file
     res_file.close()
 
@@ -159,7 +166,9 @@ for probl_i in range(n_probls):
     target_skew_s[probl_i] = stats.skew(loo_s[probl_i], bias=False)
     # TODO calc se of this ... formulas online
     target_plooneg_s[probl_i] = np.mean(loo_s[probl_i]<0)
-    elpd_s[probl_i] = res_test_A[probl_i] - res_test_B[probl_i]
+    elpd_s[probl_i] = np.sum(
+        res_test_A[probl_i] - res_test_B[probl_i], axis=-1)
+pelpdneg_s = np.mean(elpd_s<0, axis=-1)
 target_coefvar_s = np.sqrt(target_var_s)/target_mean_s
 
 # calc true analytic values
@@ -191,6 +200,27 @@ naive_confusion_s = (
     + (1-naive_plooneg_s)*target_plooneg_s[:,None]
 )
 
+# pseudo-bma-plus
+if do_bma:
+    print('calc pseudo-bma+', flush=True)
+    bma_s = np.zeros((n_probls, n_trial, 2))
+    for probl_i in range(n_probls):
+        loo_tki = np.stack((res_A[probl_i], res_B[probl_i]), axis=1)
+        bma_s[probl_i] = pseudo_bma_p(loo_tki)
+    print('calc pseudo-bma+, done', flush=True)
+
+
+# calibration counts
+cal_limits = np.linspace(0, 1, cal_nbins+1)
+cal_counts = np.zeros((n_probls, cal_nbins), dtype=int)
+for probl_i in range(n_probls):
+    diff_pdf = stats.norm.cdf(
+        elpd_s[probl_i],
+        loc=loo_s[probl_i],
+        scale=np.sqrt(naive_var_s[probl_i])
+    )
+    cal_counts[probl_i] = np.histogram(diff_pdf, cal_limits)[0]
+
 
 # ===========================================================================
 # plots
@@ -200,7 +230,7 @@ if False:
     # LOO and elpd normalised
     fig, axes = plt.subplots(
         2, n_probls//2 + n_probls%2,
-        sharey='row',
+        # sharey='row',
         figsize=(16,12)
     )
     for probl_i in range(axes.size):
@@ -210,17 +240,17 @@ if False:
             continue
         n_obs_i = n_obs_grid.flat[run_i_s[probl_i]]
         if fixed_sigma2_m:
-            ax.axhline(analytic_mean_s[probl_i]/n_obs_i, color='red')
+            ax.axhline(analytic_mean_s[probl_i], color='red')
         if use_sea:
             sns.violinplot(
-                data=[loo_s[probl_i]/n_obs_i, elpd_s[probl_i]/n_obs_i],
+                data=[loo_s[probl_i], elpd_s[probl_i]],
                 orient='v',
                 scale='width',
                 ax=ax
             )
         else:
-            ax.hist(elpd_s[probl_i]/n_obs_i, 20, color='C1')
-            ax.hist(loo_s[probl_i]/n_obs_i, 20, color='C0')
+            ax.hist(elpd_s[probl_i], 20, color='C1')
+            ax.hist(loo_s[probl_i], 20, color='C0')
         ax.set_title(probl_names[probl_i])
     fig.suptitle('LOO and test elpd (normalised)')
     # fig.tight_layout()
@@ -251,6 +281,32 @@ if False:
         ax.set_title(probl_names[probl_i])
     axes.flat[-1].legend()
     fig.suptitle('naive coef of var')
+    # fig.tight_layout()
+
+    # calibration plots
+    fig, axes = plt.subplots(
+        2, n_probls//2 + n_probls%2,
+        sharey='row',
+        sharex=True,
+        figsize=(16,12)
+    )
+    for probl_i in range(axes.size):
+        ax = axes.flat[probl_i]
+        if probl_i >= n_probls:
+            ax.axis('off')
+            continue
+        ax.bar(
+            cal_limits[:-1],
+            cal_counts[probl_i],
+            width=1/cal_nbins,
+            align='edge'
+        )
+        ax.axhline(stats.binom.ppf(0.005, n_trial, 1/cal_nbins), color='gray')
+        ax.axhline(n_trial/cal_nbins, color='gray')
+        ax.axhline(stats.binom.ppf(0.995, n_trial, 1/cal_nbins), color='gray')
+        ax.set_title(probl_names[probl_i])
+    # axes.flat[-1].legend()
+    fig.suptitle('calibration naive var with normal approx.')
     # fig.tight_layout()
 
 
@@ -423,6 +479,52 @@ if False:
         ax.set_title(probl_names[probl_i])
     fig.suptitle('skew_loo_i vs (elpd-loo)/n_obs')
 
+    # ==================
+    # pseudo-bma
+    # ==================
+
+    # if do_bma:
+
+    fig, axes = plt.subplots(
+        2, n_probls//2 + n_probls%2,
+        sharey=True,
+        figsize=(16,12)
+    )
+    for probl_i in range(axes.size):
+        ax = axes.flat[probl_i]
+        if probl_i >= n_probls:
+            ax.axis('off')
+            continue
+        if use_sea:
+            sns.violinplot(
+                bma_s[probl_i][:, 1], orient='v', ax=ax)
+        else:
+            ax.hist(bma_s[probl_i][:, 0], 20)
+        ax.set_title(probl_names[probl_i])
+    for ax in axes[:,0]:
+        ax.set_ylim((0,1))
+    axes.flat[-1].legend()
+    fig.suptitle('pseudo-bma+ for model A')
+    # fig.tight_layout()
+
+    fig, axes = plt.subplots(
+        2, n_probls//2 + n_probls%2,
+        sharey=True,
+        figsize=(16,12)
+    )
+    for probl_i in range(axes.size):
+        ax = axes.flat[probl_i]
+        if probl_i >= n_probls:
+            ax.axis('off')
+            continue
+        ax.plot(loo_s[probl_i], bma_s[probl_i][:, 1], '.')
+        ax.set_title(probl_names[probl_i])
+        ax.axhline(pelpdneg_s[probl_i], color='r', label='$p(elpd_d<0)$')
+    for ax in axes[:,0]:
+        ax.set_ylim((-0.1,1.1))
+    axes.flat[-1].legend()
+    fig.suptitle('$\widehat{elpd}_d$ vs pseudo-bma+ for model B')
+    # fig.tight_layout()
 
     # ===========================
     # check analytic vs estimated

@@ -8,113 +8,6 @@ from scipy import stats
 
 from m1_problem import *
 
-# ============================================================================
-
-def calc_loo_ti(ys, X_mat):
-    n_trial_cur = ys.shape[0]
-    n_obs_cur, n_dim_cur = X_mat.shape
-    # working arrays
-    x_tilde = np.empty((n_obs_cur-1, n_dim_cur))
-    y_tilde = np.empty((n_obs_cur-1,))
-    # pred distr params
-    mu_preds = np.empty((n_trial_cur, n_obs_cur))
-    sigma2_preds = np.empty((n_trial_cur, n_obs_cur))
-    # As we have fixed X for each trial,
-    # reuse some calcs for the trial iterations.
-    cho_s = []
-    xSx_p1_s = []
-    for i in range(n_obs_cur):
-        x_i = X_mat[i]
-        # x_tilde = np.delete(X_mat, i, axis=0)
-        x_tilde[:i,:] = X_mat[:i,:]
-        x_tilde[i:,:] = X_mat[i+1:,:]
-        cho = linalg.cho_factor(x_tilde.T.dot(x_tilde).T, overwrite_a=True)
-        xSx_p1 = x_i.dot(linalg.cho_solve(cho, x_i)) + 1.0
-        cho_s.append(cho)
-        xSx_p1_s.append(xSx_p1)
-    # loop for each trial
-    for t in range(n_trial_cur):
-        # LOO params for each data point
-        for i in range(n_obs_cur):
-            x_i = X_mat[i]
-            # x_tilde = np.delete(X_mat, i, axis=0)
-            # y_tilde = np.delete(ys[t], i, axis=0)
-            x_tilde[:i,:] = X_mat[:i,:]
-            x_tilde[i:,:] = X_mat[i+1:,:]
-            y_tilde[:i] = ys[t,:i]
-            y_tilde[i:] = ys[t,i+1:]
-            beta_hat = linalg.cho_solve(cho_s[i], x_tilde.T.dot(y_tilde))
-            mu_preds[t, i] = x_i.dot(beta_hat)
-            if fixed_sigma2_m:
-                sigma2_preds[t, i] = xSx_p1_s[i]*sigma2_m
-            else:
-                y_xm = x_tilde.dot(beta_hat)
-                y_xm -= y_tilde
-                s2 = y_xm.dot(y_xm)
-                s2 /= n_obs_cur - 1 - n_dim_cur
-                sigma2_preds[t, i] = xSx_p1_s[i]*s2
-    # calc logpdf for loos
-    if fixed_sigma2_m:
-        loo_ti = stats.norm.logpdf(
-            ys, loc=mu_preds, scale=np.sqrt(sigma2_preds))
-    else:
-        loo_ti = stats.t.logpdf(
-            ys,
-            n_obs_cur - 1 - n_dim_cur,
-            loc=mu_preds,
-            scale=np.sqrt(sigma2_preds)
-        )
-    return loo_ti
-
-
-def calc_test_ti(ys, X_mat, ys_test, X_test):
-    n_obs, n_dim_cur = X_mat.shape
-    elpd_test_n, _ = ys_test.shape
-    # test set pred distr params working array
-    mu_pred_test = np.empty((n_obs,))
-    sigma2_pred_test = np.empty((n_obs,))
-    # test set logpdf
-    test_ti = np.empty((n_trial, n_obs))
-    # As we have fixed X for each trial,
-    # reuse some calcs for the trial iterations.
-    cho_test = linalg.cho_factor(X_mat.T.dot(X_mat).T, overwrite_a=True)
-    xSx_p1_test = np.einsum(
-        'td,dt->t',
-        X_test,
-        linalg.cho_solve(cho_test, X_test.T)
-    )
-    xSx_p1_test += 1.0
-    # loop for each trial
-    for t in range(n_trial):
-        # test set pred params
-        beta_hat = linalg.cho_solve(cho_test, X_mat.T.dot(ys[t]))
-        X_test.dot(beta_hat, out=mu_pred_test)
-        if fixed_sigma2_m:
-            np.multiply(xSx_p1_test, sigma2_m, out=sigma2_pred_test)
-        else:
-            y_xm = X_mat.dot(beta_hat)
-            y_xm -= ys[t]
-            s2 = y_xm.dot(y_xm)
-            s2 /= n_obs - n_dim_cur
-            np.multiply(xSx_p1_test, s2, out=sigma2_pred_test)
-        # calc logpdf for test
-        if fixed_sigma2_m:
-            test_logpdf = stats.norm.logpdf(
-                ys_test,
-                loc=mu_pred_test[None,:],
-                scale=np.sqrt(sigma2_pred_test[None,:])
-            )
-            test_ti[t] = np.mean(test_logpdf, axis=0)
-        else:
-            test_logpdf = stats.t.logpdf(
-                ys_test,
-                n_obs - n_dim_cur,
-                loc=mu_pred_test[None,:],
-                scale=np.sqrt(sigma2_pred_test[None,:])
-            )
-            test_ti[t] = np.mean(test_logpdf, axis=0)
-    return test_ti
-
 
 # ============================================================================
 
@@ -160,17 +53,18 @@ outer_start_time = time.time()
 
 # model A LOO
 print('model A LOO', flush=True)
-loo_ti_A = calc_loo_ti(ys, X_mat[:,:-1])
+loo_ti_A = calc_loo_ti(ys, X_mat[:,:-1], fixed_sigma2_m)
 # model B LOO
 print('model B LOO', flush=True)
-loo_ti_B = calc_loo_ti(ys, X_mat)
+loo_ti_B = calc_loo_ti(ys, X_mat, fixed_sigma2_m)
 
 # model A test
 print('model A test', flush=True)
-test_ti_A = calc_test_ti(ys, X_mat[:,:-1], ys_test, X_mat[:,:-1])
+test_ti_A = calc_test_ti(
+    ys, X_mat[:,:-1], ys_test, X_mat[:,:-1], fixed_sigma2_m)
 # model B test
 print('model B test', flush=True)
-test_ti_B = calc_test_ti(ys, X_mat, ys_test, X_mat)
+test_ti_B = calc_test_ti(ys, X_mat, ys_test, X_mat, fixed_sigma2_m)
 
 print('done', flush=True)
 
