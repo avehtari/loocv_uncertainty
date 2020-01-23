@@ -28,7 +28,7 @@ fixed_sigma2_m = False
 use_sea = True
 
 # bootstrap on LOO_i
-n_booti_trial = 123
+n_booti_trial = 1000
 
 # calibration nbins
 cal_nbins = 5
@@ -69,6 +69,7 @@ idxs = (
     list(range(grid_shape[2]))*2,
     [0]*grid_shape[2] + [1]*grid_shape[2],
 )
+
 run_i_s = np.ravel_multi_index(idxs, grid_shape)
 probl_names = []
 for run_i in run_i_s:
@@ -194,11 +195,8 @@ if fixed_sigma2_m:
         analytic_coefvar_s[probl_i] = calc_analytic_coefvar(
             A_mat, b_vec, c_sca, sigma2_d_i, mu_d_i)
 
-# confusion: p(B(naive_plooneg)!=B(plooneg))
-naive_confusion_s = (
-    naive_plooneg_s*(1-target_plooneg_s[:,None])
-    + (1-naive_plooneg_s)*target_plooneg_s[:,None]
-)
+# misspred: TODO replace with something
+naive_misspred_s = np.abs(naive_plooneg_s-target_plooneg_s[:,None])
 
 # pseudo-bma-plus
 if do_bma:
@@ -357,7 +355,7 @@ if False:
         ax.set_title(probl_names[probl_i])
     fig.suptitle('loo_i_cors vs naive_coef_var/coef_var')
 
-    # loo_i_cors vs p(B(naive_plooneg)!=B(plooneg))
+    # loo_i_cors vs |naive_plooneg-plooneg|
     fig, axes = plt.subplots(
         2, n_probls//2 + n_probls%2,
         sharex=True,
@@ -369,9 +367,9 @@ if False:
         if probl_i >= n_probls:
             ax.axis('off')
             continue
-        ax.plot(cor_loo_i_s[probl_i], naive_confusion_s[probl_i], '.')
+        ax.plot(cor_loo_i_s[probl_i], naive_misspred_s[probl_i], '.')
         ax.set_title(probl_names[probl_i])
-    fig.suptitle('loo_i_cors vs p(B(naive_plooneg)!=B(plooneg))')
+    fig.suptitle('loo_i_cors vs |naive_plooneg-plooneg|')
 
     # loo_i_cors vs (elpd-loo)/n_obs
     fig, axes = plt.subplots(
@@ -442,7 +440,7 @@ if False:
         ax.set_title(probl_names[probl_i])
     fig.suptitle('skew_loo_i vs naive_coef_var/coef_var')
 
-    # skew_loo_i vs p(B(naive_plooneg)!=B(plooneg))
+    # skew_loo_i vs |naive_plooneg-plooneg|
     fig, axes = plt.subplots(
         2, n_probls//2 + n_probls%2,
         sharex=False,
@@ -454,9 +452,9 @@ if False:
         if probl_i >= n_probls:
             ax.axis('off')
             continue
-        ax.plot(skew_loo_i_s[probl_i], naive_confusion_s[probl_i], '.')
+        ax.plot(skew_loo_i_s[probl_i], naive_misspred_s[probl_i], '.')
         ax.set_title(probl_names[probl_i])
-    fig.suptitle('skew_loo_i vs p(B(naive_plooneg)!=B(plooneg))')
+    fig.suptitle('skew_loo_i vs |naive_plooneg-plooneg|')
 
     # skew_loo_i vs (elpd-loo)/n_obs
     fig, axes = plt.subplots(
@@ -565,25 +563,25 @@ if False:
 # boots
 
 
-# load results
-bootloo_tb = np.zeros((n_probls, n_trial, n_boot_trial))
-mbootloo_tb = np.zeros((n_probls, n_trial, n_mboot_trial))
-for probl_i in range(n_probls):
-    run_i = run_i_s[probl_i]
-    # boot
-    res_file = np.load(
-        'res_1/{}/boot/{}.npz'
-        .format(folder_name, str(run_i).zfill(4))
-    )
-    bootloo_tb[probl_i] = res_file['bootloo_tb']
-    res_file.close()
-    # mboot
-    res_file = np.load(
-        'res_1/{}/mboot/{}.npz'
-        .format(folder_name, str(run_i).zfill(4))
-    )
-    mbootloo_tb[probl_i] = res_file['mbootloo_tb']
-    res_file.close()
+# # load results
+# bootloo_tb = np.zeros((n_probls, n_trial, n_boot_trial))
+# mbootloo_tb = np.zeros((n_probls, n_trial, n_mboot_trial))
+# for probl_i in range(n_probls):
+#     run_i = run_i_s[probl_i]
+#     # boot
+#     res_file = np.load(
+#         'res_1/{}/boot/{}.npz'
+#         .format(folder_name, str(run_i).zfill(4))
+#     )
+#     bootloo_tb[probl_i] = res_file['bootloo_tb']
+#     res_file.close()
+#     # mboot
+#     res_file = np.load(
+#         'res_1/{}/mboot/{}.npz'
+#         .format(folder_name, str(run_i).zfill(4))
+#     )
+#     mbootloo_tb[probl_i] = res_file['mbootloo_tb']
+#     res_file.close()
 
 # calc bool on LOO_i
 bootlooi_tb = np.zeros((n_probls, n_trial, n_booti_trial))
@@ -599,20 +597,23 @@ for probl_i in range(n_probls):
         bootlooi_tb[probl_i,:,b_i] = np.sum(loo_i, axis=-1)
 
 # calc probability of LOO being negative
-boot_plooneg = np.mean(bootloo_tb<0.0, axis=-1)
-mboot_plooneg = np.mean(mbootloo_tb<0.0, axis=-1)
+# boot_plooneg = np.mean(bootloo_tb<0.0, axis=-1)
+# mboot_plooneg = np.mean(mbootloo_tb<0.0, axis=-1)
 booti_plooneg = np.mean(bootlooi_tb<0.0, axis=-1)
 
 
+# misspred: TODO replace with something
+booti_misspred_s = np.abs(booti_plooneg-target_plooneg_s[:,None])
+
 if False:
-    # plot this for them all
+    # plot this
     fig, axes = plt.subplots(1, n_probls, sharey=True, figsize=(16,12))
     for ax, probl_i in zip(axes, range(n_probls)):
         if use_sea:
             sns.violinplot(
                 data=[
-                    boot_plooneg[probl_i],
-                    mboot_plooneg[probl_i],
+                    # boot_plooneg[probl_i],
+                    # mboot_plooneg[probl_i],
                     booti_plooneg[probl_i]
                 ],
                 orient='v',
@@ -621,18 +622,18 @@ if False:
                 ax=ax
             )
         else:
-            ax.hist(booti_plooneg[probl_i], color='C2',
+            ax.hist(booti_plooneg[probl_i], color='C0',
                 orientation='horizontal',
                 bins=np.linspace(0,1,30),
                 alpha=0.5)
-            ax.hist(mboot_plooneg[probl_i], color='C1',
-                orientation='horizontal',
-                bins=np.linspace(0,1,30),
-                alpha=0.5)
-            ax.hist(boot_plooneg[probl_i], color='C0',
-                orientation='horizontal',
-                bins=np.linspace(0,1,30),
-                alpha=0.5)
+            # ax.hist(mboot_plooneg[probl_i], color='C1',
+            #     orientation='horizontal',
+            #     bins=np.linspace(0,1,30),
+            #     alpha=0.5)
+            # ax.hist(boot_plooneg[probl_i], color='C0',
+            #     orientation='horizontal',
+            #     bins=np.linspace(0,1,30),
+            #     alpha=0.5)
         ax.axhline(target_plooneg_s[probl_i], color='r')
         ax.set_title(probl_names[probl_i])
     fig.suptitle(probl_name)
@@ -660,3 +661,33 @@ if False:
         remove_frame(ax)
     fig.suptitle(
         'p(choose B): x=bootstrap on the LOO_i, y=normal approx with naive var')
+
+    # plot trial vice booti misspred vs naive normal misspred
+    fig, axes = plt.subplots(
+        2, n_probls//2 + n_probls%2, figsize=(16,12))
+    for probl_i in range(axes.size):
+        ax = axes.flat[probl_i]
+        if probl_i >= n_probls:
+            ax.axis('off')
+            continue
+        if True:
+            sns.violinplot(
+                data=[
+                    naive_misspred_s[probl_i],
+                    booti_misspred_s[probl_i]
+                ],
+                orient='v',
+                scale='width',
+                cut=0.0,
+                ax=ax
+            )
+        else:
+            ax.hist(booti_misspred_s[probl_i], color='C1',
+                orientation='horizontal',
+                bins=np.linspace(0,1,30),
+                alpha=0.5)
+            ax.hist(naive_misspred_s[probl_i], color='C0',
+                orientation='horizontal',
+                bins=np.linspace(0,1,30),
+                alpha=0.5)
+    fig.suptitle('misspred')
