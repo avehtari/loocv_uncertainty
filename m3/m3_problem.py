@@ -28,13 +28,13 @@ seed = 2958319585
 
 # grid params and default values
 # number of obs in one trial
-n_obs_s = [16, 32, 64, 128, 256, 512, 1024]
+n_obs_s = [128]
 # epsilon sigma2_d_s
-sigma2_d_s = [0.01, 1.0, 100.0]
+sigma2_d_s = [1.0]
 # last covariate effect not used in model A
-beta_t_s = [0.0, 0.01, 0.1, 1.0, 10.0]
+beta_t_s = np.concatenate((np.arange(0.0, 4.0, 0.1), np.arange(4.0, 10.1, 1.0)))
 # percentage of outliers (np.nextafter(0,1) corresponds to always 1 or 2 outs)
-prc_out_s = [0/128, np.nextafter(0,1), 2/128, 12/128]
+prc_out_s = [0/128, 2/128, 4/128]
 
 # fixed model sigma2_m value
 sigma2_m = 1.0
@@ -59,18 +59,6 @@ shuffle_obs = False
 elpd_test_n = 123
 # outliers in the independent test set for true elpd
 elpd_test_outliers = True
-
-# bootstrap loo repetitions
-n_boot_trial = 2000
-# bootrap sampling random seed
-# np.random.RandomState().randint(np.iinfo(np.uint32).max)
-seed_boot = 1584981854
-
-# model based bootstrap loo repetitions
-n_mboot_trial = 100
-# bootrap sampling random seed
-# np.random.RandomState().randint(np.iinfo(np.uint32).max)
-seed_mboot = 1118669156
 
 # pseudo_bma_p seed
 seed_bma = 1022464040
