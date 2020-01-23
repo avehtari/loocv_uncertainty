@@ -158,7 +158,7 @@ if False:
         )
     test_test_a = np.mean(test_test_a)
     print('test_a:\n{}\n{}'.format(test_test_a, test_ti_A[t,i]))
-    # not ok
+    # ok
 
     # test B
     X_test = X_mat
@@ -172,4 +172,4 @@ if False:
         )
     test_test_b = np.mean(test_test_b)
     print('test_b:\n{}\n{}'.format(test_test_b, test_ti_B[t,i]))
-    # not ok
+    # ok

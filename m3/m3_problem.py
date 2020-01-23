@@ -274,7 +274,7 @@ def calc_loo_ti(ys, X_mat, fixed_sigma2_m):
     return loo_ti
 
 
-def calc_test_ti(ys, X_mat, ys_test, X_test, fixed_sigma2_m):
+def calc_test_t(ys, X_mat, ys_test, X_test, fixed_sigma2_m):
     n_obs, n_dim_cur = X_mat.shape
     elpd_test_n, _ = ys_test.shape
     # test set pred distr params working array
@@ -320,7 +320,8 @@ def calc_test_ti(ys, X_mat, ys_test, X_test, fixed_sigma2_m):
                 scale=np.sqrt(sigma2_pred_test[None,:])
             )
             test_ti[t] = np.mean(test_logpdf, axis=0)
-    return test_ti
+    test_t = np.sum(test_ti, axis=1)
+    return test_t
 
 
 def get_analytic_params(X_mat, beta_t):
