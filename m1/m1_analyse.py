@@ -103,7 +103,7 @@ def remove_frame(ax):
 # ============================================================================
 
 print('selected problems:')
-print('fixed sigma2_m: {}'.format(fixed_sigma2_m))
+print('fixed tau2: {}'.format(fixed_sigma2_m))
 print('sigma2_d: {}'.format(sigma2_d_grid[idxs]))
 print('n_obs: {}'.format(n_obs_grid[idxs]))
 print('beta_t: {}'.format(beta_t_grid[idxs]))

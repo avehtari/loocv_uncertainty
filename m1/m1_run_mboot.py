@@ -62,7 +62,7 @@ def calc_loo_ti(ys, X_mat):
             beta_hat = linalg.cho_solve(cho_s[i], x_tilde.T.dot(y_tilde))
             mu_preds[t, i] = x_i.dot(beta_hat)
             if fixed_sigma2_m:
-                sigma2_preds[t, i] = xSx_p1_s[i]*sigma2_m
+                sigma2_preds[t, i] = xSx_p1_s[i]*tau2
             else:
                 y_xm = x_tilde.dot(beta_hat)
                 y_xm -= y_tilde
@@ -136,7 +136,7 @@ def calc_mbootloo_tb_AB(ys, X_mat):
                 A_s2_sampled = sample_scaled_inv_chi2(
                     n_obs-n_dim_a, A_s2, 1, rng)[0]
             else:
-                A_s2_sampled = sigma2_m
+                A_s2_sampled = tau2
             beta_sampled = sample_n_invcho(
                 A_beta_hat,
                 A_cho_v[0]/np.sqrt(A_s2_sampled),
@@ -150,7 +150,7 @@ def calc_mbootloo_tb_AB(ys, X_mat):
                 B_s2_sampled = sample_scaled_inv_chi2(
                     n_obs-n_dim_b, B_s2, 1, rng)[0]
             else:
-                B_s2_sampled = sigma2_m
+                B_s2_sampled = tau2
             beta_sampled = sample_n_invcho(
                 B_beta_hat,
                 B_cho_v[0]/np.sqrt(B_s2_sampled),

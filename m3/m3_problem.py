@@ -36,8 +36,8 @@ beta_t_s = np.concatenate((np.arange(0.0, 4.0, 0.1), np.arange(4.0, 10.1, 1.0)))
 # percentage of outliers (np.nextafter(0,1) corresponds to always 1 or 2 outs)
 prc_out_s = [0/128, 2/128, 4/128]
 
-# fixed model sigma2_m value
-sigma2_m = 1.0
+# fixed model tau2 value
+tau2 = 1.0
 # outlier loc deviation
 outlier_dev = 20.0
 # outliers style (if ``prc_out>0.0``): ['even', 'pos', 'neg']
@@ -253,7 +253,7 @@ def calc_loo_ti(ys, X_mat, fixed_sigma2_m):
             beta_hat = linalg.cho_solve(cho_s[i], x_tilde.T.dot(y_tilde))
             mu_preds[t, i] = x_i.dot(beta_hat)
             if fixed_sigma2_m:
-                sigma2_preds[t, i] = xSx_p1_s[i]*sigma2_m
+                sigma2_preds[t, i] = xSx_p1_s[i]*tau2
             else:
                 y_xm = x_tilde.dot(beta_hat)
                 y_xm -= y_tilde
@@ -297,7 +297,7 @@ def calc_test_t(ys, X_mat, ys_test, X_test, fixed_sigma2_m):
         beta_hat = linalg.cho_solve(cho_test, X_mat.T.dot(ys[t]))
         X_test.dot(beta_hat, out=mu_pred_test)
         if fixed_sigma2_m:
-            np.multiply(xSx_p1_test, sigma2_m, out=sigma2_pred_test)
+            np.multiply(xSx_p1_test, tau2, out=sigma2_pred_test)
         else:
             y_xm = X_mat.dot(beta_hat)
             y_xm -= ys[t]
@@ -360,13 +360,13 @@ def get_analytic_params(X_mat, beta_t):
     # calc A
     A_mat = Pa.T.dot(Pa)
     A_mat -= Pb.T.dot(Pb)
-    A_mat /= -2*sigma2_m
+    A_mat /= -2*tau2
     # calc b
     b_vec = Pa.T.dot(PaX)
-    b_vec *= -beta_t/sigma2_m
+    b_vec *= -beta_t/tau2
     # calc c
     c_sca = PaX.T.dot(PaX)
-    c_sca *= -beta_t**2/(2*sigma2_m)
+    c_sca *= -beta_t**2/(2*tau2)
     c_sca += np.sum(np.log(-np.diag(Pa))) - np.sum(np.log(-np.diag(Pb)))
     return A_mat, b_vec, c_sca
 

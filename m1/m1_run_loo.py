@@ -106,7 +106,7 @@ if False:
         v_cho = linalg.cho_factor(x_cur.T.dot(x_cur))
         beta_hat = linalg.cho_solve(v_cho, x_cur.T.dot(y_cur))
         if fixed_sigma2_m:
-            s2 = sigma2_m
+            s2 = tau2
         else:
             y_xm = y_cur - x_cur.dot(beta_hat)
             s2 = y_xm.dot(y_xm)/(n_obs_cur - n_dim_cur)

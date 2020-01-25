@@ -48,7 +48,7 @@ def calc_loo_ti(ys, X_mat):
             beta_hat = linalg.cho_solve(cho_s[i], x_tilde.T.dot(y_tilde))
             mu_preds[t, i] = x_i.dot(beta_hat)
             if fixed_sigma2_m:
-                sigma2_preds[t, i] = xSx_p1_s[i]*sigma2_m
+                sigma2_preds[t, i] = xSx_p1_s[i]*tau2
             else:
                 y_xm = x_tilde.dot(beta_hat)
                 y_xm -= y_tilde

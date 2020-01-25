@@ -4,6 +4,8 @@ import numpy as np
 from scipy import linalg, stats
 
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
+from matplotlib import cm
 import seaborn as sns
 
 
@@ -35,10 +37,16 @@ def remove_frame(ax):
     ax.spines['bottom'].set_visible(False)
     ax.spines['left'].set_visible(False)
 
+def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
+    new_cmap = colors.LinearSegmentedColormap.from_list(
+        'trunc({n},{a:.2f},{b:.2f})'.format(n=cmap.name, a=minval, b=maxval),
+        cmap(np.linspace(minval, maxval, n)))
+    return new_cmap
+
 # ============================================================================
 
 print('selected problems:')
-print('fixed sigma2_m: {}'.format(fixed_sigma2_m))
+print('fixed tau2: {}'.format(fixed_sigma2_m))
 print('sigma2_d: {}'.format(sigma2_d_grid[idxs]))
 print('n_obs: {}'.format(n_obs_grid[idxs]))
 print('beta_t: {}'.format(beta_t_grid[idxs]))
@@ -121,14 +129,19 @@ for probl_i in range(n_probls):
 # ============================================================================
 
 
+cmap = truncate_colormap(cm.get_cmap('Greys'), 0.4)
+cmap.set_under('white', 1.0)
+
+
 for probl_i in range(n_probls):
     x_arr = loo_s[probl_i]
     y_arr = elpd_s[probl_i]
     grid = sns.jointplot(
         x_arr, y_arr,
-        joint_kws=dict(s=6),
+        kind='hex',
         height=4,
-        color='C0'
+        cmap=cmap,
+        # joint_kws=dict(cmin=1),
     )
     grid.set_axis_labels(
         '$\widehat{\mathrm{elpd}}_\mathrm{D}$',
@@ -142,7 +155,10 @@ for probl_i in range(n_probls):
          max(x_arr.max(), y_arr.max())],
         color='C1'
     )
+    plt.clim(vmin=1)
     plt.tight_layout()
+
+
 
 size = plt.gcf().get_size_inches()
 
