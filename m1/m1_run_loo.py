@@ -36,7 +36,7 @@ else:
 
 # get params and data
 n_obs, beta_t, prc_out, sigma2_d = run_i_to_params(run_i)
-X_mat, _, ys, ys_test = make_data(n_obs, beta_t, prc_out, sigma2_d)
+X_mat, _, ys, X_test, ys_test = make_data(n_obs, beta_t, prc_out, sigma2_d)
 
 
 print('Run {}/{}'.format(run_i, n_runs-1))
@@ -53,18 +53,18 @@ outer_start_time = time.time()
 
 # model A LOO
 print('model A LOO', flush=True)
-loo_ti_A = calc_loo_ti(ys, X_mat[:,:-1], fixed_sigma2_m)
+loo_ti_A = calc_loo_ti(ys, X_mat[:,:,:-1], fixed_sigma2_m)
 # model B LOO
 print('model B LOO', flush=True)
 loo_ti_B = calc_loo_ti(ys, X_mat, fixed_sigma2_m)
 
 # model A test
 print('model A test', flush=True)
-test_ti_A = calc_test_ti(
-    ys, X_mat[:,:-1], ys_test, X_mat[:,:-1], fixed_sigma2_m)
+test_t_A = calc_test_t(
+    ys, X_mat[:,:,:-1], ys_test, X_test[:,:,:-1], fixed_sigma2_m)
 # model B test
 print('model B test', flush=True)
-test_ti_B = calc_test_ti(ys, X_mat, ys_test, X_mat, fixed_sigma2_m)
+test_t_B = calc_test_t(ys, X_mat, ys_test, X_test, fixed_sigma2_m)
 
 print('done', flush=True)
 
@@ -89,8 +89,8 @@ np.savez_compressed(
     'res_1/{}/{}.npz'.format(folder_name, run_i_str),
     loo_ti_A=loo_ti_A,
     loo_ti_B=loo_ti_B,
-    test_ti_A=test_ti_A,
-    test_ti_B=test_ti_B,
+    test_t_A=test_t_A,
+    test_t_B=test_t_B,
     run_i=run_i,
     fixed_sigma2_m=fixed_sigma2_m,
 )
@@ -128,9 +128,9 @@ if False:
 
     # LOO A
     test_loo_a = calc_logpdf_for_one_pred(
-        np.delete(X_mat[:,:-1], i, axis=0),
+        np.delete(X_mat[t,:,:-1], i, axis=0),
         np.delete(ys[t], i, axis=0),
-        X_mat[i,:-1],
+        X_mat[t,i,:-1],
         ys[t,i]
     )
     print('loo_a:\n{}\n{}'.format(test_loo_a, loo_ti_A[t,i]))
@@ -138,38 +138,38 @@ if False:
 
     # LOO B
     test_loo_b = calc_logpdf_for_one_pred(
-        np.delete(X_mat, i, axis=0),
+        np.delete(X_mat[t], i, axis=0),
         np.delete(ys[t], i, axis=0),
-        X_mat[i],
+        X_mat[t,i],
         ys[t,i]
     )
     print('loo_b:\n{}\n{}'.format(test_loo_b, loo_ti_B[t,i]))
     # ok
 
     # test A
-    X_test = X_mat
-    test_test_a = np.zeros(elpd_test_n)
+    test_test_a = np.zeros((elpd_test_n, n_obs))
     for t_i in range(elpd_test_n):
-        test_test_a[t_i] = calc_logpdf_for_one_pred(
-            X_mat[:,:-1],
-            ys[t],
-            X_test[i,:-1],
-            ys_test[t_i,i]
-        )
-    test_test_a = np.mean(test_test_a)
-    print('test_a:\n{}\n{}'.format(test_test_a, test_ti_A[t,i]))
+        for ii in range(n_obs):
+            test_test_a[t_i,ii] = calc_logpdf_for_one_pred(
+                X_mat[t,:,:-1],
+                ys[t],
+                X_test[t_i,ii,:-1],
+                ys_test[t_i,ii]
+            )
+    test_test_a = np.sum(np.mean(test_test_a, axis=0))
+    print('test_a:\n{}\n{}'.format(test_test_a, test_t_A[t]))
     # ok
 
-    # test B
-    X_test = X_mat
-    test_test_b = np.zeros(elpd_test_n)
+    # test A
+    test_test_b = np.zeros((elpd_test_n, n_obs))
     for t_i in range(elpd_test_n):
-        test_test_b[t_i] = calc_logpdf_for_one_pred(
-            X_mat,
-            ys[t],
-            X_test[i],
-            ys_test[t_i,i]
-        )
-    test_test_b = np.mean(test_test_b)
-    print('test_b:\n{}\n{}'.format(test_test_b, test_ti_B[t,i]))
+        for ii in range(n_obs):
+            test_test_b[t_i,ii] = calc_logpdf_for_one_pred(
+                X_mat[t,:,:],
+                ys[t],
+                X_test[t_i,ii,:],
+                ys_test[t_i,ii]
+            )
+    test_test_b = np.sum(np.mean(test_test_b, axis=0))
+    print('test_a:\n{}\n{}'.format(test_test_b, test_t_B[t]))
     # ok
