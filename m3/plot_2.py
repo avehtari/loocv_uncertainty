@@ -145,10 +145,11 @@ naive_misspred_s = np.abs(naive_plooneg_s-pelpdneg_s[:,:,None])
 
 # ============================================================================
 # selected ax1 y
-ax1_y = cor_loo_i_s
-# ax1_y = skew_loo_i_s
+# ax1_y = cor_loo_i_s
+ax1_y = skew_loo_i_s
 
-ax1_y_name = r'$\widehat{\mathrm{Corr}}(\pi_{\mathrm{A},\,i}, \pi_{\mathrm{B},\,i})$'
+ax1_y_name = r'$\widehat{\mathrm{Skew}}(\pi_{\mathrm{D},\,i})$'
+
 
 # ===========================================================================
 # plot 1

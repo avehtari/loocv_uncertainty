@@ -9,7 +9,7 @@ from scipy import linalg, stats
 # np.random.RandomState().randint(np.iinfo(np.uint32).max)
 data_seed = 247169102
 
-n_trial = 100
+n_trial = 200
 
 # fixed model tau2 value
 tau2 = 1.0

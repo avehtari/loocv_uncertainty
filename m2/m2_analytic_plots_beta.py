@@ -12,6 +12,10 @@ from m2_setup import *
 load_res = True
 plot = True
 
+plot_multilines = True
+multilines_max = 100
+multilines_alpha = 0.05
+
 
 # ============================================================================
 
@@ -39,11 +43,11 @@ if load_res:
 else:
 
     # variables
-    # beta_t_s = np.linspace(0.0, 2.0, 20)
-    beta_t_s = np.linspace(0.0, 2.0, 5)
+    beta_t_s = np.linspace(0.0, 2.0, 20)
+    # beta_t_s = np.linspace(0.0, 2.0, 5)
 
-    # n_obs_s = [128, 1024]
-    n_obs_s = [64, 128]
+    n_obs_s = [64, 512]
+    # n_obs_s = [64, 128]
 
     # prc_out
     prc_out_s = [0.0, 0.01]
@@ -104,14 +108,25 @@ if plot:
         for o_i, prc_out in enumerate(prc_out_s):
             ax = axes[n_i, o_i]
             ax.axhline(0, color='gray', lw=0.8, zorder=0)
-            median = np.percentile(
-                analytic_mean_s[o_i, :, n_i]/n_obs_s[n_i], 50, axis=-1)
-            q025 = np.percentile(
-                analytic_mean_s[o_i, :, n_i]/n_obs_s[n_i], 2.5, axis=-1)
-            q975 = np.percentile(
-                analytic_mean_s[o_i, :, n_i]/n_obs_s[n_i], 97.5, axis=-1)
-            ax.fill_between(beta_t_s, q025, q975, alpha=0.2)
-            ax.plot(beta_t_s, median)
+            data = analytic_mean_s[o_i, :, n_i]/n_obs_s[n_i]
+            if plot_multilines:
+                ax.plot(
+                    beta_t_s,
+                    data[:,:multilines_max],
+                    color='C0',
+                    alpha=multilines_alpha
+                )
+                # limit y for outliers cases
+                ax.set_ylim((
+                    min(np.percentile(data, 2.5, axis=1).min(), 0),
+                    max(np.percentile(data, 97.5, axis=1).max(), 0),
+                ))
+            else:
+                median = np.percentile(data, 50, axis=-1)
+                q025 = np.percentile(data, 2.5, axis=-1)
+                q975 = np.percentile(data, 97.5, axis=-1)
+                ax.fill_between(beta_t_s, q025, q975, alpha=0.2)
+                ax.plot(beta_t_s, median)
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
 
@@ -131,14 +146,25 @@ if plot:
         for o_i, prc_out in enumerate(prc_out_s):
             ax = axes[n_i, o_i]
             ax.axhline(0, color='gray', lw=0.8, zorder=0)
-            median = np.percentile(
-                analytic_coefvar_s[o_i, :, n_i], 50, axis=-1)
-            q025 = np.percentile(
-                analytic_coefvar_s[o_i, :, n_i], 2.5, axis=-1)
-            q975 = np.percentile(
-                analytic_coefvar_s[o_i, :, n_i], 97.5, axis=-1)
-            ax.fill_between(beta_t_s, q025, q975, alpha=0.2)
-            ax.plot(beta_t_s, median)
+            data = analytic_coefvar_s[o_i, :, n_i]
+            if plot_multilines:
+                ax.plot(
+                    beta_t_s,
+                    data[:,:multilines_max],
+                    color='C0',
+                    alpha=multilines_alpha
+                )
+                # limit y for outliers cases
+                ax.set_ylim((
+                    min(np.percentile(data, 2.5, axis=1).min(), 0),
+                    max(np.percentile(data, 97.5, axis=1).max(), 0),
+                ))
+            else:
+                median = np.percentile(data, 50, axis=-1)
+                q025 = np.percentile(data, 2.5, axis=-1)
+                q975 = np.percentile(data, 97.5, axis=-1)
+                ax.fill_between(beta_t_s, q025, q975, alpha=0.2)
+                ax.plot(beta_t_s, median)
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
 
@@ -154,19 +180,25 @@ if plot:
 
     # skew
     fig, axes = plt.subplots(
-        len(n_obs_s), len(prc_out_s), sharex=True, sharey=False, figsize=(9,6))
+        len(n_obs_s), len(prc_out_s), sharex=True, sharey='row', figsize=(9,6))
     for n_i, ax in enumerate(axes):
         for o_i, prc_out in enumerate(prc_out_s):
             ax = axes[n_i, o_i]
             ax.axhline(0, color='gray', lw=0.8, zorder=0)
-            median = np.percentile(
-                analytic_skew_s[o_i, :, n_i], 50, axis=-1)
-            q025 = np.percentile(
-                analytic_skew_s[o_i, :, n_i], 2.5, axis=-1)
-            q975 = np.percentile(
-                analytic_skew_s[o_i, :, n_i], 97.5, axis=-1)
-            ax.fill_between(beta_t_s, q025, q975, alpha=0.2)
-            ax.plot(beta_t_s, median)
+            data = analytic_skew_s[o_i, :, n_i]
+            if plot_multilines:
+                ax.plot(
+                    beta_t_s,
+                    data[:,:multilines_max],
+                    color='C0',
+                    alpha=multilines_alpha
+                )
+            else:
+                median = np.percentile(data, 50, axis=-1)
+                q025 = np.percentile(data, 2.5, axis=-1)
+                q975 = np.percentile(data, 97.5, axis=-1)
+                ax.fill_between(beta_t_s, q025, q975, alpha=0.2)
+                ax.plot(beta_t_s, median)
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
 

@@ -31,8 +31,8 @@ n_obs_s = [16, 32, 64, 128, 256, 512, 1024]
 sigma2_d_s = [0.01, 1.0, 100.0]
 # last covariate effect not used in model A
 beta_t_s = [0.0, 0.5, 1.0, 4.0]
-# percentage of outliers (np.nextafter(0,1) corresponds to always 1 or 2 outs)
-prc_out_s = [0/128, np.nextafter(0,1), 2/128, 8/128]
+# percentage of outliers (np.nextafter(0,1) corresponds to always 1 out)
+prc_out_s = [0.0, np.nextafter(0,1), 0.01, 0.08]
 
 # fixed model tau2 value
 tau2 = 1.0

@@ -30,8 +30,8 @@ n_obs_s = [128]
 sigma2_d_s = [1.0]
 # last covariate effect not used in model A
 beta_t_s = np.arange(0.0, 4.0, 0.1)
-# percentage of outliers (np.nextafter(0,1) corresponds to always 1 or 2 outs)
-prc_out_s = [0/128, 2/128, 8/128]
+# percentage of outliers (np.nextafter(0,1) corresponds to always 1 out)
+prc_out_s = [0.0, 0.01, 0.08]
 
 # fixed model tau2 value
 tau2 = 1.0
@@ -202,14 +202,14 @@ def calc_loo_ti(ys, X_mat, fixed_sigma2_m):
     return loo_ti
 
 
-def calc_test_t(ys, X_mat, ys_test, X_test, fixed_sigma2_m):
+def calc_test_tl(ys, X_mat, ys_test, X_test, fixed_sigma2_m):
     n_trial, n_obs, n_dim_cur = X_mat.shape
     elpd_test_n, _ = ys_test.shape
     # test set pred distr params working array
     mu_pred_test = np.empty((elpd_test_n, n_obs,))
     sigma2_pred_test = np.empty((elpd_test_n, n_obs,))
     # test set logpdf
-    test_ti = np.empty((n_trial, n_obs))
+    test_lpd_tl = np.empty((n_trial, elpd_test_n))
     # loop for each trial
     for t in range(n_trial):
         # test set pred params
@@ -246,9 +246,8 @@ def calc_test_t(ys, X_mat, ys_test, X_test, fixed_sigma2_m):
                 loc=mu_pred_test,
                 scale=np.sqrt(sigma2_pred_test)
             )
-            test_ti[t] = np.mean(test_logpdf, axis=0)
-    test_t = np.sum(test_ti, axis=1)
-    return test_t
+            test_lpd_tl[t] = np.sum(test_logpdf, axis=1)
+    return test_lpd_tl
 
 
 def get_analytic_params(X_mat, beta_t):

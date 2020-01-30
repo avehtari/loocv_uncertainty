@@ -26,6 +26,9 @@ seed_analysis = 4257151306
 # fixed or unfixed sigma
 fixed_sigma2_m = False
 
+# bootstrap samples
+n_booti_trial = 200
+
 # bayes boot samples
 bb_n = 1000
 bb_a = 1.0
@@ -67,6 +70,9 @@ target_skew_s = np.zeros((grid_shape[2], grid_shape[3]))
 target_plooneg_s = np.zeros((grid_shape[2], grid_shape[3]))
 elpd_s = np.zeros((grid_shape[2], grid_shape[3], n_trial))
 
+# bootstrap
+bootlooi_botb = np.zeros((len(beta_t_s), len(prc_out_s), n_trial, n_booti_trial))
+
 
 # load results
 for o_i, prc_out in enumerate(prc_out_s):
@@ -105,6 +111,12 @@ for o_i, prc_out in enumerate(prc_out_s):
         target_plooneg_s[b_i, o_i] = np.mean(loo_s[b_i, o_i]<0)
         elpd_s[b_i, o_i] = test_t_A - test_t_B
 
+        # bootstrap
+        for boot_i in range(n_booti_trial):
+            # take subsample
+            idxs = rng.choice(n_obs, size=n_obs, replace=True)
+            bootlooi_botb[b_i, o_i, :, boot_i] = np.sum(loo_i[:, idxs], axis=-1)
+
 # naive var ratio
 naive_se_ratio_s_mean = np.sqrt(
     np.mean(naive_var_s, axis=-1)/target_var_s)
@@ -142,13 +154,21 @@ pelpdneg_s = np.mean(elpd_s<0, axis=-1)
 # misspred: TODO replace with something
 naive_misspred_s = np.abs(naive_plooneg_s-pelpdneg_s[:,:,None])
 
+# bootstrap
+# calc probability of LOO being negative
+booti_plooneg_s = np.mean(bootlooi_botb<0.0, axis=-1)
+# misspred
+boot_misspred_s = np.abs(booti_plooneg_s-pelpdneg_s[:,:,None])
+
 
 # ============================================================================
 # selected ax1 y
-ax1_y = cor_loo_i_s
+# ax1_y = cor_loo_i_s
 # ax1_y = skew_loo_i_s
+ax1_y = boot_misspred_s
 
-ax1_y_name = r'$\widehat{\mathrm{Corr}}(\pi_{\mathrm{A},\,i}, \pi_{\mathrm{B},\,i})$'
+ax1_y_name = r'$|p_\mathrm{boot} - p_\mathrm{target}|$'
+
 
 # ===========================================================================
 # plot 1
@@ -185,84 +205,6 @@ for ax_i, ax in enumerate(axes):
     # ax2.plot(beta_t_s, q025, 'C1', alpha=0.5)
     # ax2.plot(beta_t_s, q975, 'C1', alpha=0.5)
     ax2.set_ylabel(r'$|p_\mathrm{approx} - p_\mathrm{target}|$')
-    ax2.tick_params(axis='y', labelcolor='C1')
-axes[-1].set_xlabel(r'$\beta_t$')
-# axes[-1].set_xlim(right=6.0)
-fig.tight_layout()
-
-
-
-# ===========================================================================
-# plot 2
-
-selected_prc_outs = [0, 1, 2]
-fig, axes = plt.subplots(len(selected_prc_outs), 1, sharex=True)
-for ax_i, ax in enumerate(axes):
-    o_i = selected_prc_outs[ax_i]
-
-    # cor
-    median = np.percentile(ax1_y[:,o_i], 50, axis=-1)
-    q025 = np.percentile(ax1_y[:,o_i], 2.5, axis=-1)
-    q975 = np.percentile(ax1_y[:,o_i], 97.5, axis=-1)
-    ax.fill_between(beta_t_s, q025, q975, color='C0', alpha=0.2)
-    ax.plot(beta_t_s, median, 'C0')
-    # ax.plot(beta_t_s, q025, 'C0', alpha=0.5)
-    # ax.plot(beta_t_s, q975, 'C0', alpha=0.5)
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.tick_params(axis='y', labelcolor='C0')
-    ax.set_ylabel(
-        '{} % outliers'.format(int(prc_out_s[o_i]*100))
-        + '\n'
-        + ax1_y_name
-    )
-    # target_skew_s
-    ax2 = ax.twinx()
-    ax2.plot(beta_t_s, target_skew_s[:,o_i], 'C1')
-    ax2.set_ylim(top=0)
-    ax2.set_ylabel(r'skewness of $\pi_\mathrm{D}$')
-    ax2.tick_params(axis='y', labelcolor='C1')
-axes[-1].set_xlabel(r'$\beta_t$')
-# axes[-1].set_xlim(right=6.0)
-fig.tight_layout()
-
-
-# ===========================================================================
-# plot 3
-
-selected_prc_outs = [0, 1, 2]
-fig, axes = plt.subplots(len(selected_prc_outs), 1, sharex=True)
-for ax_i, ax in enumerate(axes):
-    o_i = selected_prc_outs[ax_i]
-
-    # cor
-    median = np.percentile(ax1_y[:,o_i], 50, axis=-1)
-    q025 = np.percentile(ax1_y[:,o_i], 2.5, axis=-1)
-    q975 = np.percentile(ax1_y[:,o_i], 97.5, axis=-1)
-    ax.fill_between(beta_t_s, q025, q975, color='C0', alpha=0.2)
-    ax.plot(beta_t_s, median, 'C0')
-    # ax.plot(beta_t_s, q025, 'C0', alpha=0.5)
-    # ax.plot(beta_t_s, q975, 'C0', alpha=0.5)
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.tick_params(axis='y', labelcolor='C0')
-    ax.set_ylabel(
-        '{} % outliers'.format(int(prc_out_s[o_i]*100))
-        + '\n'
-        + ax1_y_name
-    )
-    # SE error ratio
-    ax2 = ax.twinx()
-    median = np.percentile(naive_error_ratio_s[:,o_i], 50, axis=-1)
-    q025 = np.percentile(naive_error_ratio_s[:,o_i], 2.5, axis=-1)
-    q975 = np.percentile(naive_error_ratio_s[:,o_i], 97.5, axis=-1)
-    ax2.fill_between(beta_t_s, q025, q975, color='C1', alpha=0.2)
-    ax2.plot(beta_t_s, median, 'C1')
-    # ax2.set_ylim((0, 1))
-    # ax2.plot(beta_t_s, q025, 'C1', alpha=0.5)
-    # ax2.plot(beta_t_s, q975, 'C1', alpha=0.5)
-    # ax2.set_ylabel(r'$\mathrm{naive SE} / \mathrm{SE}(\pi_\mathrm{D} - \mathrm{elpd}_\mathrm{D})$')
-    ax2.set_ylabel('SE ratio')
     ax2.tick_params(axis='y', labelcolor='C1')
 axes[-1].set_xlabel(r'$\beta_t$')
 # axes[-1].set_xlim(right=6.0)

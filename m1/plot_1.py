@@ -17,11 +17,17 @@ from m1_problem import *
 
 fixed_sigma2_m = False
 
+# [
+#   [sigma_d, ...],
+#   [n_obs, ...],
+#   [beta_t, ...],
+#   [prc_out, ...]
+# ]
 idxs = (
     [1, 1, 1],
     [3, 3, 3],
     [3, 0, 3],
-    [0, 0, 1],
+    [0, 0, 2],
 )
 run_i_s = np.ravel_multi_index(idxs, grid_shape)
 
@@ -73,8 +79,8 @@ for probl_i in range(n_probls):
     # fetch results
     res_A[probl_i] = res_file['loo_ti_A']
     res_B[probl_i] = res_file['loo_ti_B']
-    res_test_A[probl_i] = res_file['test_ti_A']
-    res_test_B[probl_i] = res_file['test_ti_B']
+    res_test_A[probl_i] = res_file['test_t_A']
+    res_test_B[probl_i] = res_file['test_t_B']
     # close file
     res_file.close()
 
@@ -109,8 +115,7 @@ for probl_i in range(n_probls):
     target_skew_s[probl_i] = stats.skew(loo_s[probl_i], bias=False)
     # TODO calc se of this ... formulas online
     target_plooneg_s[probl_i] = np.mean(loo_s[probl_i]<0)
-    elpd_s[probl_i] = np.sum(
-        res_test_A[probl_i] - res_test_B[probl_i], axis=-1)
+    elpd_s[probl_i] = res_test_A[probl_i] - res_test_B[probl_i]
 target_coefvar_s = np.sqrt(target_var_s)/target_mean_s
 
 # calibration counts
