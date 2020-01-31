@@ -352,3 +352,8 @@ def pseudo_bma_p(loo_tki):
     # nanmean because of zeroes
     w_tk = np.nanmean(w_tkb, axis=-1)
     return w_tk
+
+def pseudo_bma(elpd_tk):
+    exp_elpd_tk = np.exp(elpd_tk)
+    w_tk = exp_elpd_tk / np.sum(exp_elpd_tk, axis=-1, keepdims=True)
+    return w_tk

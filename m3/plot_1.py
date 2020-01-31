@@ -79,8 +79,8 @@ for o_i, prc_out in enumerate(prc_out_s):
         # fetch results
         loo_ti_A = res_file['loo_ti_A']
         loo_ti_B = res_file['loo_ti_B']
-        test_t_A = res_file['test_t_A']
-        test_t_B = res_file['test_t_B']
+        test_elpd_t_A = res_file['test_elpd_t_A']
+        test_elpd_t_B = res_file['test_elpd_t_B']
         # close file
         res_file.close()
 
@@ -103,7 +103,7 @@ for o_i, prc_out in enumerate(prc_out_s):
         target_skew_s[b_i, o_i] = stats.skew(loo_s[b_i, o_i], bias=False)
         # TODO calc se of this ... formulas online
         target_plooneg_s[b_i, o_i] = np.mean(loo_s[b_i, o_i]<0)
-        elpd_s[b_i, o_i] = test_t_A - test_t_B
+        elpd_s[b_i, o_i] = test_elpd_t_A - test_elpd_t_B
 
 # naive var ratio
 naive_se_ratio_s_mean = np.sqrt(

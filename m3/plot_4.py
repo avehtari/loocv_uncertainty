@@ -26,9 +26,6 @@ seed_analysis = 4257151306
 # fixed or unfixed sigma
 fixed_sigma2_m = False
 
-# bootstrap samples
-n_booti_trial = 200
-
 # bayes boot samples
 bb_n = 1000
 bb_a = 1.0
@@ -70,13 +67,23 @@ target_skew_s = np.zeros((grid_shape[2], grid_shape[3]))
 target_plooneg_s = np.zeros((grid_shape[2], grid_shape[3]))
 elpd_s = np.zeros((grid_shape[2], grid_shape[3], n_trial))
 
-# bootstrap
-bootlooi_botb = np.zeros((len(beta_t_s), len(prc_out_s), n_trial, n_booti_trial))
+vlpd_t = np.empty((grid_shape[2], grid_shape[3], n_trial))
+q025lpd_t = np.empty((grid_shape[2], grid_shape[3], n_trial))
+q500lpd_t = np.empty((grid_shape[2], grid_shape[3], n_trial))
+q975lpd_t = np.empty((grid_shape[2], grid_shape[3], n_trial))
+plpdneg_t = np.empty((grid_shape[2], grid_shape[3], n_trial))
+
+bma_s = np.zeros((grid_shape[2], grid_shape[3], n_trial, 2))
+bma_elpd_s = np.zeros((grid_shape[2], grid_shape[3], n_trial, 2))
 
 
 # load results
-for o_i, prc_out in enumerate(prc_out_s):
-    for b_i, beta_t in enumerate(beta_t_s):
+for b_i, beta_t in enumerate(beta_t_s):
+
+    print('{}/{}'.format(b_i, len(beta_t_s)), flush=True)
+
+    for o_i, prc_out in enumerate(prc_out_s):
+
         run_i = np.ravel_multi_index([0, 0, b_i, o_i], grid_shape)
         res_file = np.load(
             'res_3/{}/{}.npz'
@@ -87,6 +94,13 @@ for o_i, prc_out in enumerate(prc_out_s):
         loo_ti_B = res_file['loo_ti_B']
         test_elpd_t_A = res_file['test_elpd_t_A']
         test_elpd_t_B = res_file['test_elpd_t_B']
+
+        vlpd_t[b_i, o_i] = res_file['test_vlpd_t']
+        q025lpd_t[b_i, o_i] = res_file['test_q025lpd_t']
+        q500lpd_t[b_i, o_i] = res_file['test_q500lpd_t']
+        q975lpd_t[b_i, o_i] = res_file['test_q975lpd_t']
+        plpdneg_t[b_i, o_i] = res_file['test_plpdneg_t']
+
         # close file
         res_file.close()
 
@@ -111,11 +125,13 @@ for o_i, prc_out in enumerate(prc_out_s):
         target_plooneg_s[b_i, o_i] = np.mean(loo_s[b_i, o_i]<0)
         elpd_s[b_i, o_i] = test_elpd_t_A - test_elpd_t_B
 
-        # bootstrap
-        for boot_i in range(n_booti_trial):
-            # take subsample
-            idxs = rng.choice(n_obs, size=n_obs, replace=True)
-            bootlooi_botb[b_i, o_i, :, boot_i] = np.sum(loo_i[:, idxs], axis=-1)
+        # pseudo-bma+
+        loo_tki = np.stack((loo_ti_A, loo_ti_B), axis=1)
+        bma_s[b_i, o_i] = pseudo_bma_p(loo_tki)
+
+        # pseudo-bma for true elpd
+        elpd_tk = np.stack((test_elpd_t_A, test_elpd_t_B), axis=1)
+        bma_elpd_s[b_i, o_i] = pseudo_bma(elpd_tk)
 
 # naive var ratio
 naive_se_ratio_s_mean = np.sqrt(
@@ -153,59 +169,132 @@ pelpdneg_s = np.mean(elpd_s<0, axis=-1)
 
 # misspred: TODO replace with something
 naive_misspred_s = np.abs(naive_plooneg_s-pelpdneg_s[:,:,None])
-
-# bootstrap
-# calc probability of LOO being negative
-booti_plooneg_s = np.mean(bootlooi_botb<0.0, axis=-1)
-# misspred
-boot_misspred_s = np.abs(booti_plooneg_s-pelpdneg_s[:,:,None])
-
-
-# ============================================================================
-# selected ax1 y
-# ax1_y = cor_loo_i_s
-# ax1_y = skew_loo_i_s
-ax1_y = boot_misspred_s
-
-ax1_y_name = r'$|p_\mathrm{boot} - p_\mathrm{target}|$'
+naive_misspred2_s = np.abs(naive_plooneg_s-plpdneg_t)
 
 
 # ===========================================================================
 # plot 1
 
-selected_prc_outs = [0, 1, 2]
-fig, axes = plt.subplots(len(selected_prc_outs), 1, sharex=True)
-for ax_i, ax in enumerate(axes):
-    o_i = selected_prc_outs[ax_i]
+cmap = truncate_colormap(cm.get_cmap('Greys'), 0.4)
+cmap.set_under('white', 1.0)
 
-    # cor
-    median = np.percentile(ax1_y[:,o_i], 50, axis=-1)
-    q025 = np.percentile(ax1_y[:,o_i], 2.5, axis=-1)
-    q975 = np.percentile(ax1_y[:,o_i], 97.5, axis=-1)
-    ax.fill_between(beta_t_s, q025, q975, color='C0', alpha=0.2)
-    ax.plot(beta_t_s, median, 'C0')
-    # ax.plot(beta_t_s, q025, 'C0', alpha=0.5)
-    # ax.plot(beta_t_s, q975, 'C0', alpha=0.5)
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.tick_params(axis='y', labelcolor='C0')
-    ax.set_ylabel(
-        '{} % outliers'.format(int(prc_out_s[o_i]*100))
-        + '\n'
-        + ax1_y_name
-    )
-    # naive_misspred_s
-    ax2 = ax.twinx()
-    median = np.percentile(naive_misspred_s[:,o_i], 50, axis=-1)
-    q025 = np.percentile(naive_misspred_s[:,o_i], 2.5, axis=-1)
-    q975 = np.percentile(naive_misspred_s[:,o_i], 97.5, axis=-1)
-    ax2.fill_between(beta_t_s, q025, q975, color='C1', alpha=0.2)
-    ax2.plot(beta_t_s, median, 'C1')
-    ax2.set_ylim((0, 1))
-    # ax2.plot(beta_t_s, q025, 'C1', alpha=0.5)
-    # ax2.plot(beta_t_s, q975, 'C1', alpha=0.5)
-    ax2.set_ylabel(r'$|p_\mathrm{approx} - p_\mathrm{target}|$')
-    ax2.tick_params(axis='y', labelcolor='C1')
-axes[-1].set_xlabel(r'$\beta_t$')
-# axes[-1].set_xlim(right=6.0)
-fig.tight_layout()
+data_x = loo_s[0:5,:].ravel()
+# data_y = plpdneg_t[0,0].ravel()
+data_y = np.tile(pelpdneg_s[0:5,:], (1,1, n_trial)).ravel()
+
+# idxs = (-3 < data_x) & (data_x < 3)
+# data_x = data_x[idxs]
+# data_y = data_y[idxs]
+
+# plt.plot(data_x, data_y, '.')
+# plt.ylim((0,1))
+
+grid = sns.jointplot(
+    data_x, data_y,
+    kind='hex',
+    height=5,
+    cmap=cmap,
+    # joint_kws=dict(cmin=1),
+)
+grid.set_axis_labels(
+    '$\widehat{\mathrm{elpd}}_\mathrm{D}$',
+    '$\widehat{\mathrm{elpd}}_\mathrm{D}/\widehat{\mathrm{SE}}$'
+)
+plt.clim(vmin=1)
+plt.tight_layout()
+plt.xlim((-3, 3))
+
+
+
+
+# ======================================
+
+data_x = beta_t_s[:7]
+data_y_s = [
+    loo_s[:7],
+    loo_s[:7]/np.sqrt(naive_var_s[:7]),
+    pelpdneg_s[:7],
+    plpdneg_t[:7],
+    bma_s[:7,...,0],
+    bma_elpd_s[:7,...,0]
+]
+data_y_name_s = [
+    r'$\widehat{\mathrm{elpd}}_\mathrm{D}$',
+    r'$\widehat{\mathrm{elpd}}_\mathrm{D}/\widehat{\mathrm{SE}}$',
+    r'$p(\mathrm{elpd}<0)$',
+    r'$p(\mathrm{lpd}<0)$',
+    'pseudo-bma+',
+    'pseudo-bma-true',
+]
+
+for data_y, data_y_name in zip(data_y_s, data_y_name_s):
+
+    selected_prc_outs = [0, 1, 2]
+    fig, axes = plt.subplots(len(selected_prc_outs), 1,
+        sharex=False, sharey=False)
+    for ax_i, ax in enumerate(axes):
+        o_i = selected_prc_outs[ax_i]
+
+        if data_y.ndim == 3:
+            median = np.percentile(data_y[:,o_i], 50, axis=-1)
+            q025 = np.percentile(data_y[:,o_i], 2.5, axis=-1)
+            q975 = np.percentile(data_y[:,o_i], 97.5, axis=-1)
+            ax.fill_between(data_x, q025, q975, color='C0', alpha=0.2)
+            ax.plot(data_x, median, 'C0')
+        else:
+            ax.plot(data_x, data_y[:,o_i], 'C0')
+
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.set_ylabel(
+            '{} % outliers'.format(int(prc_out_s[o_i]*100))
+            + '\n'
+            + data_y_name
+        )
+    axes[-1].set_xlabel(r'$\beta_t$')
+    fig.tight_layout()
+
+
+# ======================================
+
+data_x = loo_s
+data_x_name = 'loo_s'
+
+data_y_s = [
+    # loo_s/np.sqrt(naive_var_s),
+    # np.tile(pelpdneg_s[:,:,None], (1, 1, n_trial)),
+    1-plpdneg_t,
+    bma_s[...,0],
+    bma_elpd_s[...,0],
+]
+data_y_name_s = [
+    # r'$\widehat{\mathrm{elpd}}_\mathrm{D}/\widehat{\mathrm{SE}}$',
+    # r'$p(\mathrm{elpd}<0)$',
+    r'$p(\mathrm{lpd}>0)$',
+    'pseudo-bma+',
+    'pseudo-bma-true',
+]
+
+selected_prc_outs = [0, 1, 2]
+selected_beta_t_s = [0, 1, 2, 5, 10]
+
+for data_y, data_y_name in zip(data_y_s, data_y_name_s):
+
+    fig, axes = plt.subplots(
+        len(selected_prc_outs), len(selected_beta_t_s),
+        sharex=False, sharey=True)
+    for o_ax_i, row in enumerate(axes):
+        for b_ax_i, ax in enumerate(row):
+            o_i = selected_prc_outs[o_ax_i]
+            b_i = selected_beta_t_s[b_ax_i]
+
+            ax.plot(data_x[b_i, o_i], data_y[b_i, o_i], '.', alpha=0.1)
+
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+
+    for ax in axes[-1,:]:
+        ax.set_xlabel(data_x_name)
+    for ax in axes[:,0]:
+        ax.set_ylabel(data_y_name)
+    fig.tight_layout()

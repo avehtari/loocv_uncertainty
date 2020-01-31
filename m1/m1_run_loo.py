@@ -60,13 +60,35 @@ loo_ti_B = calc_loo_ti(ys, X_mat, fixed_sigma2_m)
 
 # model A test
 print('model A test', flush=True)
-test_t_A = calc_test_t(
+test_tl_A = calc_test_tl(
     ys, X_mat[:,:,:-1], ys_test, X_test[:,:,:-1], fixed_sigma2_m)
 # model B test
 print('model B test', flush=True)
-test_t_B = calc_test_t(ys, X_mat, ys_test, X_test, fixed_sigma2_m)
+test_tl_B = calc_test_tl(ys, X_mat, ys_test, X_test, fixed_sigma2_m)
 
 print('done', flush=True)
+
+# calc elpd, vlpd and plpdneg
+test_elpd_t_A = np.mean(test_tl_A, axis=1)
+test_elpd_t_B = np.mean(test_tl_B, axis=1)
+test_lpd_diff = test_tl_A - test_tl_B
+test_vlpd_t = np.var(test_lpd_diff, ddof=1, axis=1)
+test_q025lpd_t = np.percentile(test_lpd_diff, 2.5, axis=1)
+test_q500lpd_t = np.percentile(test_lpd_diff, 50, axis=1)
+test_q975lpd_t = np.percentile(test_lpd_diff, 97.5, axis=1)
+test_plpdneg_t = np.mean(test_lpd_diff<0, axis=1)
+
+
+# test_elpd_diff = test_elpd_t_A - test_elpd_t_B
+# plt.errorbar(
+#     np.sum(loo_ti_A-loo_ti_B, axis=-1),
+#     test_elpd_diff,
+#     ls='',
+#     marker='.',
+#     yerr=np.stack(
+#         (test_elpd_diff-test_q025lpd_t, test_q975lpd_t-test_elpd_diff), axis=0)
+# )
+
 
 # progress print
 time_per_1000 = (time.time() - outer_start_time) * 1000 / n_trial
@@ -89,8 +111,13 @@ np.savez_compressed(
     'res_1/{}/{}.npz'.format(folder_name, run_i_str),
     loo_ti_A=loo_ti_A,
     loo_ti_B=loo_ti_B,
-    test_t_A=test_t_A,
-    test_t_B=test_t_B,
+    test_elpd_t_A=test_elpd_t_A,
+    test_elpd_t_B=test_elpd_t_B,
+    test_vlpd_t=test_vlpd_t,
+    test_q025lpd_t=test_q025lpd_t,
+    test_q500lpd_t=test_q500lpd_t,
+    test_q975lpd_t=test_q975lpd_t,
+    test_plpdneg_t=test_plpdneg_t,
     run_i=run_i,
     fixed_sigma2_m=fixed_sigma2_m,
 )

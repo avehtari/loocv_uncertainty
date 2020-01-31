@@ -44,7 +44,7 @@ do_bma = False
 # grid dims:
 #   sigma2_d  [0.01, 1.0, 100.0]
 #   n_obs     [16, 32, 64, 128, 256, 512, 1024]
-#   beta_t    [0.0, 0.01, 0.1, 1.0, 10.0]
+#   beta_t    [0.0, 0.5, 1.0, 4.0]
 #   prc_out   [0/128, eps, 2/128, 12/128]
 
 
@@ -61,23 +61,36 @@ do_bma = False
 #     n_obs_i, beta_t_i, prc_out_i, sigma2_d_i = run_i_to_params(run_i)
 #     probl_names.append('n_obs={}, out_prc={:.2}'.format(n_obs_i, prc_out_i))
 
-
-# as a function of beta_t with no out and out
+# as a function of n with beta_t = 0 and beta_t = 1.0
 idxs = (
-    [1]*grid_shape[2]*2,
-    [3]*grid_shape[2]*2,
-    list(range(grid_shape[2]))*2,
-    [0]*grid_shape[2] + [1]*grid_shape[2],
+    [1]*grid_shape[1]*2,
+    list(range(grid_shape[1]))*2,
+    [0]*grid_shape[1] + [2]*grid_shape[1],
+    [0]*grid_shape[1]*2,
 )
-
 run_i_s = np.ravel_multi_index(idxs, grid_shape)
 probl_names = []
 for run_i in run_i_s:
     n_obs_i, beta_t_i, prc_out_i, sigma2_d_i = run_i_to_params(run_i)
-    if prc_out_i > 0.0:
-        probl_names.append('b={}, out'.format(beta_t_i))
-    else:
-        probl_names.append('b={}'.format(beta_t_i))
+    probl_names.append('n_obs={}, beta_t={}'.format(n_obs_i, beta_t_i))
+
+
+# # as a function of beta_t with no out and out
+# idxs = (
+#     [1]*grid_shape[2]*2,
+#     [3]*grid_shape[2]*2,
+#     list(range(grid_shape[2]))*2,
+#     [0]*grid_shape[2] + [1]*grid_shape[2],
+# )
+#
+# run_i_s = np.ravel_multi_index(idxs, grid_shape)
+# probl_names = []
+# for run_i in run_i_s:
+#     n_obs_i, beta_t_i, prc_out_i, sigma2_d_i = run_i_to_params(run_i)
+#     if prc_out_i > 0.0:
+#         probl_names.append('b={}, out'.format(beta_t_i))
+#     else:
+#         probl_names.append('b={}'.format(beta_t_i))
 
 # # as a function of prc_out with beta_t=[0.0, 1.0]
 # idxs = (
@@ -132,8 +145,8 @@ for probl_i in range(n_probls):
     # fetch results
     res_A[probl_i] = res_file['loo_ti_A']
     res_B[probl_i] = res_file['loo_ti_B']
-    res_test_A[probl_i] = res_file['test_ti_A']
-    res_test_B[probl_i] = res_file['test_ti_B']
+    res_test_A[probl_i] = res_file['test_t_A']
+    res_test_B[probl_i] = res_file['test_t_B']
     # close file
     res_file.close()
 
@@ -167,8 +180,7 @@ for probl_i in range(n_probls):
     target_skew_s[probl_i] = stats.skew(loo_s[probl_i], bias=False)
     # TODO calc se of this ... formulas online
     target_plooneg_s[probl_i] = np.mean(loo_s[probl_i]<0)
-    elpd_s[probl_i] = np.sum(
-        res_test_A[probl_i] - res_test_B[probl_i], axis=-1)
+    elpd_s[probl_i] = res_test_A[probl_i] - res_test_B[probl_i]
 pelpdneg_s = np.mean(elpd_s<0, axis=-1)
 target_coefvar_s = np.sqrt(target_var_s)/target_mean_s
 
