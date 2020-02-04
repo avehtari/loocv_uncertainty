@@ -20,7 +20,7 @@ fixed_sigma2_m = False
 # [
 #   [sigma_d, ...],     [0.01, 1.0, 100.0]
 #   [n_obs, ...],       [16, 32, 64, 128, 256, 512, 1024]
-#   [beta_t, ...],      [0.0, 0.2, 1.0, 4.0]
+#   [beta_t, ...],      [0.0, 0.1, 1.0, 4.0]
 #   [prc_out, ...]      [0.0, np.nextafter(0,1), 0.01, 0.08]
 # ]
 
@@ -32,16 +32,19 @@ fixed_sigma2_m = False
 # )
 
 idxs = (
-    [1, 1, 1, 1, 2],
-    [6, 1, 6, 6, 6],
-    [2, 2, 0, 2, 2],
-    [0, 0, 0, 2, 0],
+    [1, 1, 1, 1, 1, 2, 2],
+    [6, 1, 6, 6, 6, 6, 1],
+    [2, 2, 0, 1, 2, 2, 0],
+    [0, 0, 0, 0, 2, 0, 2],
 )
 
 run_i_s = np.ravel_multi_index(idxs, grid_shape)
 
 # histogram bins
 cal_nbins = 7
+
+
+fontsize = 16
 
 
 # ============================================================================
@@ -150,8 +153,9 @@ print('calc pseudo-bma, done', flush=True)
 # ============================================================================
 
 
+
 # ============================================================================
-# separate 2x hists
+# pseudo-bma+s
 
 bin_lims = np.r_[
     0.0, 0.05,
@@ -160,54 +164,8 @@ bin_lims = np.r_[
 ]
 # bin_lims = np.arange(0.0, 1.1, 0.1)
 
-for probl_i in range(n_probls):
 
-    n_obs, beta_t, prc_out, sigma2_d = run_i_to_params(run_i_s[probl_i])
-
-    loo = loo_s[probl_i]
-    loo_u2_idx = np.abs(loo)<=2
-    loo_u2 = loo[loo_u2_idx]
-    loo_o2 = loo[~loo_u2_idx]
-
-    x_data_s = [
-        bma_s[probl_i][loo_u2_idx][:,0],
-        bma_s[probl_i][~loo_u2_idx][:,0]
-    ]
-    # x_data_s = [
-    #     bma_elpd_s[probl_i][loo_u2_idx][:,0],
-    #     bma_elpd_s[probl_i][~loo_u2_idx][:,0]
-    # ]
-    fig, axis = plt.subplots(1, 2, sharey=True, figsize=(6,3))
-    for ax, x_data in zip(axis, x_data_s):
-        ax.hist(x_data, bins=bin_lims)
-        ax.set_xlim(0, 1)
-        # ax.set_xlim(0, ???)
-        ax.set_yticks([])
-        ax.tick_params(axis='both', which='major', labelsize=16)
-        ax.tick_params(axis='both', which='minor', labelsize=14)
-        ax.set_xlabel('pseudo-bma+', fontsize=18)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.spines['left'].set_visible(False)
-    fig.tight_layout()
-    fig.suptitle(
-        r'$' +
-        r'n=' + str(n_obs) + ',\; ' +
-        r'\beta_t=' + str(beta_t) + ',\; ' +
-        r'\mathrm{out} \%=' + str(int(prc_out*100)) + ',\; ' +
-        r'\sigma^2_\star=' + str(sigma2_d) +
-        r'$'
-    )
-
-
-# ============================================================================
-# calibrations
-
-q005 = stats.binom.ppf(0.005, n_trial, 1/cal_nbins)
-q995 = stats.binom.ppf(0.995, n_trial, 1/cal_nbins)
-cal_limits = np.linspace(0, 1, cal_nbins+1)
-
-
+fig, axes = plt.subplots(n_probls, 2, figsize=(8,9), sharex=True, sharey='row')
 
 for probl_i in range(n_probls):
 
@@ -217,15 +175,76 @@ for probl_i in range(n_probls):
     loo_u2_idx = np.abs(loo)<=2
     idx_s = [loo_u2_idx, ~loo_u2_idx]
 
+    for col_i, idx_cur in enumerate(idx_s):
 
-    fig, axis = plt.subplots(1, 2, figsize=(6,3))
-    for ax, idx_cur in zip(axis, idx_s):
+        ax = axes[probl_i, col_i]
 
-        if np.sum(idx_cur) < 100:
-            ax.set_visible(False)
+        # calibration counts
+        ax.hist(bma_s[probl_i, idx_cur, 0], bins=bin_lims)
+        ax.set_xlim(0, 1)
+        ax.set_yticks([])
+        ax.tick_params(axis='both', which='major', labelsize=fontsize-2)
+        ax.tick_params(axis='both', which='minor', labelsize=fontsize-4)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+
+    probl_name = (
+        r'$n=' + str(n_obs) + r'$' + '\n' +
+        r'$\beta_t=' + str(beta_t) + r'$' + '\n' +
+        r'$\mathrm{out}\%=' + str(int(prc_out*100)) + r'$' + '\n' +
+        r'$\sigma^2_*=' + str(sigma2_d) + r'$'
+    )
+    ax = axes[probl_i, 0]
+    ax.set_ylabel(
+        probl_name, rotation=0, ha='right', va='center', fontsize=fontsize-2)
+
+for ax in axes[-1,:]:
+    ax.set_xlabel('pseudo-bma+', fontsize=fontsize)
+axes[0,0].set_title(r'$|\mathrm{\widehat{elpd}_D}| \leq 2$', fontsize=fontsize)
+axes[0,1].set_title(r'$|\mathrm{\widehat{elpd}_D}| > 2$', fontsize=fontsize)
+
+fig.tight_layout()
+
+
+
+
+# ============================================================================
+# calibrations
+
+
+cal_limits = np.linspace(0, 1, cal_nbins+1)
+
+
+fig, axes = plt.subplots(n_probls, 2, figsize=(8,9), sharex=True, sharey='row')
+
+for probl_i in range(n_probls):
+
+    n_obs, beta_t, prc_out, sigma2_d = run_i_to_params(run_i_s[probl_i])
+
+    loo = loo_s[probl_i]
+    loo_u2_idx = np.abs(loo)<=2
+    idx_s = [loo_u2_idx, ~loo_u2_idx]
+
+    for col_i, idx_cur in enumerate(idx_s):
+
+        ax = axes[probl_i, col_i]
+
+        n_t_cur = np.sum(idx_cur)
+
+        if n_t_cur < 100:
+            # ax.set_visible(False)
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.spines['bottom'].set_visible(False)
+            ax.spines['left'].set_visible(False)
             continue
 
         # calibration counts
+        q005 = stats.binom.ppf(0.005, n_t_cur, 1/cal_nbins)
+        q995 = stats.binom.ppf(0.995, n_t_cur, 1/cal_nbins)
         diff_pdf = stats.norm.cdf(
             elpd_s[probl_i][idx_cur],
             loc=loo_s[probl_i][idx_cur],
@@ -238,17 +257,35 @@ for probl_i in range(n_probls):
             width=1/cal_nbins,
             align='edge'
         )
-        ax.axhline(n_trial/cal_nbins, color='red', lw=0.5)
+        ax.axhline(n_t_cur/cal_nbins, color='red', lw=0.5)
         ax.fill_between(
             [0,1], [q995, q995], [q005, q005], color='red', alpha=0.2,
             zorder=2)
-        ax.set_ylim((0, cal_counts.max()))
+
+        # ax.set_ylim((0, cal_counts.max()))
         ax.set_xlim((0, 1))
         ax.set_yticks([])
+        ax.tick_params(axis='both', which='major', labelsize=fontsize-2)
+        ax.tick_params(axis='both', which='minor', labelsize=fontsize-4)
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
         # ax.spines['bottom'].set_visible(False)
         ax.spines['left'].set_visible(False)
 
-        ax.set_xlabel('$p(\widetilde{\mathrm{\widehat{elpd}_{d}}}<\mathrm{elpd}_d)$')
-    fig.tight_layout()
+
+    probl_name = (
+        r'$n=' + str(n_obs) + r'$' + '\n' +
+        r'$\beta_t=' + str(beta_t) + r'$' + '\n' +
+        r'$\mathrm{out}\%=' + str(int(prc_out*100)) + r'$' + '\n' +
+        r'$\sigma^2_*=' + str(sigma2_d) + r'$'
+    )
+    ax = axes[probl_i, 0]
+    ax.set_ylabel(
+        probl_name, rotation=0, ha='right', va='center', fontsize=fontsize-2)
+
+for ax in axes[-1,:]:
+    ax.set_xlabel(r'$p(\mathrm{\widehat{elpd}_D}<\mathrm{elpd_D})$', fontsize=fontsize)
+axes[0,0].set_title(r'$|\mathrm{\widehat{elpd}_D}| \leq 2$', fontsize=fontsize)
+axes[0,1].set_title(r'$|\mathrm{\widehat{elpd}_D}| > 2$', fontsize=fontsize)
+
+fig.tight_layout()
