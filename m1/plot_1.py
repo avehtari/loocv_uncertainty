@@ -34,6 +34,12 @@ run_i_s = np.ravel_multi_index(idxs, grid_shape)
 # histogram bins
 cal_nbins = 7
 
+# errorbar SE multiplier
+error_se_multip = 1
+
+# manual zooming
+manual_zoom = True
+
 
 # ============================================================================
 
@@ -140,12 +146,33 @@ cmap.set_under('white', 1.0)
 rng = np.random.RandomState(seed=12345)
 
 for probl_i in range(n_probls):
-    x_arr = loo_s[probl_i]
-    x_err = 2*np.sqrt(naive_var_s[probl_i])
-    y_arr = elpd_s[probl_i]
+    y_arr = loo_s[probl_i]
+    y_err = error_se_multip*np.sqrt(naive_var_s[probl_i])
+    x_arr = elpd_s[probl_i]
+
+    if manual_zoom:
+        if probl_i == 0:
+            idxs = (
+                (-70 < y_arr) & (y_arr < -20) &
+                (-50 < x_arr) & (x_arr < -37)
+            )
+        if probl_i == 1:
+            idxs = (
+                (-1.5 < y_arr) & (y_arr < 2.5) &
+                (-1 < x_arr) & (x_arr < 2.5)
+            )
+        if probl_i == 2:
+            idxs = (
+                (-18 < y_arr) & (y_arr < 9) &
+                (-15 < x_arr) & (x_arr < -4)
+            )
+        y_arr = y_arr[idxs]
+        y_err = y_err[idxs]
+        x_arr = x_arr[idxs]
+
 
     grid = sns.jointplot(
-        y_arr, x_arr,  # flipped
+        x_arr, y_arr,  # flipped
         kind='hex',
         height=4,
         cmap=cmap,
@@ -159,10 +186,10 @@ for probl_i in range(n_probls):
     )
     grid.ax_joint.autoscale(enable=False)
     grid.ax_joint.plot(
-        [min(x_arr.min(), y_arr.min()),
-         max(x_arr.max(), y_arr.max())],
-        [min(x_arr.min(), y_arr.min()),
-         max(x_arr.max(), y_arr.max())],
+        [min(y_arr.min(), x_arr.min()),
+         max(y_arr.max(), x_arr.max())],
+        [min(y_arr.min(), x_arr.min()),
+         max(y_arr.max(), x_arr.max())],
         color='C2'
     )
     plt.clim(vmin=1)
@@ -170,13 +197,13 @@ for probl_i in range(n_probls):
 
     # error points
 
-    # y_locs = np.linspace(y_arr.min(), y_arr.max(), 10)
-    # idxs = np.unique(np.abs(y_arr - y_locs[:,None]).argmin(axis=-1))
+    # x_locs = np.linspace(x_arr.min(), x_arr.max(), 10)
+    # idxs = np.unique(np.abs(x_arr - x_locs[:,None]).argmin(axis=-1))
 
-    y_lims = np.linspace(y_arr.min(), y_arr.max()+1e-10, 11)
+    x_lims = np.linspace(x_arr.min(), x_arr.max()+1e-10, 11)
     idxs = []
-    for y_l, y_u in zip(y_lims[:-1], y_lims[1:]):
-        cur_idxs = (y_l <= y_arr) & (y_arr < y_u)
+    for y_l, y_u in zip(x_lims[:-1], x_lims[1:]):
+        cur_idxs = (y_l <= x_arr) & (x_arr < y_u)
         if cur_idxs.sum() == 0:
             # no obs in this range
             continue
@@ -184,9 +211,9 @@ for probl_i in range(n_probls):
         idxs.append(selected_idx)
 
     grid.ax_joint.errorbar(
-        y_arr[idxs], x_arr[idxs], yerr=x_err[idxs], color='C1', ls='', marker='o')
+        x_arr[idxs], y_arr[idxs], yerr=y_err[idxs], color='C1', ls='', marker='o')
 
-    if probl_i == 1:
+    if probl_i == 1 and not manual_zoom:
         grid.ax_joint.set_ylim(top=3.2)
 
     grid.ax_joint.tick_params(axis='both', which='major', labelsize=16)
