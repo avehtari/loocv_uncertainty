@@ -9,7 +9,7 @@ from scipy import linalg, stats
 # np.random.RandomState().randint(np.iinfo(np.uint32).max)
 data_seed = 247169102
 
-n_trial = 200
+n_trial = 10
 
 # fixed model tau2 value
 tau2 = 1.0
@@ -123,8 +123,8 @@ def calc_analytic_mean(A_mat, b_vec, c_sca, sigma2_d, mu_d=None):
     """Calc analytic loo mean for fixed sigma2."""
     out = c_sca
     if mu_d is not None:
-        out += np.sqrt(sigma2_d)*(b_vec.T.dot(mu_d))
-        out += sigma2_d*(mu_d.T.dot(A_mat).dot(mu_d))
+        out += b_vec.T.dot(mu_d)
+        out += mu_d.T.dot(A_mat).dot(mu_d)
     return out
 
 def calc_analytic_var(A_mat, b_vec, c_sca, sigma2_d, mu_d=None):
@@ -133,8 +133,8 @@ def calc_analytic_var(A_mat, b_vec, c_sca, sigma2_d, mu_d=None):
     out = 2*sigma2_d**2*np.trace(A2)
     out += sigma2_d*(b_vec.T.dot(b_vec))
     if mu_d is not None:
-        out += 4*np.sqrt(sigma2_d)**3*(b_vec.T.dot(A_mat).dot(mu_d))
-        out += 4*sigma2_d**2*(mu_d.T.dot(A2).dot(mu_d))
+        out += 4*sigma2_d*(b_vec.T.dot(A_mat).dot(mu_d))
+        out += 4*sigma2_d*(mu_d.T.dot(A2).dot(mu_d))
     return out
 
 def calc_analytic_moment3(A_mat, b_vec, c_sca, sigma2_d, mu_d=None):
@@ -144,8 +144,8 @@ def calc_analytic_moment3(A_mat, b_vec, c_sca, sigma2_d, mu_d=None):
     out = 8*sigma2_d**3*np.trace(A3)
     out += 6*sigma2_d**2*(b_vec.T.dot(A_mat).dot(b_vec))
     if mu_d is not None:
-        out += 24*np.sqrt(sigma2_d)**5*(b_vec.T.dot(A2).dot(mu_d))
-        out += 24*sigma2_d**3*(mu_d.T.dot(A3).dot(mu_d))
+        out += 24*sigma2_d**2*(b_vec.T.dot(A2).dot(mu_d))
+        out += 24*sigma2_d**2*(mu_d.T.dot(A3).dot(mu_d))
     return out
 
 def calc_analytic_coefvar(A_mat, b_vec, c_sca, sigma2_d, mu_d=None):
@@ -217,22 +217,22 @@ def get_analytic_res(X_mat, beta_t, sigma2_d, mu_d=None):
     # mean
     mean = c_sca
     if mu_d is not None:
-        mean += np.sqrt(sigma2_d)*(b_vec.T.dot(mu_d))
-        mean += sigma2_d*(mu_d_A.dot(mu_d))
+        mean += b_vec.T.dot(mu_d)
+        mean += mu_d_A.dot(mu_d)
 
     # var
     var = 2*sigma2_d**2*np.trace(A2)
     var += sigma2_d*(b_vec.T.dot(b_vec))
     if mu_d is not None:
-        var += 4*np.sqrt(sigma2_d)**3*(mu_d_A.dot(b_vec))
-        var += 4*sigma2_d**2*(mu_d_A.dot(mu_d_A.T))
+        var += 4*sigma2_d*(mu_d_A.dot(b_vec))
+        var += 4*sigma2_d*(mu_d_A.dot(mu_d_A.T))
 
     # moment3
     moment3 = 8*sigma2_d**3*np.trace(A3)
     moment3 += 6*sigma2_d**2*(b_vec_A.dot(b_vec))
     if mu_d is not None:
-        moment3 += 24*np.sqrt(sigma2_d)**5*(b_vec_A.dot(mu_d_A.T))
-        moment3 += 24*sigma2_d**3*(mu_d_A.dot(A_mat.dot(mu_d_A.T)))
+        moment3 += 24*sigma2_d**2*(b_vec_A.dot(mu_d_A.T))
+        moment3 += 24*sigma2_d**2*(mu_d_A.dot(A_mat.dot(mu_d_A.T)))
 
     # coefvar
     coefvar = np.sqrt(var)/mean

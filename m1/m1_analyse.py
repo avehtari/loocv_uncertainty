@@ -145,8 +145,8 @@ for probl_i in range(n_probls):
     # fetch results
     res_A[probl_i] = res_file['loo_ti_A']
     res_B[probl_i] = res_file['loo_ti_B']
-    res_test_A[probl_i] = res_file['test_t_A']
-    res_test_B[probl_i] = res_file['test_t_B']
+    res_test_A[probl_i] = res_file['test_elpd_t_A']
+    res_test_B[probl_i] = res_file['test_elpd_t_B']
     # close file
     res_file.close()
 

@@ -107,8 +107,8 @@ if plot:
     for n_i, ax in enumerate(axes):
         for o_i, prc_out in enumerate(prc_out_s):
             ax = axes[n_i, o_i]
-            ax.axhline(0, color='gray', lw=0.8, zorder=0)
-            data = analytic_mean_s[o_i, :, n_i]/n_obs_s[n_i]
+            ax.axhline(0, color='red', lw=1.0)#, zorder=0)
+            data = analytic_mean_s[o_i, :, n_i]#/n_obs_s[n_i]
             if plot_multilines:
                 ax.plot(
                     beta_t_s,
@@ -129,13 +129,15 @@ if plot:
                 ax.plot(beta_t_s, median)
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
+            ax.tick_params(axis='both', which='major', labelsize=16)
+            ax.tick_params(axis='both', which='minor', labelsize=14)
 
     for ax, prc_out in zip(axes[0,:], prc_out_s):
-        ax.set_title('prc_out={}'.format(prc_out))
+        ax.set_title('prc_out={}'.format(prc_out), fontsize=18)
     for ax in axes[-1,:]:
-        ax.set_xlabel(r'$\beta_t$')
+        ax.set_xlabel(r'$\beta_t$', fontsize=18)
     for ax, n_obs in zip(axes[:,0], n_obs_s):
-        ax.set_ylabel(r'$n={}$'.format(n_obs))
+        ax.set_ylabel(r'$n={}$'.format(n_obs), fontsize=18)
     # fig.suptitle('mean')
     fig.tight_layout()
 
@@ -145,7 +147,7 @@ if plot:
     for n_i, ax in enumerate(axes):
         for o_i, prc_out in enumerate(prc_out_s):
             ax = axes[n_i, o_i]
-            ax.axhline(0, color='gray', lw=0.8, zorder=0)
+            ax.axhline(0, color='red', lw=1.0)#, zorder=0)
             data = analytic_coefvar_s[o_i, :, n_i]
             if plot_multilines:
                 ax.plot(
@@ -167,13 +169,15 @@ if plot:
                 ax.plot(beta_t_s, median)
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
+            ax.tick_params(axis='both', which='major', labelsize=16)
+            ax.tick_params(axis='both', which='minor', labelsize=14)
 
     for ax, prc_out in zip(axes[0,:], prc_out_s):
-        ax.set_title('prc_out={}'.format(prc_out))
+        ax.set_title('prc_out={}'.format(prc_out), fontsize=18)
     for ax in axes[-1,:]:
-        ax.set_xlabel(r'$\beta_t$')
+        ax.set_xlabel(r'$\beta_t$', fontsize=18)
     for ax, n_obs in zip(axes[:,0], n_obs_s):
-        ax.set_ylabel(r'$n={}$'.format(n_obs))
+        ax.set_ylabel(r'$n={}$'.format(n_obs), fontsize=18)
     # fig.suptitle('coefvar')
     fig.tight_layout()
 
@@ -184,7 +188,7 @@ if plot:
     for n_i, ax in enumerate(axes):
         for o_i, prc_out in enumerate(prc_out_s):
             ax = axes[n_i, o_i]
-            ax.axhline(0, color='gray', lw=0.8, zorder=0)
+            ax.axhline(0, color='red', lw=1.0)#, zorder=0)
             data = analytic_skew_s[o_i, :, n_i]
             if plot_multilines:
                 ax.plot(
@@ -201,12 +205,14 @@ if plot:
                 ax.plot(beta_t_s, median)
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
+            ax.tick_params(axis='both', which='major', labelsize=16)
+            ax.tick_params(axis='both', which='minor', labelsize=14)
 
     for ax, prc_out in zip(axes[0,:], prc_out_s):
-        ax.set_title('prc_out={}'.format(prc_out))
+        ax.set_title('prc_out={}'.format(prc_out), fontsize=18)
     for ax in axes[-1,:]:
-        ax.set_xlabel(r'$\beta_t$')
+        ax.set_xlabel(r'$\beta_t$', fontsize=18)
     for ax, n_obs in zip(axes[:,0], n_obs_s):
-        ax.set_ylabel(r'$n={}$'.format(n_obs))
+        ax.set_ylabel(r'$n={}$'.format(n_obs), fontsize=18)
     # fig.suptitle('skew')
     fig.tight_layout()

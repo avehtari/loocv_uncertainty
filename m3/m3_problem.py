@@ -301,8 +301,8 @@ def calc_analytic_mean(A_mat, b_vec, c_sca, sigma2_d, mu_d=None):
     """Calc analytic loo mean for fixed sigma2."""
     out = c_sca
     if mu_d is not None:
-        out += np.sqrt(sigma2_d)*(b_vec.T.dot(mu_d))
-        out += sigma2_d*(mu_d.T.dot(A_mat).dot(mu_d))
+        out += b_vec.T.dot(mu_d)
+        out += mu_d.T.dot(A_mat).dot(mu_d)
     return out
 
 def calc_analytic_var(A_mat, b_vec, c_sca, sigma2_d, mu_d=None):
@@ -311,8 +311,8 @@ def calc_analytic_var(A_mat, b_vec, c_sca, sigma2_d, mu_d=None):
     out = 2*sigma2_d**2*np.trace(A2)
     out += sigma2_d*(b_vec.T.dot(b_vec))
     if mu_d is not None:
-        out += 4*np.sqrt(sigma2_d)**3*(b_vec.T.dot(A_mat).dot(mu_d))
-        out += 4*sigma2_d**2*(mu_d.T.dot(A2).dot(mu_d))
+        out += 4*sigma2_d*(b_vec.T.dot(A_mat).dot(mu_d))
+        out += 4*sigma2_d*(mu_d.T.dot(A2).dot(mu_d))
     return out
 
 def calc_analytic_moment3(A_mat, b_vec, c_sca, sigma2_d, mu_d=None):
@@ -322,8 +322,8 @@ def calc_analytic_moment3(A_mat, b_vec, c_sca, sigma2_d, mu_d=None):
     out = 8*sigma2_d**3*np.trace(A3)
     out += 6*sigma2_d**2*(b_vec.T.dot(A_mat).dot(b_vec))
     if mu_d is not None:
-        out += 24*np.sqrt(sigma2_d)**5*(b_vec.T.dot(A2).dot(mu_d))
-        out += 24*sigma2_d**3*(mu_d.T.dot(A3).dot(mu_d))
+        out += 24*sigma2_d**2*(b_vec.T.dot(A2).dot(mu_d))
+        out += 24*sigma2_d**2*(mu_d.T.dot(A3).dot(mu_d))
     return out
 
 def calc_analytic_coefvar(A_mat, b_vec, c_sca, sigma2_d, mu_d=None):
@@ -345,15 +345,24 @@ def pseudo_bma_p(loo_tki):
     alpha = rng.dirichlet(np.ones(n_obs), size=n_bb_bma)
     z_tkb = np.sum(alpha.T*loo_tki[...,None], axis=-2)
     n_z_tkb = np.multiply(z_tkb, n_obs, out=z_tkb)
-    exp_n_z_tkb = np.exp(n_z_tkb, out=n_z_tkb)
-    sum_exp_n_z_t1b = np.sum(exp_n_z_tkb, axis=-2, keepdims=True)
-    # might contain zeroes
-    w_tkb = np.divide(exp_n_z_tkb, sum_exp_n_z_t1b, out=exp_n_z_tkb)
-    # nanmean because of zeroes
+    # try to avoid precision problems
+    n_z_tkb -= np.max(n_z_tkb, axis=-2, keepdims=True)
+    sum_exp_n_z_t1b_shift = np.sum(np.exp(n_z_tkb), axis=-2, keepdims=True)
+    log_sum = np.log(sum_exp_n_z_t1b_shift, out=sum_exp_n_z_t1b_shift)
+    n_z_tkb -= log_sum
+    w_tkb = np.exp(n_z_tkb, out=n_z_tkb)
+    # nanmean because of possible precision problems
     w_tk = np.nanmean(w_tkb, axis=-1)
     return w_tk
 
 def pseudo_bma(elpd_tk):
-    exp_elpd_tk = np.exp(elpd_tk)
-    w_tk = exp_elpd_tk / np.sum(exp_elpd_tk, axis=-1, keepdims=True)
+    # try to avoid precision problems
+    shift = np.max(elpd_tk, axis=-1, keepdims=True)
+    elpd_tk_shift = elpd_tk - shift
+    w_tk = np.exp(
+        elpd_tk_shift
+        - np.log(
+            np.sum(np.exp(elpd_tk_shift), axis=-1, keepdims=True)
+        )
+    )
     return w_tk

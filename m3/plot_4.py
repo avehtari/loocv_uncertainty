@@ -133,6 +133,49 @@ for b_i, beta_t in enumerate(beta_t_s):
         elpd_tk = np.stack((test_elpd_t_A, test_elpd_t_B), axis=1)
         bma_elpd_s[b_i, o_i] = pseudo_bma(elpd_tk)
 
+# save
+if False:
+    np.savez_compressed(
+        'plot_4_save.npz',
+        loo_s=loo_s,
+        naive_var_s=naive_var_s,
+        cor_loo_i_s=cor_loo_i_s,
+        skew_loo_i_s=skew_loo_i_s,
+        target_mean_s=target_mean_s,
+        target_var_s=target_var_s,
+        target_skew_s=target_skew_s,
+        target_plooneg_s=target_plooneg_s,
+        elpd_s=elpd_s,
+        vlpd_t=vlpd_t,
+        q025lpd_t=q025lpd_t,
+        q500lpd_t=q500lpd_t,
+        q975lpd_t=q975lpd_t,
+        plpdneg_t=plpdneg_t,
+        bma_s=bma_s,
+        bma_elpd_s=bma_elpd_s,
+    )
+
+# load
+if False:
+    save_file = np.load('plot_4_save.npz')
+    loo_s = save_file['loo_s']
+    naive_var_s = save_file['naive_var_s']
+    cor_loo_i_s = save_file['cor_loo_i_s']
+    skew_loo_i_s = save_file['skew_loo_i_s']
+    target_mean_s = save_file['target_mean_s']
+    target_var_s = save_file['target_var_s']
+    target_skew_s = save_file['target_skew_s']
+    target_plooneg_s = save_file['target_plooneg_s']
+    elpd_s = save_file['elpd_s']
+    vlpd_t = save_file['vlpd_t']
+    q025lpd_t = save_file['q025lpd_t']
+    q500lpd_t = save_file['q500lpd_t']
+    q975lpd_t = save_file['q975lpd_t']
+    plpdneg_t = save_file['plpdneg_t']
+    bma_s = save_file['bma_s']
+    bma_elpd_s = save_file['bma_elpd_s']
+    save_file.close()
+
 # naive var ratio
 naive_se_ratio_s_mean = np.sqrt(
     np.mean(naive_var_s, axis=-1)/target_var_s)
