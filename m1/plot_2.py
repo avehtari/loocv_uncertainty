@@ -20,7 +20,7 @@ fixed_sigma2_m = False
 # [
 #   [sigma_d, ...],     [0.01, 1.0, 100.0]
 #   [n_obs, ...],       [16, 32, 64, 128, 256, 512, 1024]
-#   [beta_t, ...],      [0.0, 0.1, 1.0, 4.0]
+#   [beta_t, ...],      [0.0, 0.2, 1.0, 4.0]
 #   [prc_out, ...]      [0.0, np.nextafter(0,1), 0.01, 0.08]
 # ]
 
@@ -140,7 +140,15 @@ for probl_i in range(n_probls):
     bma_s[probl_i] = pseudo_bma_p(loo_tki)
 print('calc pseudo-bma+, done', flush=True)
 
-# pseudo-bma
+# # pseudo-bma-plus-pair   same as pseudo-bma-plus with BB (with SE not)
+# print('calc pseudo-bma+pair', flush=True)
+# bma_pair_s = np.zeros((n_probls, n_trial, 2))
+# for probl_i in range(n_probls):
+#     lood_ti = res_A[probl_i] - res_B[probl_i]
+#     bma_pair_s[probl_i] = pseudo_bma_p_pair(lood_ti)
+# print('calc pseudo-bma+pair, done', flush=True)
+
+# pseudo-bma-true
 print('calc pseudo-bma', flush=True)
 bma_elpd_s = np.zeros((n_probls, n_trial, 2))
 for probl_i in range(n_probls):

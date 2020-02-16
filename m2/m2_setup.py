@@ -9,7 +9,7 @@ from scipy import linalg, stats
 # np.random.RandomState().randint(np.iinfo(np.uint32).max)
 data_seed = 247169102
 
-n_trial = 10
+n_trial = 20
 
 # fixed model tau2 value
 tau2 = 1.0
@@ -38,10 +38,7 @@ class _DataGeneration:
     def __init__(self):
         self.rng = np.random.RandomState(seed=data_seed)
 
-    def make_x_mu(self, n_obs, n_obs_out, sigma2_d, beta_t):
-        beta = np.array([beta_other]*(n_dim-1)+[beta_t])
-        if intercept:
-            beta[0] = beta_intercept
+    def make_x_mu(self, n_obs, n_obs_out, sigma2_d, beta_t=None):
         # X
         if intercept:
             # firs dim (column) ones for intercept
@@ -57,14 +54,20 @@ class _DataGeneration:
             # X_mat = self.rng.uniform(low=-1.0, high=1.0, size=(n_obs, n_dim))
             X_mat = self.rng.randn(n_obs, n_dim)
         # mu
-        outlier_dev_eps = outlier_dev*np.sqrt(sigma2_d + np.sum(beta**2))
-        mu_d = np.zeros(n_obs)
-        out_idx = self.rng.choice(n_obs, size=n_obs_out, replace=False)
-        mu_d[out_idx] = self.rng.choice(
-            [outlier_dev_eps, -outlier_dev_eps],
-            size=n_obs_out,
-            replace=True
-        )
+        if beta_t is not None:
+            beta = np.array([beta_other]*(n_dim-1)+[beta_t])
+            if intercept:
+                beta[0] = beta_intercept
+            outlier_dev_eps = outlier_dev*np.sqrt(sigma2_d + np.sum(beta**2))
+            mu_d = np.zeros(n_obs)
+            out_idx = self.rng.choice(n_obs, size=n_obs_out, replace=False)
+            mu_d[out_idx] = self.rng.choice(
+                [outlier_dev_eps, -outlier_dev_eps],
+                size=n_obs_out,
+                replace=True
+            )
+        else:
+            mu_d = np.zeros(n_obs)
         return X_mat, mu_d
 
 # make this function to share seed when ever called

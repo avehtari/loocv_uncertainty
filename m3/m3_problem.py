@@ -54,8 +54,14 @@ elpd_test_n = 4000
 # pseudo_bma_p seed
 seed_bma = 1022464040
 # pseudo_bma_p bb sample size
-n_bb_bma = 500
+n_bb_bma = 100
 
+# bb_plooneg seed
+seed_bb_var_plooneg = 1022464040
+# pseudo_bma_p bb sample size
+n_bb_plooneg = 100
+# pseudo_bma_p bb sample size
+n_bb_var_plooneg = 100
 
 
 # ===========================================================================
@@ -366,3 +372,25 @@ def pseudo_bma(elpd_tk):
         )
     )
     return w_tk
+
+
+def bb_var_plooneg(loo_ti):
+    rng = np.random.RandomState(seed=seed_bb_var_plooneg)
+    n_obs = loo_ti.shape[-1]
+    alpha = rng.dirichlet(np.ones(n_obs), size=n_bb_var_plooneg)
+    z_tb = np.sum(alpha.T*loo_ti[...,None], axis=-2)
+    z_tb2 = np.sum(alpha.T*(loo_ti[...,None]**2), axis=-2)
+    bb_var = z_tb2 - z_tb**2
+    bb_var *= n_obs
+    n_z_tb = np.multiply(z_tb, n_obs, out=z_tb)
+    bb_plooneg = np.mean(n_z_tb<0, axis=-1)
+    return bb_var, bb_plooneg
+
+def bb_plooneg(loo_ti):
+    rng = np.random.RandomState(seed=seed_bb_var_plooneg)
+    n_obs = loo_ti.shape[-1]
+    alpha = rng.dirichlet(np.ones(n_obs), size=n_bb_plooneg)
+    z_tb = np.sum(alpha.T*loo_ti[...,None], axis=-2)
+    n_z_tb = np.multiply(z_tb, n_obs, out=z_tb)
+    bb_plooneg = np.mean(n_z_tb<0, axis=-1)
+    return bb_plooneg

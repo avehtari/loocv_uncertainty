@@ -12,8 +12,12 @@ eps = (
 """
 
 
+import sys
+
 import numpy as np
 from scipy import linalg, stats
+
+from scipy.special import expit as logistic_fun
 
 
 # ===========================================================================
@@ -30,7 +34,7 @@ n_obs_s = [16, 32, 64, 128, 256, 512, 1024]
 # epsilon sigma2_d_s
 sigma2_d_s = [0.01, 1.0, 100.0]
 # last covariate effect not used in model A
-beta_t_s = [0.0, 0.1, 1.0, 4.0]
+beta_t_s = [0.0, 0.2, 1.0, 4.0]
 # percentage of outliers (np.nextafter(0,1) corresponds to always 1 out)
 prc_out_s = [0.0, np.nextafter(0,1), 0.01, 0.08]
 
@@ -56,6 +60,13 @@ elpd_test_n = 4000
 seed_bma = 1022464040
 # pseudo_bma_p bb sample size
 n_bb_bma = 100
+
+# bb_plooneg seed
+seed_bb_var_plooneg = 1022464040
+# pseudo_bma_p bb sample size
+n_bb_plooneg = 100
+# pseudo_bma_p bb sample size
+n_bb_var_plooneg = 100
 
 
 
@@ -355,6 +366,16 @@ def pseudo_bma_p(loo_tki):
     w_tk = np.nanmean(w_tkb, axis=-1)
     return w_tk
 
+def pseudo_bma_p_pair(lood_ti):
+    rng = np.random.RandomState(seed=seed_bma)
+    n_obs = lood_ti.shape[-1]
+    alpha = rng.dirichlet(np.ones(n_obs), size=n_bb_bma)
+    z_tb = np.sum(alpha.T*lood_ti[...,None], axis=-2)
+    n_z_tb = np.multiply(z_tb, n_obs, out=z_tb)
+    w_tb = logistic_fun(n_z_tb, out=n_z_tb)
+    w_t = np.nanmean(w_tb, axis=-1)
+    return w_t
+
 def pseudo_bma(elpd_tk):
     # try to avoid precision problems
     shift = np.max(elpd_tk, axis=-1, keepdims=True)
@@ -366,3 +387,40 @@ def pseudo_bma(elpd_tk):
         )
     )
     return w_tk
+
+def pseudo_bma_p_se(loo_tki):
+    n_obs = loo_tki.shape[-1]
+    var_s = np.var(loo_tki, axis=-1, ddof=1)
+    var_s *= n_obs
+    loo_s = np.sum(loo_tki, axis=-1)
+    loo_s -= 0.5*np.sqrt(var_s)
+    return pseudo_bma(loo_s)
+
+def pseudo_bma_p_se_pair(lood_ti):
+    n_obs = lood_ti.shape[-1]
+    var_s = np.var(lood_ti, axis=-1, ddof=1)
+    var_s *= n_obs
+    loo_s = np.sum(lood_ti, axis=-1)
+    loo_s -= 0.5*np.sqrt(var_s)
+    return logistic_fun(loo_s)
+
+def bb_var_plooneg(loo_ti):
+    rng = np.random.RandomState(seed=seed_bb_var_plooneg)
+    n_obs = loo_ti.shape[-1]
+    alpha = rng.dirichlet(np.ones(n_obs), size=n_bb_var_plooneg)
+    z_tb = np.sum(alpha.T*loo_ti[...,None], axis=-2)
+    z_tb2 = np.sum(alpha.T*(loo_ti[...,None]**2), axis=-2)
+    bb_var = z_tb2 - z_tb**2
+    bb_var *= n_obs
+    n_z_tb = np.multiply(z_tb, n_obs, out=z_tb)
+    bb_plooneg = np.mean(n_z_tb<0, axis=-1)
+    return bb_var, bb_plooneg
+
+def bb_plooneg(loo_ti):
+    rng = np.random.RandomState(seed=seed_bb_var_plooneg)
+    n_obs = loo_ti.shape[-1]
+    alpha = rng.dirichlet(np.ones(n_obs), size=n_bb_plooneg)
+    z_tb = np.sum(alpha.T*loo_ti[...,None], axis=-2)
+    n_z_tb = np.multiply(z_tb, n_obs, out=z_tb)
+    bb_plooneg = np.mean(n_z_tb<0, axis=-1)
+    return bb_plooneg

@@ -30,6 +30,11 @@ fixed_sigma2_m = False
 bb_n = 1000
 bb_a = 1.0
 
+# bootstrap skew
+skew_boot_n = 200
+
+selected_beta_t_s = np.arange(21)
+
 # ============================================================================
 
 def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
@@ -55,23 +60,30 @@ rng = np.random.RandomState(seed=seed_analysis)
 
 n_obs = 128
 
-loo_s = np.zeros((grid_shape[2], grid_shape[3], n_trial))
-naive_var_s = np.zeros((grid_shape[2], grid_shape[3], n_trial))
-cor_loo_i_s = np.zeros((grid_shape[2], grid_shape[3], n_trial))
-skew_loo_i_s = np.zeros((grid_shape[2], grid_shape[3], n_trial))
+beta_t_s_slice = beta_t_s[selected_beta_t_s]
 
-target_mean_s = np.zeros((grid_shape[2], grid_shape[3]))
-target_var_s = np.zeros((grid_shape[2], grid_shape[3]))
-# target_Sigma_s = np.zeros((grid_shape[2], grid_shape[3], n_obs, n_obs))
-target_skew_s = np.zeros((grid_shape[2], grid_shape[3]))
-target_plooneg_s = np.zeros((grid_shape[2], grid_shape[3]))
-elpd_s = np.zeros((grid_shape[2], grid_shape[3], n_trial))
+loo_s = np.zeros((len(selected_beta_t_s), grid_shape[3], n_trial))
+naive_var_s = np.zeros((len(selected_beta_t_s), grid_shape[3], n_trial))
+cor_loo_i_s = np.zeros((len(selected_beta_t_s), grid_shape[3], n_trial))
+skew_loo_i_s = np.zeros((len(selected_beta_t_s), grid_shape[3], n_trial))
+bb_plooneg_s = np.zeros((len(selected_beta_t_s), grid_shape[3], n_trial))
 
+target_mean_s = np.zeros((len(selected_beta_t_s), grid_shape[3]))
+target_var_s = np.zeros((len(selected_beta_t_s), grid_shape[3]))
+# target_Sigma_s = np.zeros((len(selected_beta_t_s), grid_shape[3], n_obs, n_obs))
+target_skew_s = np.zeros((len(selected_beta_t_s), grid_shape[3]))
+target_skew_s_boot = np.zeros((len(selected_beta_t_s), grid_shape[3], skew_boot_n))
+target_plooneg_s = np.zeros((len(selected_beta_t_s), grid_shape[3]))
+elpd_s = np.zeros((len(selected_beta_t_s), grid_shape[3], n_trial))
+
+bma_s = np.zeros((len(selected_beta_t_s), grid_shape[3], n_trial, 2))
+bma_elpd_s = np.zeros((len(selected_beta_t_s), grid_shape[3], n_trial, 2))
 
 # load results
 for o_i, prc_out in enumerate(prc_out_s):
-    for b_i, beta_t in enumerate(beta_t_s):
-        run_i = np.ravel_multi_index([0, 0, b_i, o_i], grid_shape)
+    for b_i, b_ii in enumerate(selected_beta_t_s):
+        beta_t = beta_t_s[b_ii]
+        run_i = np.ravel_multi_index([0, 0, b_ii, o_i], grid_shape)
         res_file = np.load(
             'res_3/{}/{}.npz'
             .format(folder_name, str(run_i).zfill(4))
@@ -95,15 +107,31 @@ for o_i, prc_out in enumerate(prc_out_s):
                 loo_ti_A[trial_i], loo_ti_B[trial_i])[0, 1]
         skew_loo_i_s[b_i, o_i] = stats.skew(
             loo_i, axis=-1, bias=False)
+        bb_plooneg_s[b_i, o_i] = bb_plooneg(loo_i)
 
         # calc some target values
         target_mean_s[b_i, o_i] = np.mean(loo_s[b_i, o_i])
         target_var_s[b_i, o_i] = np.var(loo_s[b_i, o_i], ddof=1)
         # target_Sigma_s[b_i, o_i] = np.cov(loo_i, ddof=1, rowvar=False)
         target_skew_s[b_i, o_i] = stats.skew(loo_s[b_i, o_i], bias=False)
+
+        for boot_i in range(skew_boot_n):
+            boot_loo = rng.choice(loo_s[b_i, o_i], size=n_obs, replace=True)
+            target_skew_s_boot[b_i, o_i, boot_i] = stats.skew(
+                boot_loo, bias=False)
+
         # TODO calc se of this ... formulas online
+
         target_plooneg_s[b_i, o_i] = np.mean(loo_s[b_i, o_i]<0)
         elpd_s[b_i, o_i] = test_elpd_t_A - test_elpd_t_B
+
+        # pseudo-bma+
+        loo_tki = np.stack((loo_ti_A, loo_ti_B), axis=1)
+        bma_s[b_i, o_i] = pseudo_bma_p(loo_tki)
+
+        # pseudo-bma for true elpd
+        elpd_tk = np.stack((test_elpd_t_A, test_elpd_t_B), axis=1)
+        bma_elpd_s[b_i, o_i] = pseudo_bma(elpd_tk)
 
 # naive var ratio
 naive_se_ratio_s_mean = np.sqrt(
@@ -143,127 +171,117 @@ pelpdneg_s = np.mean(elpd_s<0, axis=-1)
 naive_misspred_s = np.abs(naive_plooneg_s-pelpdneg_s[:,:,None])
 
 
-# ============================================================================
-# selected ax1 y
-ax1_y = cor_loo_i_s
-# ax1_y = skew_loo_i_s
-
-ax1_y_name = r'$\widehat{\mathrm{Corr}}(\pi_{\mathrm{A},\,i}, \pi_{\mathrm{B},\,i})$'
-
 # ===========================================================================
 # plot 1
 
-selected_prc_outs = [0, 1, 2]
-fig, axes = plt.subplots(len(selected_prc_outs), 1, sharex=True)
-for ax_i, ax in enumerate(axes):
-    o_i = selected_prc_outs[ax_i]
+selected_prc_outs = [0, 1]
+for o_i in range(len(selected_prc_outs)):
 
-    # cor
-    median = np.percentile(ax1_y[:,o_i], 50, axis=-1)
-    q025 = np.percentile(ax1_y[:,o_i], 2.5, axis=-1)
-    q975 = np.percentile(ax1_y[:,o_i], 97.5, axis=-1)
-    ax.fill_between(beta_t_s, q025, q975, color='C0', alpha=0.2)
-    ax.plot(beta_t_s, median, 'C0')
-    # ax.plot(beta_t_s, q025, 'C0', alpha=0.5)
-    # ax.plot(beta_t_s, q975, 'C0', alpha=0.5)
+    fig, axes = plt.subplots(7, 1, sharex=True, figsize=(6,10))
+
+    # loo
+    ax = axes[0]
+    data_y = loo_s[:,o_i]
+    median = np.percentile(data_y, 50, axis=-1)
+    q025 = np.percentile(data_y, 2.5, axis=-1)
+    q975 = np.percentile(data_y, 97.5, axis=-1)
+    ax.fill_between(beta_t_s_slice, q025, q975, color='C0', alpha=0.2)
+    ax.plot(beta_t_s_slice, median, 'C0')
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-    ax.tick_params(axis='y', labelcolor='C0')
-    ax.set_ylabel(
-        '{} % outliers'.format(int(prc_out_s[o_i]*100))
-        + '\n'
-        + ax1_y_name
-    )
-    # naive_misspred_s
-    ax2 = ax.twinx()
-    median = np.percentile(naive_misspred_s[:,o_i], 50, axis=-1)
-    q025 = np.percentile(naive_misspred_s[:,o_i], 2.5, axis=-1)
-    q975 = np.percentile(naive_misspred_s[:,o_i], 97.5, axis=-1)
-    ax2.fill_between(beta_t_s, q025, q975, color='C1', alpha=0.2)
-    ax2.plot(beta_t_s, median, 'C1')
-    ax2.set_ylim((0, 1))
-    # ax2.plot(beta_t_s, q025, 'C1', alpha=0.5)
-    # ax2.plot(beta_t_s, q975, 'C1', alpha=0.5)
-    ax2.set_ylabel(r'$|p_\mathrm{approx} - p_\mathrm{target}|$')
-    ax2.tick_params(axis='y', labelcolor='C1')
-axes[-1].set_xlabel(r'$\beta_t$')
-# axes[-1].set_xlim(right=6.0)
-fig.tight_layout()
+    ax.tick_params(axis='both', which='major', labelsize=14)
+    ax.tick_params(axis='both', which='minor', labelsize=12)
+    ax.set_ylabel(r'$\mathrm{\widehat{elpd}_D}$', fontsize=16)
 
-
-
-# ===========================================================================
-# plot 2
-
-selected_prc_outs = [0, 1, 2]
-fig, axes = plt.subplots(len(selected_prc_outs), 1, sharex=True)
-for ax_i, ax in enumerate(axes):
-    o_i = selected_prc_outs[ax_i]
-
-    # cor
-    median = np.percentile(ax1_y[:,o_i], 50, axis=-1)
-    q025 = np.percentile(ax1_y[:,o_i], 2.5, axis=-1)
-    q975 = np.percentile(ax1_y[:,o_i], 97.5, axis=-1)
-    ax.fill_between(beta_t_s, q025, q975, color='C0', alpha=0.2)
-    ax.plot(beta_t_s, median, 'C0')
-    # ax.plot(beta_t_s, q025, 'C0', alpha=0.5)
-    # ax.plot(beta_t_s, q975, 'C0', alpha=0.5)
+    # corr
+    ax = axes[1]
+    data_y = cor_loo_i_s[:,o_i]
+    median = np.percentile(data_y, 50, axis=-1)
+    q025 = np.percentile(data_y, 2.5, axis=-1)
+    q975 = np.percentile(data_y, 97.5, axis=-1)
+    ax.fill_between(beta_t_s_slice, q025, q975, color='C0', alpha=0.2)
+    ax.plot(beta_t_s_slice, median, 'C0')
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-    ax.tick_params(axis='y', labelcolor='C0')
-    ax.set_ylabel(
-        '{} % outliers'.format(int(prc_out_s[o_i]*100))
-        + '\n'
-        + ax1_y_name
-    )
-    # target_skew_s
-    ax2 = ax.twinx()
-    ax2.plot(beta_t_s, target_skew_s[:,o_i], 'C1')
-    ax2.set_ylim(top=0)
-    ax2.set_ylabel(r'skewness of $\pi_\mathrm{D}$')
-    ax2.tick_params(axis='y', labelcolor='C1')
-axes[-1].set_xlabel(r'$\beta_t$')
-# axes[-1].set_xlim(right=6.0)
-fig.tight_layout()
+    ax.tick_params(axis='both', which='major', labelsize=14)
+    ax.tick_params(axis='both', which='minor', labelsize=12)
+    ax.set_ylabel('correlation', fontsize=16)
+    ax.set_ylim(cor_loo_i_s.min(), 1.1)
 
-
-# ===========================================================================
-# plot 3
-
-selected_prc_outs = [0, 1, 2]
-fig, axes = plt.subplots(len(selected_prc_outs), 1, sharex=True)
-for ax_i, ax in enumerate(axes):
-    o_i = selected_prc_outs[ax_i]
-
-    # cor
-    median = np.percentile(ax1_y[:,o_i], 50, axis=-1)
-    q025 = np.percentile(ax1_y[:,o_i], 2.5, axis=-1)
-    q975 = np.percentile(ax1_y[:,o_i], 97.5, axis=-1)
-    ax.fill_between(beta_t_s, q025, q975, color='C0', alpha=0.2)
-    ax.plot(beta_t_s, median, 'C0')
-    # ax.plot(beta_t_s, q025, 'C0', alpha=0.5)
-    # ax.plot(beta_t_s, q975, 'C0', alpha=0.5)
+    # skew
+    ax = axes[2]
+    ax.axhline(0, color='red')
+    data_y = target_skew_s_boot[:,o_i]
+    median = np.percentile(data_y, 50, axis=-1)
+    q025 = np.percentile(data_y, 2.5, axis=-1)
+    q975 = np.percentile(data_y, 97.5, axis=-1)
+    ax.fill_between(beta_t_s_slice, q025, q975, color='C0', alpha=0.2)
+    ax.plot(beta_t_s_slice, median, 'C0')
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-    ax.tick_params(axis='y', labelcolor='C0')
-    ax.set_ylabel(
-        '{} % outliers'.format(int(prc_out_s[o_i]*100))
-        + '\n'
-        + ax1_y_name
-    )
+    ax.tick_params(axis='both', which='major', labelsize=14)
+    ax.tick_params(axis='both', which='minor', labelsize=12)
+    ax.set_ylabel('skewness', fontsize=16)
+
     # SE error ratio
-    ax2 = ax.twinx()
-    median = np.percentile(naive_error_ratio_s[:,o_i], 50, axis=-1)
-    q025 = np.percentile(naive_error_ratio_s[:,o_i], 2.5, axis=-1)
-    q975 = np.percentile(naive_error_ratio_s[:,o_i], 97.5, axis=-1)
-    ax2.fill_between(beta_t_s, q025, q975, color='C1', alpha=0.2)
-    ax2.plot(beta_t_s, median, 'C1')
-    # ax2.set_ylim((0, 1))
-    # ax2.plot(beta_t_s, q025, 'C1', alpha=0.5)
-    # ax2.plot(beta_t_s, q975, 'C1', alpha=0.5)
-    # ax2.set_ylabel(r'$\mathrm{naive SE} / \mathrm{SE}(\pi_\mathrm{D} - \mathrm{elpd}_\mathrm{D})$')
-    ax2.set_ylabel('SE ratio')
-    ax2.tick_params(axis='y', labelcolor='C1')
-axes[-1].set_xlabel(r'$\beta_t$')
-# axes[-1].set_xlim(right=6.0)
-fig.tight_layout()
+    ax = axes[3]
+    ax.axhline(1.0, color='red')
+    data_y = naive_error_ratio_s[:,o_i]
+    median = np.percentile(data_y, 50, axis=-1)
+    q025 = np.percentile(data_y, 2.5, axis=-1)
+    q975 = np.percentile(data_y, 97.5, axis=-1)
+    ax.fill_between(beta_t_s_slice, q025, q975, color='C0', alpha=0.2)
+    ax.plot(beta_t_s_slice, median, 'C0')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.tick_params(axis='both', which='major', labelsize=14)
+    ax.tick_params(axis='both', which='minor', labelsize=12)
+    ax.set_ylabel('SE ratio', fontsize=16)
+
+    # BMA true
+    ax = axes[4]
+    data_y = bma_elpd_s[:,o_i,:,0]
+    median = np.percentile(data_y, 50, axis=-1)
+    q025 = np.percentile(data_y, 2.5, axis=-1)
+    q975 = np.percentile(data_y, 97.5, axis=-1)
+    ax.fill_between(beta_t_s_slice, q025, q975, color='C0', alpha=0.2)
+    ax.plot(beta_t_s_slice, median, 'C0')
+    ax.set_ylim(0,1)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.tick_params(axis='both', which='major', labelsize=14)
+    ax.tick_params(axis='both', which='minor', labelsize=12)
+    ax.set_ylabel(r'true pBMA', fontsize=16)
+
+    # pBMA+
+    ax = axes[5]
+    data_y = bma_s[:,o_i,:,0]
+    median = np.percentile(data_y, 50, axis=-1)
+    q025 = np.percentile(data_y, 2.5, axis=-1)
+    q975 = np.percentile(data_y, 97.5, axis=-1)
+    ax.fill_between(beta_t_s_slice, q025, q975, color='C0', alpha=0.2)
+    ax.plot(beta_t_s_slice, median, 'C0')
+    ax.set_ylim(0,1)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.tick_params(axis='both', which='major', labelsize=14)
+    ax.tick_params(axis='both', which='minor', labelsize=12)
+    ax.set_ylabel(r'pBMA+', fontsize=16)
+
+    # bb_plooneg_s
+    ax = axes[6]
+    data_y = 1-bb_plooneg_s[:,o_i,:]
+    median = np.percentile(data_y, 50, axis=-1)
+    q025 = np.percentile(data_y, 2.5, axis=-1)
+    q975 = np.percentile(data_y, 97.5, axis=-1)
+    ax.fill_between(beta_t_s_slice, q025, q975, color='C0', alpha=0.2)
+    ax.plot(beta_t_s_slice, median, 'C0')
+    ax.set_ylim(0,1)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.tick_params(axis='both', which='major', labelsize=14)
+    ax.tick_params(axis='both', which='minor', labelsize=12)
+    ax.set_ylabel(r'$\mathrm{Pr}(\mathrm{\widehat{elpd}_d}>0)$', fontsize=16)
+
+    axes[-1].set_xlabel(r'$\beta_t$', fontsize=16)
+    fig.tight_layout()
