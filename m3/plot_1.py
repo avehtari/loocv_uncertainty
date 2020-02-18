@@ -175,12 +175,15 @@ naive_misspred_s = np.abs(naive_plooneg_s-pelpdneg_s[:,:,None])
 # plot 1
 
 selected_prc_outs = [0, 1]
+
+fig, axes = plt.subplots(
+    7, len(selected_prc_outs), sharex=True, sharey='row', figsize=(6,10))
+
 for o_i in range(len(selected_prc_outs)):
 
-    fig, axes = plt.subplots(7, 1, sharex=True, figsize=(6,10))
 
     # loo
-    ax = axes[0]
+    ax = axes[0, o_i]
     data_y = loo_s[:,o_i]
     median = np.percentile(data_y, 50, axis=-1)
     q025 = np.percentile(data_y, 2.5, axis=-1)
@@ -191,10 +194,11 @@ for o_i in range(len(selected_prc_outs)):
     ax.spines['right'].set_visible(False)
     ax.tick_params(axis='both', which='major', labelsize=14)
     ax.tick_params(axis='both', which='minor', labelsize=12)
-    ax.set_ylabel(r'$\mathrm{\widehat{elpd}_D}$', fontsize=16)
+    if o_i == 0:
+        ax.set_ylabel(r'$\mathrm{\widehat{elpd}_D}$', fontsize=16)
 
     # corr
-    ax = axes[1]
+    ax = axes[1, o_i]
     data_y = cor_loo_i_s[:,o_i]
     median = np.percentile(data_y, 50, axis=-1)
     q025 = np.percentile(data_y, 2.5, axis=-1)
@@ -205,11 +209,12 @@ for o_i in range(len(selected_prc_outs)):
     ax.spines['right'].set_visible(False)
     ax.tick_params(axis='both', which='major', labelsize=14)
     ax.tick_params(axis='both', which='minor', labelsize=12)
-    ax.set_ylabel('correlation', fontsize=16)
+    if o_i == 0:
+        ax.set_ylabel('correlation\ndiagnostic', fontsize=16)
     ax.set_ylim(cor_loo_i_s.min(), 1.1)
 
     # skew
-    ax = axes[2]
+    ax = axes[2, o_i]
     ax.axhline(0, color='red')
     data_y = target_skew_s_boot[:,o_i]
     median = np.percentile(data_y, 50, axis=-1)
@@ -221,10 +226,11 @@ for o_i in range(len(selected_prc_outs)):
     ax.spines['right'].set_visible(False)
     ax.tick_params(axis='both', which='major', labelsize=14)
     ax.tick_params(axis='both', which='minor', labelsize=12)
-    ax.set_ylabel('skewness', fontsize=16)
+    if o_i == 0:
+        ax.set_ylabel('true\nskewness', fontsize=16)
 
     # SE error ratio
-    ax = axes[3]
+    ax = axes[3, o_i]
     ax.axhline(1.0, color='red')
     data_y = naive_error_ratio_s[:,o_i]
     median = np.percentile(data_y, 50, axis=-1)
@@ -236,10 +242,11 @@ for o_i in range(len(selected_prc_outs)):
     ax.spines['right'].set_visible(False)
     ax.tick_params(axis='both', which='major', labelsize=14)
     ax.tick_params(axis='both', which='minor', labelsize=12)
-    ax.set_ylabel('SE ratio', fontsize=16)
+    if o_i == 0:
+        ax.set_ylabel('SE error\nratio', fontsize=16)
 
     # BMA true
-    ax = axes[4]
+    ax = axes[4, o_i]
     data_y = bma_elpd_s[:,o_i,:,0]
     median = np.percentile(data_y, 50, axis=-1)
     q025 = np.percentile(data_y, 2.5, axis=-1)
@@ -251,10 +258,11 @@ for o_i in range(len(selected_prc_outs)):
     ax.spines['right'].set_visible(False)
     ax.tick_params(axis='both', which='major', labelsize=14)
     ax.tick_params(axis='both', which='minor', labelsize=12)
-    ax.set_ylabel(r'true pBMA', fontsize=16)
+    if o_i == 0:
+        ax.set_ylabel('true\npBMA', fontsize=16)
 
     # pBMA+
-    ax = axes[5]
+    ax = axes[5, o_i]
     data_y = bma_s[:,o_i,:,0]
     median = np.percentile(data_y, 50, axis=-1)
     q025 = np.percentile(data_y, 2.5, axis=-1)
@@ -266,10 +274,11 @@ for o_i in range(len(selected_prc_outs)):
     ax.spines['right'].set_visible(False)
     ax.tick_params(axis='both', which='major', labelsize=14)
     ax.tick_params(axis='both', which='minor', labelsize=12)
-    ax.set_ylabel(r'pBMA+', fontsize=16)
+    if o_i == 0:
+        ax.set_ylabel(r'pBMA+', fontsize=16)
 
     # bb_plooneg_s
-    ax = axes[6]
+    ax = axes[6, o_i]
     data_y = 1-bb_plooneg_s[:,o_i,:]
     median = np.percentile(data_y, 50, axis=-1)
     q025 = np.percentile(data_y, 2.5, axis=-1)
@@ -281,7 +290,11 @@ for o_i in range(len(selected_prc_outs)):
     ax.spines['right'].set_visible(False)
     ax.tick_params(axis='both', which='major', labelsize=14)
     ax.tick_params(axis='both', which='minor', labelsize=12)
-    ax.set_ylabel(r'$\mathrm{Pr}(\mathrm{\widehat{elpd}_d}>0)$', fontsize=16)
+    if o_i == 0:
+        ax.set_ylabel(r'$\mathrm{Pr}(\mathrm{\widehat{elpd}_d}>0)$', fontsize=16)
 
-    axes[-1].set_xlabel(r'$\beta_t$', fontsize=16)
-    fig.tight_layout()
+for ax in axes[-1,:]:
+    ax.set_xlabel(r'$\beta_t$', fontsize=16)
+axes[0,0].set_title('no outliers', fontsize=16)
+axes[0,1].set_title('1 % outliers', fontsize=16)
+fig.tight_layout()

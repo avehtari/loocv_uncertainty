@@ -316,8 +316,20 @@ for o_i, o_ii in enumerate(selected_prc_outs):
 
     for b_i, b_ii in enumerate(selected_betas):
         beta_t = beta_t_s[b_ii]
+        loo_mean = loo_s[o_i, b_i, n_i].mean()
         ax = axes[0, b_i]
-        ax.set_title(r'$\beta_t={}$'.format(beta_t),fontsize=16)
+        title_text = (
+            r'$\beta_t={}$'.format(beta_t)
+            + '\n'
+            + r'$\mathrm{E}[\mathrm{\widehat{elpd}_d}]='
+            + (
+                '{:.1f}'.format(loo_mean)
+                if np.abs(loo_mean) < 1.0 else
+                str(int(round(loo_mean)))
+            )
+            + '$'
+        )
+        ax.set_title(title_text,fontsize=16)
 
     fig.tight_layout()
     fig.subplots_adjust(left=0.2)

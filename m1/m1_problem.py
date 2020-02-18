@@ -59,14 +59,14 @@ elpd_test_n = 4000
 # pseudo_bma_p seed
 seed_bma = 1022464040
 # pseudo_bma_p bb sample size
-n_bb_bma = 100
+n_bb_bma = 500
 
 # bb_plooneg seed
 seed_bb_var_plooneg = 1022464040
 # pseudo_bma_p bb sample size
-n_bb_plooneg = 100
+n_bb_plooneg = 500
 # pseudo_bma_p bb sample size
-n_bb_var_plooneg = 100
+n_bb_var_plooneg = 500
 
 
 
