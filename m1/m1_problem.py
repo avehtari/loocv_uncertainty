@@ -31,10 +31,13 @@ seed = 2958319585
 # grid params and default values
 # number of obs in one trial
 n_obs_s = [16, 32, 64, 128, 256, 512, 1024]
+# n_obs_s = [16, 22, 32, 45, 64, 90, 128, 181, 256, 362, 512, 724, 1024]
 # epsilon sigma2_d_s
 sigma2_d_s = [0.01, 1.0, 100.0]
+# sigma2_d_s = [1.0]
 # last covariate effect not used in model A
 beta_t_s = [0.0, 0.2, 1.0, 4.0]
+# beta_t_s = [0.0, 0.1, 0.2, 0.3, 0.4, 0.6, 0.8, 1.0, 2.0]
 # percentage of outliers (np.nextafter(0,1) corresponds to always 1 out)
 prc_out_s = [0.0, np.nextafter(0,1), 0.01, 0.08]
 
@@ -59,14 +62,14 @@ elpd_test_n = 4000
 # pseudo_bma_p seed
 seed_bma = 1022464040
 # pseudo_bma_p bb sample size
-n_bb_bma = 500
+n_bb_bma = 200
 
 # bb_plooneg seed
 seed_bb_var_plooneg = 1022464040
 # pseudo_bma_p bb sample size
-n_bb_plooneg = 500
+n_bb_plooneg = 200
 # pseudo_bma_p bb sample size
-n_bb_var_plooneg = 500
+n_bb_var_plooneg = 200
 
 
 

@@ -73,6 +73,8 @@ cmap_div_black = LinearSegmentedColormap.from_list(
         'div_black', cmap_colors, N=256)
 
 
+bb_instead_of_naive = False
+
 # ============================================================================
 
 
@@ -267,6 +269,11 @@ cmap_man_fix.set_under('white', 1.0)
 
 binlims = np.arange(0, 1.01, 0.05)
 
+if bb_instead_of_naive:
+    data_y_s = bb_plooneg_s
+else:
+    data_y_s = naive_plooneg_s
+
 
 for o_i, o_ii in enumerate(selected_prc_outs):
     prc_out = prc_out_s[o_ii]
@@ -287,7 +294,7 @@ for o_i, o_ii in enumerate(selected_prc_outs):
 
             ax.plot([0,1], [0,1], color='red', alpha=0.7)
 
-            data_x = 1-bb_plooneg_s[o_i, b_i, n_i]
+            data_x = 1-data_y_s[o_i, b_i, n_i]
             data_y = bma_s[o_i, b_i, n_i, :, 0]
 
             # manual fix for only 1 bin -> too light

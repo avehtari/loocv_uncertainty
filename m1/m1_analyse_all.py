@@ -36,9 +36,6 @@ n_booti_trial = 1000
 cal_nbins = 5
 
 
-# pseudo-bma+
-do_bma = False
-
 
 # ============================================================================
 # Select a lot of problems
@@ -53,10 +50,10 @@ do_bma = False
 idxs = list(map(
     np.ravel,
     np.meshgrid(
-        [0, 1, 2],
+        [1],
         [1, 2, 3, 4, 5],
         np.arange(grid_shape[2]),
-        [0, 2, 3],
+        [0],
     )
 ))
 run_i_s = np.ravel_multi_index(idxs, grid_shape)
@@ -99,6 +96,9 @@ target_skew_s = np.zeros((n_probls))
 target_plooneg_s = np.zeros((n_probls))
 elpd_s = np.zeros((n_probls, n_trial))
 
+bma_s = np.zeros((n_probls, n_trial, 2))
+bma_elpd_s = np.zeros((n_probls, n_trial, 2))
+
 
 # load results
 res_A = np.empty(n_probls, dtype=object)
@@ -114,8 +114,8 @@ for probl_i in range(n_probls):
     # fetch results
     res_A[probl_i] = res_file['loo_ti_A']
     res_B[probl_i] = res_file['loo_ti_B']
-    res_test_A[probl_i] = res_file['test_ti_A']
-    res_test_B[probl_i] = res_file['test_ti_B']
+    res_test_A[probl_i] = res_file['test_elpd_t_A']
+    res_test_B[probl_i] = res_file['test_elpd_t_B']
     # close file
     res_file.close()
 
@@ -143,8 +143,13 @@ for probl_i in range(n_probls):
     target_skew_s[probl_i] = stats.skew(loo_s[probl_i], bias=False)
     # TODO calc se of this ... formulas online
     target_plooneg_s[probl_i] = np.mean(loo_s[probl_i]<0)
-    elpd_s[probl_i] = np.sum(
-        res_test_A[probl_i] - res_test_B[probl_i], axis=-1)
+    elpd_s[probl_i] = res_test_A[probl_i] - res_test_B[probl_i]
+    # bma
+    loo_tki = np.stack((res_A[probl_i], res_B[probl_i]), axis=1)
+    bma_s[probl_i] = pseudo_bma_p(loo_tki)
+    # bma_pair_s[o_i, b_i, n_i] = pseudo_bma_p_pair(loo_i)
+    elpd_tk = np.stack((res_test_A[probl_i], res_test_B[probl_i]), axis=1)
+    bma_elpd_s[probl_i] = pseudo_bma(elpd_tk)
 pelpdneg_s = np.mean(elpd_s<0, axis=-1)
 # target_coefvar_s = np.sqrt(target_var_s)/target_mean_s
 
@@ -162,9 +167,55 @@ del(res_A, res_B, res_test_A, res_test_B)
 
 
 # loo_i_cors vs |naive_plooneg-plooneg|
-# plt.plot(cor_loo_i_s.flat, naive_misspred_s.flat, '.')
-sns.jointplot(cor_loo_i_s.flat, naive_misspred_s.flat, kind="hex", color="k")
+plt.plot(cor_loo_i_s.flat, naive_misspred_s.flat, '.')
 
+
+idxs = (np.abs(loo_s.ravel())>4.0)
+plt.plot(bma_s[:,:,0].ravel()[idxs], 1-naive_plooneg_s.ravel()[idxs], '.')
+plt.plot([0,1], [0,1], 'red')
+
+
+idxs = (np.abs(loo_s.ravel())>4.0)
+data_x = np.abs(bma_s[:,:,0].ravel()[idxs] - (1-naive_plooneg_s.ravel()[idxs]))
+data_y = np.abs(naive_plooneg_s-pelpdneg_s[:,None]).ravel()[idxs]
+plt.plot(data_x, data_y, '.')
+
+sns.jointplot(data_x[data_x>0.02], data_y[data_x>0.02],  kind="hex", color="k")
+
+
+###
+# find idx for big diff in bme vs p SE
+(bma_s[:,:,0].ravel() - (1-naive_plooneg_s).ravel()).argmax()
+idx = (bma_s[:,:,0].ravel() - (1-naive_plooneg_s).ravel()).argmax()
+np.unravel_index(idx, grid_shape+(n_trial,))
+
+
+###
+
+idxs = (np.abs(loo_s.ravel())>4.0)
+plt.plot(
+    cor_loo_i_s.ravel()[idxs],
+    bma_elpd_s[:,:,0].ravel()[idxs] - bma_s[:,:,0].ravel()[idxs],
+    '.'
+)
+
+data_x = cor_loo_i_s.ravel()[idxs]
+data_y = bma_elpd_s[:,:,0].ravel()[idxs] - bma_s[:,:,0].ravel()[idxs]
+sns.jointplot(
+    data_x[np.abs(data_y)>0.08],
+    data_y[np.abs(data_y)>0.08],
+    kind='hex',
+    color='k'
+)
+
+
+
+
+
+
+
+
+sns.jointplot(cor_loo_i_s.flat, naive_misspred_s.flat, kind="hex", color="k")
 
 # 2d histogram one or nothing
 counts, x_edges, y_edges = np.histogram2d(

@@ -26,6 +26,7 @@ fixed_sigma2_m = False
 
 selected_betas = [0, 1, 2]
 selected_prc_outs = [0, 2]
+# selected_prc_outs = [0]
 sigma_d_i = 1
 
 # histogram bins

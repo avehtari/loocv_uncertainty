@@ -17,19 +17,19 @@ rng = np.random.RandomState(seed)
 # k = 4
 # X = rng.rand(n, k)*2-1
 
-# randn noncenter
-k = 4
-X = rng.randn(n, k) - 123.4
+# # randn noncenter
+# k = 4
+# X = rng.randn(n, k) - 123.4
 
 # # first dim as intercept, linspace
 # k = 2
 # X = np.vstack((np.ones(n), np.linspace(-1,1,n))).T
 
-# # first dim as intercept, half -1 1
-# k = 2
-# X = np.ones(n)
-# X[rng.choice(n, n//2)] = -1.0
-# X = np.vstack((np.ones(n), X)).T
+# first dim as intercept, half -1 1
+k = 2
+X = np.ones(n)
+X[rng.choice(n, n//2, replace=False)] = -1.0
+X = np.vstack((np.ones(n), X)).T
 
 # # first dim as intercept, rand unif -1 1
 # k = 2
