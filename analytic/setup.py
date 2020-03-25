@@ -29,43 +29,6 @@ class DataGeneration:
         return X_mat
 
 
-def calc_analytic_mean(A_mat, b_vec, c_sca, sigma2_d, mu_d=None):
-    """Calc analytic loo mean for fixed sigma2."""
-    out = c_sca
-    if mu_d is not None:
-        out += b_vec.T.dot(mu_d)
-        out += mu_d.T.dot(A_mat).dot(mu_d)
-    return out
-
-def calc_analytic_var(A_mat, b_vec, c_sca, sigma2_d, mu_d=None):
-    """Calc analytic loo var for fixed sigma2."""
-    A2 = A_mat.dot(A_mat)
-    out = 2*sigma2_d**2*np.trace(A2)
-    out += sigma2_d*(b_vec.T.dot(b_vec))
-    if mu_d is not None:
-        out += 4*sigma2_d*(b_vec.T.dot(A_mat).dot(mu_d))
-        out += 4*sigma2_d*(mu_d.T.dot(A2).dot(mu_d))
-    return out
-
-def calc_analytic_moment3(A_mat, b_vec, c_sca, sigma2_d, mu_d=None):
-    """Calc analytic loo 3rd central moment for fixed sigma2."""
-    A2 = A_mat.dot(A_mat)
-    A3 = A2.dot(A_mat)
-    out = 8*sigma2_d**3*np.trace(A3)
-    out += 6*sigma2_d**2*(b_vec.T.dot(A_mat).dot(b_vec))
-    if mu_d is not None:
-        out += 24*sigma2_d**2*(b_vec.T.dot(A2).dot(mu_d))
-        out += 24*sigma2_d**2*(mu_d.T.dot(A3).dot(mu_d))
-    return out
-
-def calc_analytic_skew(A_mat, b_vec, c_sca, sigma2_d, mu_d=None):
-    """Calc analytic loo skewness for fixed sigma2."""
-    var = calc_analytic_var(A_mat, b_vec, c_sca, sigma2_d, mu_d)
-    moment3 = calc_analytic_moment3(A_mat, b_vec, c_sca, sigma2_d, mu_d)
-    return moment3 / np.sqrt(var)**3
-
-
-
 def get_analytic_res(X_mat, beta, tau2, idx_a, idx_b, Sigma_d, mu_d=None):
     """Analytic results.
 
