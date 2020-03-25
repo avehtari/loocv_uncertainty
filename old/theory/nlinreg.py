@@ -1,21 +1,37 @@
 import numpy as np
 from scipy import linalg, stats
 
-n = 34
-sigma2_m = 1.7
-sigma2_d = 0.9
+n = 5
+tau2 = 1.7
 beta_t = 12.5
 
-n_trial = 4000
-n_bb = 600
+n_trial = 3
 
 seed = 11
 
+mu_star = np.zeros(n)
+mu_star[1] = 45.9
+mu_star[3] = -21.7
+
+Sigma_star = np.eye(n)
+Sigma_star[0,0] = 2.1
+Sigma_star[2,2] = 0.7
+Sigma_star[0,1] = 0.3
+Sigma_star[1,0] = Sigma_star[0,1]
+Sigma_star[-1,2] = -0.25
+Sigma_star[2,-1] = Sigma_star[-1,2]
+sigma_star = np.sqrt(np.diag(Sigma_star))
+linalg.cholesky(Sigma_star)  # ensure pos-def
+
 rng = np.random.RandomState(seed)
 
+
+# ===========================================================================
+# X
+
 # rand
-# k = 4
-# X = rng.rand(n, k)*2-1
+k = 4
+X = rng.rand(n, k)*2-1
 
 # # randn noncenter
 # k = 4
@@ -25,22 +41,38 @@ rng = np.random.RandomState(seed)
 # k = 2
 # X = np.vstack((np.ones(n), np.linspace(-1,1,n))).T
 
-# first dim as intercept, half -1 1
-k = 2
-X = np.ones(n)
-X[rng.choice(n, n//2, replace=False)] = -1.0
-X = np.vstack((np.ones(n), X)).T
+# # first dim as intercept, half -1 1
+# k = 2
+# X = np.ones(n)
+# X[rng.choice(n, n//2, replace=False)] = -1.0
+# X = np.vstack((np.ones(n), X)).T
 
 # # first dim as intercept, rand unif -1 1
 # k = 2
 # X = np.vstack((np.ones(n), rng.rand(n)*2-1)).T
 
-A_mat_A = np.zeros((n,n))
-b_vec_A = np.zeros(n)
-c_sca_A = 0.0
 
-A_mat_B = np.zeros((n,n))
-c_sca_B = 0.0
+# ===========================================================================
+# trial
+
+# take random betas[0:-1] which should not affect outcome
+betas = np.hstack((rng.randn(k-1)*78.9, beta_t))
+
+eps_t = stats.multivariate_normal.rvs(
+    mean=mu_star, cov=Sigma_star, size=n_trial)
+y_t = X.dot(betas) + eps_t
+
+
+# ===========================================================================
+# elpdhat
+# =========================================================================
+
+A_mat_l_a = np.zeros((n,n))
+b_vec_l_a = np.zeros(n)
+c_sca_l_a = 0.0
+
+A_mat_l_b = np.zeros((n,n))
+c_sca_l_b = 0.0
 
 temp_mat_nn = np.zeros((n,n))
 temp_vec_n = np.zeros(n)
@@ -62,17 +94,17 @@ for i in range(n):
     v_A[i] = -1
 
     betavxt = beta_t*v_A.dot(X[:,-1])
-    v1s = (v_A_i+1)*sigma2_m
+    v1s = (v_A_i+1)*tau2
     v1s2 = 2*v1s
 
     np.divide(v_A, v1s2, out=temp_vec_n)
     np.multiply(temp_vec_n, v_A[:,None], out=temp_mat_nn)
-    A_mat_A -= temp_mat_nn
+    A_mat_l_a -= temp_mat_nn
 
     np.multiply(v_A, betavxt/v1s, out=temp_vec_n)
-    b_vec_A -= temp_vec_n
+    b_vec_l_a -= temp_vec_n
 
-    c_sca_A -= (betavxt)**2/v1s2 + log2pi05 + 0.5*np.log(v1s)
+    c_sca_l_a -= (betavxt)**2/v1s2 + log2pi05 + 0.5*np.log(v1s)
 
     # B
     inv_x_i = linalg.solve(
@@ -82,62 +114,100 @@ for i in range(n):
     v_B_i = v_B[i]
     v_B[i] = -1
 
-    v1s = (v_B_i+1)*sigma2_m
+    v1s = (v_B_i+1)*tau2
     v1s2 = 2*v1s
 
     np.divide(v_B, v1s2, out=temp_vec_n)
     np.multiply(temp_vec_n, v_B[:,None], out=temp_mat_nn)
-    A_mat_B -= temp_mat_nn
+    A_mat_l_b -= temp_mat_nn
 
-    c_sca_B -= log2pi05 + 0.5*np.log(v1s)
+    c_sca_l_b -= log2pi05 + 0.5*np.log(v1s)
 
 
-A_mat = sigma2_d*(A_mat_A - A_mat_B)
-b_vec = np.sqrt(sigma2_d)*b_vec_A
-c_sca = c_sca_A - c_sca_B
+A_mat_l = A_mat_l_a - A_mat_l_b
+b_vec_l = b_vec_l_a
+c_sca_l = c_sca_l_a - c_sca_l_b
 
-# =========================================
+# ==========================================
+# calc P
+Pt_a = np.zeros((n, n))
+Pt_b = np.zeros((n, n))
+for a in range(n):
+    X_ma = np.delete(X, a, axis=0)
+    XXinvX_a = linalg.solve(
+        X_ma[:,:-1].T.dot(X_ma[:,:-1]),
+        X[a,:-1],
+        assume_a='sym'
+    )
+    sXX_a = np.sqrt(X[a,:-1].dot(XXinvX_a) + 1)
+    XXinvX_b = linalg.solve(
+        X_ma[:,:].T.dot(X_ma[:,:]),
+        X[a,:],
+        assume_a='sym'
+    )
+    sXX_b = np.sqrt(X[a,:].dot(XXinvX_b) + 1)
+    for b in range(n):
+        if a == b:
+            # diag
+            Pt_a[a,a] = -1.0/sXX_a
+            Pt_b[a,a] = -1.0/sXX_b
+        else:
+            # off-diag
+            Pt_a[a,b] = X[b,:-1].dot(XXinvX_a)/sXX_a
+            Pt_b[a,b] = X[b,:].dot(XXinvX_b)/sXX_b
+
+# ==========================================
 if False:
-    Pa = np.zeros((n,n))
-    Pb = np.zeros((n,n))
-    for a in range(n):
-        i_noa = list(range(n))
-        i_noa.remove(a)
-        part_a = linalg.solve(
-            X[i_noa,:-1].T.dot(X[i_noa,:-1]),
-            X[a,:-1].T,
-            assume_a='sym'
-        )
-        part_b = linalg.solve(
-            X[i_noa,:].T.dot(X[i_noa,:]),
-            X[a,:].T,
-            assume_a='sym'
-        )
-        dA = np.sqrt(X[a,:-1].dot(part_a) + 1)
-        dB = np.sqrt(X[a,:].dot(part_b) + 1)
-        for b in range(n):
-            if a == b:
-                Pa[a,b] = -1/dA
-                Pb[a,b] = -1/dB
-            else:
-                Pa[a,b] = X[b,:-1].dot(part_a)/dA
-                Pb[a,b] = X[b,:].dot(part_b)/dB
+    # check P
 
     # A
-    -sigma2_d/(2*sigma2_m)*(Pa.T.dot(Pa) - Pb.T.dot(Pb))
+    -1/(2*tau2)*(Pt_a.T.dot(Pt_a)-Pt_b.T.dot(Pt_b))
     # ok
 
     # b
-    -beta_t*np.sqrt(sigma2_d)/sigma2_m*(Pa.T.dot(Pa).dot(X[:,-1]))
+    -beta_t/tau2 * Pt_a.T.dot(Pt_a).dot(X[:,-1])
     # ok
 
     # c
     (
-        -beta_t**2/(2*sigma2_m)*(X[:,-1].T.dot(Pa.T.dot(Pa).dot(X[:,-1])))
-        + np.log(np.prod(np.diag(Pa)/np.diag(Pb)))
+        -(beta_t**2)/(2*tau2)*X[:,-1].dot(Pt_a.T.dot(Pt_a).dot(X[:,-1]))
+        +np.log(np.prod(np.diag(Pt_a)/np.diag(Pt_b)))
     )
     # ok
 
+# ==========================================
+if False:
+    # check P rows square = 1
+
+    (Pt_a**2).sum(axis=1)
+    (Pt_b**2).sum(axis=1)
+    # ok
+
+# ==========================================
+if False:
+    # check P.T.P
+    a = 1
+    b = 2
+    i_noab = list(range(n))
+    i_noab.remove(a)
+    i_noab.remove(b)
+
+    summand = 0
+    summand -= v_A_s[a,b] / (v_A_s[a,a]+1)
+    summand -= v_A_s[b,a] / (v_A_s[b,b]+1)
+    for i in i_noab:
+        summand += v_A_s[i,a]*v_A_s[i,b] / (v_A_s[i,i]+1)
+    # ok
+
+    a = 1
+    i_noa = list(range(n))
+    i_noa.remove(a)
+
+    summand = 0
+    summand += 1 / (v_A_s[a,a]+1)
+    for i in i_noa:
+        summand += v_A_s[i,a]**2 / (v_A_s[i,i]+1)
+    # ok
 
 # =========================================
 if False:
@@ -145,7 +215,7 @@ if False:
     a = 1
     i_noa = list(range(n))
     i_noa.remove(a)
-    A_aa = -sigma2_d/(2*sigma2_m)*(
+    A_aa = -1/(2*tau2)*(
         np.sum(
               v_A_s[i_noa,a]**2/(np.diag(v_A_s)[i_noa]+1)
             - v_B_s[i_noa,a]**2/(np.diag(v_B_s)[i_noa]+1)
@@ -163,7 +233,7 @@ if False:
     i_noab = list(range(n))
     i_noab.remove(a)
     i_noab.remove(b)
-    A_ab = -sigma2_d/(2*sigma2_m)*(
+    A_ab = -1/(2*tau2)*(
         np.sum(
               v_A_s[i_noab,a]*v_A_s[i_noab,b]/(np.diag(v_A_s)[i_noab]+1)
             - v_B_s[i_noab,a]*v_B_s[i_noab,b]/(np.diag(v_B_s)[i_noab]+1)
@@ -193,46 +263,47 @@ if False:
 if False:
     # test one cov formulas
 
+    # assume Sigma_star = sigma_star * eye
+    sigma_star_sca = sigma_star[0]
+
     # trace(A)
-    np.trace(A_mat) # == 0
+    np.trace(A_mat_l) # == 0
     # ok
 
     # trace(A^2)
-    np.trace(A_mat.dot(A_mat))
+    np.trace(A_mat_l.dot(A_mat_l))
     # ==
-    sigma2_d**2/(4*sigma2_m**2)*n**2/((n-1)*(n-2))
+    sigma_star_sca**4/(4*tau2**2)*n**2/((n-1)*(n-2))
     # ok
 
     # trace(A^3)
-    np.trace(A_mat.dot(A_mat).dot(A_mat))
+    np.trace(A_mat_l.dot(A_mat_l).dot(A_mat_l))
     # ==
-    -sigma2_d**3/(8*sigma2_m**3)*n**3*(n-3)/((n-1)**2*(n-2)**2)
+    -sigma_star_sca**6/(8*tau2**3)*n**3*(n-3)/((n-1)**2*(n-2)**2)
     # ok
 
     # b^T b
-    b_vec.dot(b_vec)
+    b_vec_l.dot(b_vec_l)
     # ==
-    beta_t**2*sigma2_d/sigma2_m**2*n**3/(n-1)**2
+    beta_t**2*sigma_star_sca**2/tau2**2*n**3/(n-1)**2
     # ok
 
     # b^T A b
-    b_vec.dot(A_mat).dot(b_vec)
+    b_vec_l.dot(A_mat_l).dot(b_vec_l)
     # ==
-    -beta_t**2*sigma2_d**2/(2*sigma2_m**3)*n**4/(n-1)**3
+    -beta_t**2*sigma_star_sca**4/(2*tau2**3)*n**4/(n-1)**3
     # ok
 
 
-# trial
-eps_t = rng.randn(n_trial, n)
-loos = np.einsum('ti,ij,jt->t', eps_t, A_mat, eps_t.T)
-loos += eps_t.dot(b_vec)
-loos += c_sca
+# =========================================================================
+# elpdhat for trials
+loos = np.einsum('ti,ij,jt->t', eps_t, A_mat_l, eps_t.T)
+loos += eps_t.dot(b_vec_l)
+loos += c_sca_l
 
+# =========================================================================
+# calc reference elpdhat by hand
 
-# calc reference loos by hand
-# take random betas[0:-1] which should not affect outcome
-betas = np.hstack((rng.randn(k-1)*78.9, beta_t))
-y_t = X.dot(betas) + eps_t*np.sqrt(sigma2_d)
 loos_i_a_target = np.zeros((n_trial, n))
 loos_i_b_target = np.zeros((n_trial, n))
 for i in range(n):
@@ -247,7 +318,7 @@ for i in range(n):
         ).T)
     )
     mu_pred = betahat.dot(X[i,:-1].T)
-    sigma2_pred = sigma2_m*(
+    sigma2_pred = tau2*(
         1 + X[i,:-1].dot(
             linalg.solve(
                 X_mi[:,:-1].T.dot(X_mi[:,:-1]),
@@ -267,7 +338,7 @@ for i in range(n):
         ).T)
     )
     mu_pred = betahat.dot(X[i,:].T)
-    sigma2_pred = sigma2_m*(
+    sigma2_pred = tau2*(
         1 + X[i,:].dot(
             linalg.solve(
                 X_mi[:,:].T.dot(X_mi[:,:]),
@@ -283,104 +354,189 @@ loos_target = loos_i_a_target.sum(axis=1) - loos_i_b_target.sum(axis=1)
 
 
 
-# calc P
-Pa = np.zeros((n, n))
-Pb = np.zeros((n, n))
-for a in range(n):
-    X_ma = np.delete(X, a, axis=0)
-    XXinvX_a = linalg.solve(
-        X_ma[:,:-1].T.dot(X_ma[:,:-1]),
-        X[a,:-1],
-        assume_a='sym'
-    )
-    sXX_a = np.sqrt(X[a,:-1].dot(XXinvX_a) + 1)
-    XXinvX_b = linalg.solve(
-        X_ma[:,:].T.dot(X_ma[:,:]),
-        X[a,:],
-        assume_a='sym'
-    )
-    sXX_b = np.sqrt(X[a,:].dot(XXinvX_b) + 1)
-    for b in range(n):
-        if a == b:
-            # diag
-            Pa[a,a] = -1.0/sXX_a
-            Pb[a,a] = -1.0/sXX_b
-        else:
-            # off-diag
-            Pa[a,b] = X[b,:-1].dot(XXinvX_a)/sXX_a
-            Pb[a,b] = X[b,:].dot(XXinvX_b)/sXX_b
 
-if False:
-    # check P
+# ============================================================================
+# elpds
+# ============================================================================
+
+P_a = X[:,:-1].dot(
+    linalg.solve(X[:,:-1].T.dot(X[:,:-1]), X[:,:-1].T, assume_a='sym'))
+P_b = X.dot(
+    linalg.solve(X.T.dot(X), X.T, assume_a='sym'))
+
+D_a = np.diag(1.0/(np.diag(P_a) + 1.0))
+D_b = np.diag(1.0/(np.diag(P_b) + 1.0))
+
+temp_vec = beta_t*(P_a-np.eye(n)).dot(X[:,-1]) - mu_star
+A_e_mat_A = -1/(2*tau2) * P_a.dot(D_a).dot(P_a)
+b_e_vec_A = -1/(tau2) * P_a.dot(D_a).dot(temp_vec)
+c_e_sca_A = (
+    -1/(2*tau2) * (
+        temp_vec.dot(D_a).dot(temp_vec)
+        +sigma_star.dot(D_a).dot(sigma_star)
+    )
+    - n/2*np.log(2*np.pi*tau2)
+    +0.5*(np.sum(np.log(np.diag(D_a))))
+    # + 0.5*np.log(np.prod(np.diag(D_a)))
+)
+
+A_e_mat_B = -1/(2*tau2) * P_b.dot(D_b).dot(P_b)
+b_e_vec_B = 1/(tau2) * P_b.dot(D_b).dot(mu_star)
+c_e_sca_B = (
+    -1/(2*tau2) * (
+        mu_star.dot(D_b).dot(mu_star)
+        +sigma_star.dot(D_b).dot(sigma_star)
+    )
+    - n/2*np.log(2*np.pi*tau2)
+    + 0.5*(np.sum(np.log(np.diag(D_b))))
+    # + 0.5*np.log(np.prod(np.diag(D_b)))
+)
+
+temp_vec = beta_t*(P_a-np.eye(n)).dot(X[:,-1]) - mu_star
+A_e_mat_D = -1/(2*tau2) * (
+    P_a.dot(D_a).dot(P_a) - P_b.dot(D_b).dot(P_b))
+b_e_vec_D = -1/(tau2) * (
+    P_a.dot(D_a).dot(temp_vec)
+    + P_b.dot(D_b).dot(mu_star)
+)
+c_e_sca_D = (
+    -1/(2*tau2) * (
+        temp_vec.dot(D_a).dot(temp_vec)
+        - mu_star.dot(D_b).dot(mu_star)
+        +sigma_star.dot(D_a - D_b).dot(sigma_star)
+    )
+    +0.5*(np.sum(np.log(np.diag(D_a))) - np.sum(np.log(np.diag(D_b))))
+    #+0.5*np.log(np.prod(np.diag(D_a)/np.diag(D_b)))
+)
+
+elpds_A = np.einsum('ti,ij,jt->t', eps_t, A_e_mat_A, eps_t.T)
+elpds_A += eps_t.dot(b_e_vec_A)
+elpds_A += c_e_sca_A
+
+elpds_B = np.einsum('ti,ij,jt->t', eps_t, A_e_mat_B, eps_t.T)
+elpds_B += eps_t.dot(b_e_vec_B)
+elpds_B += c_e_sca_B
+
+elpds_D = np.einsum('ti,ij,jt->t', eps_t, A_e_mat_D, eps_t.T)
+elpds_D += eps_t.dot(b_e_vec_D)
+elpds_D += c_e_sca_D
+
+
+# =========================================================================
+# calc reference elpd s by hand
+
+# analytic
+elpds_i_a_target = np.zeros((n_trial, n))
+elpds_i_b_target = np.zeros((n_trial, n))
+
+# sampled
+samp_n = 10000
+elpds_i_a_samp_target = np.zeros((n_trial, n))
+elpds_i_b_samp_target = np.zeros((n_trial, n))
+
+
+betahat_A = (
+    y_t.dot(linalg.solve(
+        X[:,:-1].T.dot(X[:,:-1]),
+        X[:,:-1].T,
+        assume_a='sym'
+    ).T)
+)
+betahat_B = (
+    y_t.dot(linalg.solve(
+        X.T.dot(X),
+        X.T,
+        assume_a='sym'
+    ).T)
+)
+
+for i in range(n):
+
+    mu_true = mu_star[i] + X[i,:].dot(betas)
+    sigma_true = sigma_star[i]
+    samp_true = rng.normal(loc=mu_true, scale=sigma_true, size=samp_n)
 
     # A
-    -sigma2_d/(2*sigma2_m)*(Pa.T.dot(Pa)-Pb.T.dot(Pb))
-    # ok
-
-    # b
-    -beta_t*np.sqrt(sigma2_d)/sigma2_m * Pa.T.dot(Pa).dot(X[:,-1])
-    # ok
-
-    # c
-    (
-        -(beta_t**2)/(2*sigma2_m)*X[:,-1].dot(Pa.T.dot(Pa).dot(X[:,-1]))
-        +np.log(np.prod(np.diag(Pa)/np.diag(Pb)))
+    mu_pred = betahat_A.dot(X[i,:-1].T)
+    sigma2_pred = tau2*(
+        1 + X[i,:-1].dot(
+            linalg.solve(
+                X[:,:-1].T.dot(X[:,:-1]),
+                X[i,:-1],
+                assume_a='sym'
+            )
+        )
     )
-    # ok
+    elpds_i_a_target[:, i] = (
+        -0.5*((mu_pred-mu_true)**2 + sigma_true**2)/sigma2_pred
+        -0.5*np.log(2*np.pi*sigma2_pred)
+    )
+    elpds_i_a_samp_target[:, i] = stats.norm.logpdf(
+        samp_true[None,:],
+        loc=mu_pred[:,None],
+        scale=np.sqrt(sigma2_pred)
+    ).mean(axis=-1)
 
-if False:
-    # check P rows square = 1
-
-    (Pa**2).sum(axis=1)
-    (Pb**2).sum(axis=1)
-    # ok
-
-if False:
-    # check P.T.P
-    a = 1
-    b = 2
-    i_noab = list(range(n))
-    i_noab.remove(a)
-    i_noab.remove(b)
-
-    summand = 0
-    summand -= v_A_s[a,b] / (v_A_s[a,a]+1)
-    summand -= v_A_s[b,a] / (v_A_s[b,b]+1)
-    for i in i_noab:
-        summand += v_A_s[i,a]*v_A_s[i,b] / (v_A_s[i,i]+1)
-    # ok
-
-    a = 1
-    i_noa = list(range(n))
-    i_noa.remove(a)
-
-    summand = 0
-    summand += 1 / (v_A_s[a,a]+1)
-    for i in i_noa:
-        summand += v_A_s[i,a]**2 / (v_A_s[i,i]+1)
-    # ok
+    # B
+    mu_pred = betahat_B.dot(X[i,:].T)
+    sigma2_pred = tau2*(
+        1 + X[i,:].dot(
+            linalg.solve(
+                X.T.dot(X),
+                X[i,:],
+                assume_a='sym'
+            )
+        )
+    )
+    elpds_i_b_target[:, i] = (
+        -0.5*((mu_pred-mu_true)**2 + sigma_true**2)/sigma2_pred
+        -0.5*np.log(2*np.pi*sigma2_pred)
+    )
+    elpds_i_b_samp_target[:, i] = stats.norm.logpdf(
+        samp_true[None,:],
+        loc=mu_pred[:,None],
+        scale=np.sqrt(sigma2_pred)
+    ).mean(axis=-1)
 
 
-def calc_bb_var(X, n_replications):
-    """Bayesian bootstrap variance.
+elpds_a_target = elpds_i_a_target.sum(axis=1)
+elpds_b_target = elpds_i_b_target.sum(axis=1)
+elpds_target = elpds_a_target - elpds_b_target
 
-    By: https://github.com/lmc2179/bayesian_bootstrap
-
-    """
-    samples = []
-    weights = np.random.dirichlet([1]*len(X), n_replications)
-    for w in weights:
-        samples.append(np.dot([x ** 2 for x in X], w) - np.dot(X, w) ** 2)
-    return samples
+elpds_a_samp_target = elpds_i_a_samp_target.sum(axis=1)
+elpds_b_samp_target = elpds_i_b_samp_target.sum(axis=1)
+elpds_samp_target = elpds_a_samp_target - elpds_b_samp_target
 
 
-if False:
-    # test var
-    bb_samp = calc_bb_var(loos, n_bb)
-    analytic_val = 2*np.trace(A_mat.dot(A_mat)) + b_vec.dot(b_vec)
-    plt.hist(bb_samp)
-    plt.axvline(analytic_val, color='red')
+# ===========================================================================
+# error
+# ===========================================================================
 
-A = A_mat
-b = b_vec
-c = c_sca
+# Pt_a, Pt_b, P_a, P_b, D_a, D_b
+
+A_mat_err = 1/(2*tau2) * (
+    Pt_a.T.dot(Pt_a) - P_a.dot(D_a).dot(P_a)
+    - Pt_b.T.dot(Pt_b) + P_b.dot(D_b).dot(P_b)
+)
+b_vec_err = 1/(tau2) * (
+    beta_t*(
+        Pt_a.T.dot(Pt_a)
+        - P_a.dot(D_a).dot(P_a-np.eye(n))
+    ).dot(X[:,-1])
+    + (P_a.dot(D_a) - P_b.dot(D_b)).dot(mu_star)
+)
+c_sca_err = (
+    1/(2*tau2) * (
+        beta_t**2*X[:,-1].T.dot(
+            Pt_a.T.dot(Pt_a) - (P_a-np.eye(n)).dot(D_a).dot(P_a-np.eye(n))
+        ).dot(X[:,-1])
+        +2*beta_t*X[:,-1].T.dot(P_a-np.eye(n)).dot(D_a).dot(mu_star)
+        - mu_star.dot(D_a - D_b).dot(mu_star)
+        - sigma_star.dot(D_a - D_b).dot(sigma_star)
+    ) +
+    (
+        + 0.5*(np.sum(np.log(np.diag(D_a))) - np.sum(np.log(np.diag(D_b))))
+        - (np.sum(np.log(-np.diag(Pt_a))) - np.sum(np.log(-np.diag(Pt_b))))
+    )
+    # +0.5*np.log(np.prod(np.diag(D_a)*np.diag(Pt_b**2)/(np.diag(D_b)*np.diag(Pt_a**2))))
+)
