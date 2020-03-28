@@ -12,7 +12,7 @@ from setup import *
 # ============================================================================
 # conf
 
-load_res = False
+load_res = True
 plot = True
 
 # data seed

@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import linalg, stats
 
-n = 5
+n = 6
 tau2 = 1.7
 
 n_trial = 3
@@ -31,10 +31,10 @@ rng = np.random.RandomState(seed)
 
 # rand
 # -----------------
-k = 4
-k_a = np.array([0, 1])
-k_b = np.array([0, 2, 3])
-X = rng.rand(n, k)*2-1
+# k = 4
+# k_a = np.array([0, 1])
+# k_b = np.array([0, 2, 3])
+# X = rng.rand(n, k)*2-1
 
 
 # randn noncenter
@@ -55,12 +55,12 @@ X = rng.rand(n, k)*2-1
 
 # first dim as intercept, half -1 1
 # -----------------
-# k = 2
-# k_a = np.array([0])
-# k_b = np.array([0, 1])
-# X = np.ones(n)
-# X[rng.choice(n, n//2, replace=False)] = -1.0
-# X = np.vstack((np.ones(n), X)).T
+k = 2
+k_a = np.array([0])
+k_b = np.array([0, 1])
+X = np.ones(n)
+X[rng.choice(n, n//2, replace=False)] = -1.0
+X = np.vstack((np.ones(n), X)).T
 
 
 # first dim as intercept, rand unif -1 1
