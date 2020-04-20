@@ -70,7 +70,7 @@ make_x = partial(data_generation.make_x, intercept=intercept)
 # As a function of n
 
 if load_res:
-    res_file = np.load('res_n.npz')
+    res_file = np.load('res_n_nested.npz')
     mean_loo_s = res_file['mean_loo_s']
     var_loo_s = res_file['var_loo_s']
     skew_loo_s = res_file['skew_loo_s']
@@ -116,7 +116,7 @@ else:
     print('done', flush=True)
 
     np.savez_compressed(
-        'res_n.npz',
+        'res_n_nested.npz',
         mean_loo_s=mean_loo_s,
         var_loo_s=var_loo_s,
         skew_loo_s=skew_loo_s,
@@ -133,8 +133,8 @@ if plot:
 
     # skew
     ax = axes[0]
+    ax.axhline(0, color='red', lw=1.0)#, zorder=0)
     for b_i, beta_t in enumerate(beta_t_s):
-        ax.axhline(0, color='red', lw=1.0)#, zorder=0)
         color = 'C{}'.format(b_i)
         label = r'$\beta_t={}$'.format(beta_t)
         data = skew_err_s[b_i]
@@ -160,14 +160,16 @@ if plot:
     ax.tick_params(axis='both', which='minor', labelsize=14)
     ax.set_ylabel('skewness', fontsize=18)
 
-    # p_looneg_naive
+    # z-score
     ax = axes[1]
+    ax.axhline(0, color='red', lw=1.0)#, zorder=0)
     for b_i, beta_t in enumerate(beta_t_s):
         color = 'C{}'.format(b_i)
         label = r'$\beta_t={}$'.format(beta_t)
 
-        data = 1-stats.norm.cdf(
-            0, loc=mean_err_s[b_i], scale=np.sqrt(var_err_s[b_i]))
+        # data = 1-stats.norm.cdf(
+        #     0, loc=mean_err_s[b_i], scale=np.sqrt(var_err_s[b_i]))
+        data = mean_err_s[b_i] / np.sqrt(var_err_s[b_i])
 
         if plot_multilines:
             median = np.percentile(data, 50, axis=-1)
@@ -185,12 +187,12 @@ if plot:
             ax.fill_between(n_obs_s, q025, q975, alpha=0.2, color=color)
             ax.plot(n_obs_s, median, color=color, label=label)
 
-    ax.set_ylim(-0.1, 1)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     ax.tick_params(axis='both', which='major', labelsize=16)
     ax.tick_params(axis='both', which='minor', labelsize=14)
-    ax.set_ylabel(r'$p(\mathrm{\widehat{elpd}_D}>0)$', fontsize=18)
+    # ax.set_ylabel(r'$p(\mathrm{\widehat{elpd}_D}>0)$', fontsize=18)
+    ax.set_ylabel('mean/sd', fontsize=18)
     ax.set_xlabel(r'$n$', fontsize=18)
 
     fig.tight_layout()

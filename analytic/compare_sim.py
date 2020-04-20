@@ -7,23 +7,33 @@ tau2 = 1.7
 n_trial = 3
 
 seed = 11
+rng = np.random.RandomState(seed)
 
+# ===========================================================================
+
+s_star = 1.73
+m_star = 12.3
 mu_star = np.zeros(n)
-mu_star[1] = 45.9
-mu_star[3] = -21.7
+mu_star[0] = m_star
+Sigma_star = s_star**2*np.eye(n)
+Sigma_star_12 = s_star*np.eye(n)
 
-Sigma_star = np.eye(n)
-Sigma_star[0,0] = 2.1
-Sigma_star[2,2] = 0.7
-Sigma_star[0,1] = 0.3
-Sigma_star[1,0] = Sigma_star[0,1]
-Sigma_star[-1,2] = -0.25
-Sigma_star[2,-1] = Sigma_star[-1,2]
+
+# mu_star = np.zeros(n)
+# mu_star[1] = 45.9
+# mu_star[3] = -21.7
+#
+# Sigma_star = np.eye(n)
+# Sigma_star[0,0] = 2.1
+# Sigma_star[2,2] = 0.7
+# Sigma_star[0,1] = 0.3
+# Sigma_star[1,0] = Sigma_star[0,1]
+# Sigma_star[-1,2] = -0.25
+# Sigma_star[2,-1] = Sigma_star[-1,2]
+# Sigma_star_12 = linalg.sqrtm(Sigma_star)
+
 sigma_star = np.sqrt(np.diag(Sigma_star))
 linalg.cholesky(Sigma_star)  # ensure pos-def
-
-
-rng = np.random.RandomState(seed)
 
 
 # ===========================================================================
@@ -61,6 +71,8 @@ k_b = np.array([0, 1])
 X = np.ones(n)
 X[rng.choice(n, n//2, replace=False)] = -1.0
 X = np.vstack((np.ones(n), X)).T
+x = X[:,1]
+xx = (x[:,None] * x[None,:])
 
 
 # first dim as intercept, rand unif -1 1
@@ -94,9 +106,11 @@ yhat_mb = X[:,k_mb].dot(beta[k_mb]) if k_mb.size else np.zeros(n)
 # =========================================================================
 
 # ==========================================
-# calc P
+# calc P and D
 Pt_a = np.zeros((n, n))
 Pt_b = np.zeros((n, n))
+Dt_a = np.zeros((n, n))
+Dt_b = np.zeros((n, n))
 for i in range(n):
     X_mi = np.delete(X, i, axis=0)
     XXinvX_a = linalg.solve(
@@ -104,37 +118,39 @@ for i in range(n):
         X[i,k_a],
         assume_a='sym'
     )
-    sXX_a = np.sqrt(X[i,k_a].dot(XXinvX_a) + 1)
+    ixx_a = 1/(X[i,k_a].dot(XXinvX_a) + 1)
     XXinvX_b = linalg.solve(
         X_mi[:,k_b].T.dot(X_mi[:,k_b]),
         X[i,k_b],
         assume_a='sym'
     )
-    sXX_b = np.sqrt(X[i,k_b].dot(XXinvX_b) + 1)
+    ixx_b = 1/(X[i,k_b].dot(XXinvX_b) + 1)
     for j in range(n):
         if i == j:
             # diag
-            Pt_a[i,i] = -1.0/sXX_a
-            Pt_b[i,i] = -1.0/sXX_b
+            Pt_a[i,i] = -1.0
+            Pt_b[i,i] = -1.0
+            Dt_a[i,i] = ixx_a
+            Dt_b[i,i] = ixx_b
         else:
             # off-diag
-            Pt_a[i,j] = X[j,k_a].dot(XXinvX_a)/sXX_a
-            Pt_b[i,j] = X[j,k_b].dot(XXinvX_b)/sXX_b
+            Pt_a[i,j] = X[j,k_a].dot(XXinvX_a)
+            Pt_b[i,j] = X[j,k_b].dot(XXinvX_b)
 
-Pt_a_T_Pt_a = Pt_a.T.dot(Pt_a)
-Pt_b_T_Pt_b = Pt_b.T.dot(Pt_b)
+Pt_D_Pt_a = Pt_a.T.dot(Dt_a).dot(Pt_a)
+Pt_D_Pt_b = Pt_b.T.dot(Dt_b).dot(Pt_b)
 
-A_loo_a_1 = -0.5*Pt_a_T_Pt_a
-A_loo_b_1 = -0.5*Pt_b_T_Pt_b
-B_loo_a_1 = -Pt_a_T_Pt_a
-B_loo_b_1 = -Pt_b_T_Pt_b
-C_loo_a_1 = -0.5*Pt_a_T_Pt_a
-C_loo_b_1 = -0.5*Pt_b_T_Pt_b
-c_loo_a_4 = np.sum(np.log(-np.diag(Pt_a))) - n/2*np.log(2*np.pi*tau2)
-c_loo_b_4 = np.sum(np.log(-np.diag(Pt_b))) - n/2*np.log(2*np.pi*tau2)
+A_loo_a_1 = -0.5*Pt_D_Pt_a
+A_loo_b_1 = -0.5*Pt_D_Pt_b
+B_loo_a_1 = -Pt_D_Pt_a
+B_loo_b_1 = -Pt_D_Pt_b
+C_loo_a_1 = -0.5*Pt_D_Pt_a
+C_loo_b_1 = -0.5*Pt_D_Pt_b
+c_loo_a_4 = 0.5*np.sum(np.log(np.diag(Dt_a))) - n/2*np.log(2*np.pi*tau2)
+c_loo_b_4 = 0.5*np.sum(np.log(np.diag(Dt_b))) - n/2*np.log(2*np.pi*tau2)
 
-A_loo_1 = -0.5*(Pt_a_T_Pt_a - Pt_b_T_Pt_b)
-C_loo_4 = np.sum(np.log(-np.diag(Pt_a))) - np.sum(np.log(-np.diag(Pt_b)))
+A_loo_1 = -0.5*(Pt_D_Pt_a - Pt_D_Pt_b)
+C_loo_4 = 0.5*np.sum(np.log(np.diag(Dt_a))) - 0.5*np.sum(np.log(np.diag(Dt_b)))
 
 A_loo = 1/tau2 * A_loo_1
 b_loo = 1/tau2 * (B_loo_a_1.dot(yhat_ma) - B_loo_b_1.dot(yhat_mb))
@@ -382,20 +398,20 @@ elpds_samp_target = elpds_a_samp_target - elpds_b_samp_target
 # Pt_a, Pt_b, P_a, P_b, D_a, D_b
 
 A_err_1 = 0.5*(
-    Pt_a.T.dot(Pt_a)
+    Pt_D_Pt_a
     - P_a.dot(D_a).dot(P_a)
-    - Pt_b.T.dot(Pt_b)
+    - Pt_D_Pt_b
     + P_b.dot(D_b).dot(P_b)
 )
-B_err_a_1 = Pt_a.T.dot(Pt_a) - P_a.dot(D_a).dot(P_a - np.eye(n))
-B_err_b_1 = Pt_b.T.dot(Pt_b) - P_b.dot(D_b).dot(P_b - np.eye(n))
+B_err_a_1 = Pt_D_Pt_a - P_a.dot(D_a).dot(P_a - np.eye(n))
+B_err_b_1 = Pt_D_Pt_b - P_b.dot(D_b).dot(P_b - np.eye(n))
 C_err_a_1 = 0.5*(
-    Pt_a.T.dot(Pt_a) - (P_a-np.eye(n)).dot(D_a).dot(P_a-np.eye(n)))
+    Pt_D_Pt_a - (P_a-np.eye(n)).dot(D_a).dot(P_a-np.eye(n)))
 C_err_b_1 = 0.5*(
-    Pt_b.T.dot(Pt_b) - (P_b-np.eye(n)).dot(D_b).dot(P_b-np.eye(n)))
+    Pt_D_Pt_b - (P_b-np.eye(n)).dot(D_b).dot(P_b-np.eye(n)))
 c_err_4 = 0.5*(
-    np.sum(np.log(np.diag(D_a))) + np.sum(np.log(np.diag(Pt_b)**2))
-    - np.sum(np.log(np.diag(D_b))) - np.sum(np.log(np.diag(Pt_a)**2))
+    np.sum(np.log(np.diag(D_a))) + np.sum(np.log(np.diag(Dt_b)))
+    - np.sum(np.log(np.diag(D_b))) - np.sum(np.log(np.diag(Dt_a)))
 )
 
 A_err = 1/tau2 * A_err_1
@@ -416,3 +432,30 @@ c_err =(
 errs = np.einsum('ti,ij,jt->t', eps_t, A_err, eps_t.T)
 errs += eps_t.dot(b_err)
 errs += c_err
+
+# ===========================================================================
+# error moments
+# ===========================================================================
+
+Ss_A_Ss = Sigma_star_12.dot(A_err).dot(Sigma_star_12)
+
+m1_err = (
+    np.trace(Ss_A_Ss)
+    + c_err
+    + b_err.dot(mu_star)
+    + mu_star.dot(A_err).dot(mu_star)
+)
+
+m2_err = (
+    2*np.trace(Ss_A_Ss.dot(Ss_A_Ss))
+    + b_err.dot(Sigma_star).dot(b_err)
+    + 4*b_err.dot(Sigma_star).dot(A_err).dot(mu_star)
+    + 4*mu_star.dot(A_err).dot(Sigma_star).dot(A_err).dot(mu_star)
+)
+
+m3_err = (
+    8*np.trace(Ss_A_Ss.dot(Ss_A_Ss).dot(Ss_A_Ss))
+    + 6*b_err.dot(Sigma_star).dot(A_err).dot(Sigma_star).dot(b_err)
+    + 24*b_err.dot(Sigma_star).dot(A_err).dot(Sigma_star).dot(A_err).dot(mu_star)
+    + 24*mu_star.dot(A_err).dot(Sigma_star).dot(A_err).dot(Sigma_star).dot(A_err).dot(mu_star)
+)

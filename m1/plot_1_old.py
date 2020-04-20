@@ -18,15 +18,15 @@ from m1_problem import *
 fixed_sigma2_m = False
 
 # [
-#   [sigma_d, ...],
-#   [n_obs, ...],
-#   [beta_t, ...],
-#   [prc_out, ...]
+#   [sigma_d, ...],     [0.01, 1.0, 100.0]
+#   [n_obs, ...],       [16, 32, 64, 128, 256, 512, 1024]
+#   [beta_t, ...],      [0.0, 0.2, 1.0, 4.0]
+#   [prc_out, ...]      [0.0, np.nextafter(0,1), 0.01, 0.08]
 # ]
 idxs = (
     [1, 1, 1],
     [3, 3, 3],
-    [3, 0, 3],
+    [2, 0, 3],
     [0, 0, 2],
 )
 run_i_s = np.ravel_multi_index(idxs, grid_shape)
@@ -34,8 +34,17 @@ run_i_s = np.ravel_multi_index(idxs, grid_shape)
 # histogram bins
 cal_nbins = 7
 
+# errorbar SE multiplier
+error_se_multip = 2
+
+# manual zooming
+manual_zoom = True
+
 
 # ============================================================================
+
+plt.rcParams['font.family'] = 'serif'
+plt.rcParams["mathtext.fontset"] = "dejavuserif"
 
 def remove_frame(ax):
     ax.spines['top'].set_visible(False)
@@ -79,8 +88,8 @@ for probl_i in range(n_probls):
     # fetch results
     res_A[probl_i] = res_file['loo_ti_A']
     res_B[probl_i] = res_file['loo_ti_B']
-    res_test_A[probl_i] = res_file['test_t_A']
-    res_test_B[probl_i] = res_file['test_t_B']
+    res_test_A[probl_i] = res_file['test_elpd_t_A']
+    res_test_B[probl_i] = res_file['test_elpd_t_B']
     # close file
     res_file.close()
 
@@ -130,68 +139,362 @@ for probl_i in range(n_probls):
     cal_counts[probl_i] = np.histogram(diff_pdf, cal_limits)[0]
 
 # ============================================================================
-# plot
+# plot separate
 # ============================================================================
 
 
-cmap = truncate_colormap(cm.get_cmap('Greys'), 0.4)
-cmap.set_under('white', 1.0)
+# cmap = truncate_colormap(cm.get_cmap('Greys'), 0.4)
+# cmap.set_under('white', 1.0)
+#
+# rng = np.random.RandomState(seed=12345)
+#
+# # marginal hists for the joint
+# joint_marginal_hist = True
+#
+# for probl_i in range(n_probls):
+#     y_arr = loo_s[probl_i]
+#     y_err = error_se_multip*np.sqrt(naive_var_s[probl_i])
+#     x_arr = elpd_s[probl_i]
+#
+#     if manual_zoom:
+#         if probl_i == 0:
+#             idxs = (
+#                 (-70 < y_arr) & (y_arr < -20) &
+#                 (-50 < x_arr) & (x_arr < -37)
+#             )
+#         if probl_i == 1:
+#             idxs = (
+#                 (-1.5 < y_arr) & (y_arr < 2.5) &
+#                 (-1 < x_arr) & (x_arr < 2.5)
+#             )
+#         if probl_i == 2:
+#             idxs = (
+#                 (-18 < y_arr) & (y_arr < 9) &
+#                 (-15 < x_arr) & (x_arr < -4)
+#             )
+#         y_arr = y_arr[idxs]
+#         y_err = y_err[idxs]
+#         x_arr = x_arr[idxs]
+#
+#
+#     if joint_marginal_hist:
+#         grid = sns.jointplot(
+#             x_arr, y_arr,
+#             kind='hex',
+#             height=4,
+#             cmap=cmap,
+#             # joint_kws=dict(cmin=1),
+#         )
+#         grid.set_axis_labels(
+#             '$\mathrm{elpd}_\mathrm{D}$',
+#             '$\widehat{\mathrm{elpd}}_\mathrm{D}$',
+#             fontsize=18
+#         )
+#         fig = grid.fig
+#         # custom size
+#         fig.set_figwidth(6)
+#         fig.set_figheight(4)
+#         ax = grid.ax_joint
+#         plt.clim(vmin=1)
+#     else:
+#         fig = plt.figure(figsize=(6,4))
+#         ax = plt.gca()
+#
+#         ax.hexbin(x_arr, y_arr, gridsize=40, cmap=cmap, mincnt=1)
+#
+#         ax.set_xlabel('$\mathrm{elpd}_\mathrm{D}$', fontsize=18)
+#         ax.set_ylabel('$\widehat{\mathrm{elpd}}_\mathrm{D}$', fontsize=18)
+#
+#         ax.spines['top'].set_visible(False)
+#         ax.spines['right'].set_visible(False)
+#
+#     ax.autoscale(enable=False)
+#     ax.plot(
+#         [min(y_arr.min(), x_arr.min()),
+#          max(y_arr.max(), x_arr.max())],
+#         [min(y_arr.min(), x_arr.min()),
+#          max(y_arr.max(), x_arr.max())],
+#         color='C2'
+#     )
+#
+#
+#     # error points
+#
+#     # x_locs = np.linspace(x_arr.min(), x_arr.max(), 10)
+#     # idxs = np.unique(np.abs(x_arr - x_locs[:,None]).argmin(axis=-1))
+#
+#     x_lims = np.linspace(x_arr.min(), x_arr.max()+1e-10, 11)
+#     idxs = []
+#     for y_l, y_u in zip(x_lims[:-1], x_lims[1:]):
+#         cur_idxs = (y_l <= x_arr) & (x_arr < y_u)
+#         if cur_idxs.sum() == 0:
+#             # no obs in this range
+#             continue
+#         selected_idx = rng.choice(np.nonzero(cur_idxs)[0])
+#         idxs.append(selected_idx)
+#
+#     ax.errorbar(
+#         x_arr[idxs], y_arr[idxs], yerr=y_err[idxs], color='C1', ls='', marker='o')
+#
+#     if probl_i == 1 and not manual_zoom:
+#         ax.set_ylim(top=3.2)
+#
+#     ax.tick_params(axis='both', which='major', labelsize=16)
+#     ax.tick_params(axis='both', which='minor', labelsize=14)
+#
+#
+#
+#     fig.tight_layout()
 
 
-for probl_i in range(n_probls):
-    x_arr = loo_s[probl_i]
-    y_arr = elpd_s[probl_i]
-    grid = sns.jointplot(
-        x_arr, y_arr,
-        kind='hex',
-        height=4,
-        cmap=cmap,
-        # joint_kws=dict(cmin=1),
-    )
-    grid.set_axis_labels(
-        '$\widehat{\mathrm{elpd}}_\mathrm{D}$',
-        '$\mathrm{elpd}_\mathrm{D}$'
-    )
-    grid.ax_joint.autoscale(enable=False)
-    grid.ax_joint.plot(
-        [min(x_arr.min(), y_arr.min()),
-         max(x_arr.max(), y_arr.max())],
-        [min(x_arr.min(), y_arr.min()),
-         max(x_arr.max(), y_arr.max())],
-        color='red'
-    )
-    plt.clim(vmin=1)
-    plt.tight_layout()
 
 
 
-size = plt.gcf().get_size_inches()
+# ============================================================================
+# plot sublots
+# ============================================================================
+
 
 q005 = stats.binom.ppf(0.005, n_trial, 1/cal_nbins)
 q995 = stats.binom.ppf(0.995, n_trial, 1/cal_nbins)
 
+fontsize = 16
+
+histbins = 14
+
+errorbar_density = 5
+
+cmap = truncate_colormap(cm.get_cmap('Greys'), 0.4)
+cmap.set_under('white', 1.0)
+
+rng = np.random.RandomState(seed=12345)
+
+fig, axes = plt.subplots(
+    4, n_probls,
+    gridspec_kw={'height_ratios': [4, 2, 2, 3]},
+    figsize=(10,10)
+)
+
 for probl_i in range(n_probls):
-    fig = plt.figure(figsize=size)
-    plt.bar(
+
+    # ===============
+    # joint
+
+    ax = axes[0, probl_i]
+
+    y_arr = loo_s[probl_i]
+    y_err = error_se_multip*np.sqrt(naive_var_s[probl_i])
+    x_arr = elpd_s[probl_i]
+
+    if manual_zoom:
+        if probl_i == 0:
+            idxs = (
+                (-70 < y_arr) & (y_arr < -20) &
+                (-50 < x_arr) & (x_arr < -37)
+            )
+        if probl_i == 1:
+            idxs = (
+                (-1.5 < y_arr) & (y_arr < 2.5) &
+                (-1 < x_arr) & (x_arr < 2.5)
+            )
+        if probl_i == 2:
+            idxs = (
+                (-18 < y_arr) & (y_arr < 9) &
+                (-15 < x_arr) & (x_arr < -4)
+            )
+        y_arr = y_arr[idxs]
+        y_err = y_err[idxs]
+        x_arr = x_arr[idxs]
+
+    ax.hexbin(x_arr, y_arr, gridsize=40, cmap=cmap, mincnt=1)
+
+    ax.set_xlabel(r'$\mathrm{elpd}_\mathrm{D}$', fontsize=fontsize)
+    ax.set_ylabel(r'$\widehat{\mathrm{elpd}}_\mathrm{D}$', fontsize=fontsize)
+
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+    ax.autoscale(enable=False)
+    ax.plot(
+        [min(y_arr.min(), x_arr.min()),
+         max(y_arr.max(), x_arr.max())],
+        [min(y_arr.min(), x_arr.min()),
+         max(y_arr.max(), x_arr.max())],
+        color='C2'
+    )
+
+
+    # error points
+
+    # x_locs = np.linspace(x_arr.min(), x_arr.max(), errorbar_density+1)
+    # idxs = np.unique(np.abs(x_arr - x_locs[:,None]).argmin(axis=-1))
+
+    x_lims = np.linspace(x_arr.min(), x_arr.max()+1e-10, errorbar_density+1)
+    idxs = []
+    x_lim_d = x_lims[1] - x_lims[0]
+    for y_l, y_u in zip(x_lims[:-1], x_lims[1:]):
+        cur_idxs = (y_l + x_lim_d*0.2 <= x_arr) & (x_arr < y_u - x_lim_d*0.2)
+        if cur_idxs.sum() == 0:
+            # no obs in this range
+            continue
+        selected_idx = rng.choice(np.nonzero(cur_idxs)[0])
+        idxs.append(selected_idx)
+
+    ax.errorbar(
+        x_arr[idxs], y_arr[idxs], yerr=y_err[idxs], color='C1', ls='', marker='o')
+
+    if probl_i == 1 and not manual_zoom:
+        ax.set_ylim(top=3.2)
+
+    ax.tick_params(axis='both', which='major', labelsize=16)
+    ax.tick_params(axis='both', which='minor', labelsize=14)
+
+    # ===============
+    # hist of loo
+
+    ax = axes[1, probl_i]
+
+    x_arr = loo_s[probl_i]
+
+    ax.hist(x_arr, bins=histbins, color='C0')
+
+    # ax.axvline(np.mean(x_arr), color='C1')
+    # ax.plot([np.mean(x_arr)]*2, [0, ax.get_ylim()[1]], color='C1')
+
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+
+    ax.set_yticks([])
+
+    if probl_i == 0:
+        ax.set_ylabel(
+            r'$\widehat{\mathrm{elpd}}_\mathrm{D}$',
+            fontsize=fontsize,
+            labelpad=20,
+            # rotation=0,
+            # ha='right',
+        )
+
+    # ===============
+    # hist of error
+
+    ax = axes[2, probl_i]
+    elpd = elpd_s[probl_i]
+    loo = loo_s[probl_i]
+
+    # x_arr = elpd_s[probl_i] - loo_s[probl_i]
+    x_arr = (
+        (elpd[:n_trial//2] - loo[:n_trial//2])
+        + loo[n_trial//2:]
+    )
+
+    ax.hist(x_arr, bins=histbins, color='C0')
+
+    ax.axvline(np.mean(x_arr), color='C1')
+    # ax.plot([np.mean(x_arr)]*2, [0, ax.get_ylim()[1]], color='C1')
+
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+
+    ax.set_yticks([])
+
+    if probl_i == 0:
+        ax.set_ylabel(
+            r'$\mathrm{elpd}_\mathrm{D} - \widehat{\mathrm{elpd}}_\mathrm{D}$',
+            fontsize=fontsize,
+            labelpad=20,
+            # rotation=0,
+            # ha='right',
+        )
+
+    # ===============
+    # calibrations
+
+    ax = axes[3, probl_i]
+
+    ax.bar(
         cal_limits[:-1],
         cal_counts[probl_i],
         width=1/cal_nbins,
         align='edge'
     )
 
-    plt.axhline(n_trial/cal_nbins, color='red', lw=0.5)
-    # plt.axhline(q005, color='pink')
-    # plt.axhline(q995, color='pink')
-    plt.fill_between(
-        [0,1], [q995, q995], [q005, q005], color='red', alpha=0.2,
+    ax.axhline(n_trial/cal_nbins, color='C1', lw=0.8)
+    # ax.axhline(q005, color='pink')
+    # ax.axhline(q995, color='pink')
+    ax.fill_between(
+        [0,1], [q995, q995], [q005, q005], color='C1', alpha=0.3,
         zorder=2)
-    plt.ylim((0, cal_counts.max()))
-    plt.xlim((0, 1))
-    plt.yticks([])
-    ax = plt.gca()
+    ax.set_ylim((0, cal_counts.max()))
+    ax.set_xlim((0, 1))
+    ax.set_yticks([])
+    ax.set_xticks([0, 0.5, 1])
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     # ax.spines['bottom'].set_visible(False)
     ax.spines['left'].set_visible(False)
-    plt.xlabel('$p(\widetilde{\mathrm{\widehat{elpd}_{d}}}<\mathrm{elpd}_d)$')
-    plt.tight_layout()
+
+    if probl_i == 0:
+        ax.set_ylabel(
+            r'$p(\mathrm{elpd_D} < \mathrm{elpd_{D \; true}})$',
+            fontsize=fontsize,
+            labelpad=20,
+            # rotation=0,
+            # ha='right',
+        )
+
+for ax in axes.ravel():
+    ax.tick_params(axis='both', which='major', labelsize=fontsize-2)
+    ax.tick_params(axis='both', which='minor', labelsize=fontsize-2)
+
+
+# # share hists ylim
+# max_ylim = max(
+#     max(map(lambda ax: ax.get_ylim()[1], axes[1,:])),
+#     max(map(lambda ax: ax.get_ylim()[1], axes[2,:]))
+# )
+# for ax_i in [1, 2]:
+#     for ax in axes[ax_i,:]:
+#         ax.set_ylim(top=max_ylim)
+
+# share hists col ylim
+for probl_i in range(n_probls):
+    max_ylim = max(map(lambda ax: ax.get_ylim()[1], axes[[1, 2], probl_i]))
+    for ax in axes[[1, 2], probl_i]:
+        ax.set_ylim(top=max_ylim)
+
+
+# share hists col x-scale
+for probl_i in range(n_probls):
+    scale = 0.0
+    for ax in axes[[1, 2], probl_i]:
+        x_1, x_2 = ax.get_xlim()
+        scale = max(scale, x_2-x_1)
+    for ax in axes[[1, 2], probl_i]:
+        x_1, x_2 = ax.get_xlim()
+        if x_2-x_1 < scale:
+            d_x = scale - (x_2 - x_1)
+            ax.set_xlim([x_1-d_x/2, x_2+d_x/2])
+
+
+for probl_i, probl_name in enumerate([
+    'Clear case',
+    'Models similar',
+    'Outliers'
+]):
+    ax = axes[0, probl_i]
+    ax.set_title(probl_name, fontsize=fontsize)
+    # ax.text(
+    #     -0.6,
+    #     0.5,
+    #     probl_name,
+    #     transform=ax.transAxes,
+    #     rotation=90,
+    #     fontsize=fontsize,
+    #     va='center'
+    # )
+
+fig.tight_layout()
+fig.subplots_adjust(hspace=0.32)

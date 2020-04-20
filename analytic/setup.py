@@ -60,7 +60,7 @@ def get_analytic_res(X_mat, beta, tau2, idx_a, idx_b, Sigma_d, mu_d=None):
     else:
         yhat_ma = np.zeros(n_obs)
     if idx_mb.size:
-        yhat_mb = X_mbt[:,idx_mb].dot(beta[idx_mb])
+        yhat_mb = X_mat[:,idx_mb].dot(beta[idx_mb])
     else:
         yhat_mb = np.zeros(n_obs)
 
