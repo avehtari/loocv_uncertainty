@@ -318,9 +318,9 @@ for probl_i in range(n_probls):
 
         ax.set_yticks([])
 
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.spines['left'].set_visible(False)
+        # ax.spines['top'].set_visible(False)
+        # ax.spines['right'].set_visible(False)
+        # ax.spines['left'].set_visible(False)
 
     # share hists row ylim
     max_ylim = max(map(lambda ax: ax.get_ylim()[1], axes_all[probl_i*2+1, :]))

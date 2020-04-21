@@ -3,31 +3,6 @@ import numpy as np
 from scipy import linalg, stats
 
 
-# ============================================================================
-# Funcs
-
-class DataGeneration:
-
-    def __init__(self, data_seed=None):
-        self.rng = np.random.RandomState(seed=data_seed)
-
-    def make_x(self, n_obs, n_dim, intercept=False):
-        # X
-        if intercept:
-            # firs dim (column) ones for intercept
-            # X_mat = np.hstack((
-            #     np.ones((n_obs, 1)),
-            #     self.rng.uniform(low=-1.0, high=1.0, size=(n_obs, n_dim-1))
-            # ))
-            X_mat = np.hstack((
-                np.ones((n_obs, 1)),
-                self.rng.randn(n_obs, n_dim-1)
-            ))
-        else:
-            # X_mat = self.rng.uniform(low=-1.0, high=1.0, size=(n_obs, n_dim))
-            X_mat = self.rng.randn(n_obs, n_dim)
-        return X_mat
-
 
 def get_analytic_res(X_mat, beta, tau2, idx_a, idx_b, Sigma_d, mu_d=None):
     """Analytic results.

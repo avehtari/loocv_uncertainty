@@ -54,6 +54,33 @@ if plot:
     import matplotlib.pyplot as plt
     # import seaborn as sns
 
+# ============================================================================
+# Funcs
+
+class DataGeneration:
+
+    def __init__(self, data_seed=None):
+        self.rng = np.random.RandomState(seed=data_seed)
+
+    def make_x(self, n_obs, n_dim):
+        # X
+        if intercept:
+            # firs dim (column) ones for intercept
+            # X_mat = np.hstack((
+            #     np.ones((n_obs, 1)),
+            #     self.rng.uniform(low=-1.0, high=1.0, size=(n_obs, n_dim-1))
+            # ))
+            X_mat = np.hstack((
+                np.ones((n_obs, 1)),
+                self.rng.randn(n_obs, n_dim-1)
+            ))
+        else:
+            # X_mat = self.rng.uniform(low=-1.0, high=1.0, size=(n_obs, n_dim))
+            X_mat = self.rng.randn(n_obs, n_dim)
+        return X_mat
+
+# ============================================================================
+
 # construct beta vectors
 beta_s = np.zeros((len(beta_t_s), n_dim))
 for b_i, beta_t in enumerate(beta_t_s):
@@ -63,7 +90,7 @@ for b_i, beta_t in enumerate(beta_t_s):
     beta_s[b_i] = beta
 
 data_generation = DataGeneration(data_seed)
-make_x = partial(data_generation.make_x, intercept=intercept)
+make_x = data_generation.make_x
 
 
 # ============================================================================
