@@ -10,6 +10,8 @@ from matplotlib import cm
 import seaborn as sns
 
 from matplotlib.patches import ConnectionPatch
+from matplotlib import patheffects
+import matplotlib.gridspec as gridspec
 
 from m1_problem import *
 
@@ -180,38 +182,53 @@ def adjust_lightness(color, amount=0.5):
     c = colorsys.rgb_to_hls(*mc.to_rgb(c))
     return colorsys.hls_to_rgb(c[0], max(0, min(1, amount * c[1])), c[2])
 
-
 fontsize = 16
 
-cmap = truncate_colormap(cm.get_cmap('Greys'), 0.4)
+cmap = truncate_colormap(cm.get_cmap('Greys'), 0.3)
 cmap.set_under('white', 1.0)
 
 # example points (elpdhat, elpd)
 custom_points = [
-    [[-54.0, -42.0], [-47.0, -47.0], [-44.0, -44.0]],
+    [[-54.0, -42.0], [-44.0, -44.0], [-47.0, -47.0]],
     [[-0.5, 1.5], [0.6, 0.6], [0.967, 0.073]],
-    [[-11.5, -11.5], [0.0, -10.0], [5.7, -6.7]],
+    [[5.7, -6.7], [0.0, -10.0], [-11.0, -11.0]],
 ]
 
-custom_limits = [
-    [-75, -25],
-    [-2.5, 3.0],
-    [-30, 20]
-]
+# custom_limits = [
+#     [-75, -25],
+#     [-2.5, 3.0],
+#     [-30, 20]
+# ]
 
-fig, axes_all = plt.subplots(
-    2*n_probls, 3,
-    gridspec_kw={'height_ratios': [3, 2]*n_probls},
-    figsize=(10, 11)
+fig = plt.figure(figsize=(10, 8))
+outer = gridspec.GridSpec(
+    2, 1, height_ratios = [1, 1],
+    hspace=0.35,
+    top=0.95,
+    bottom=0.11,
+    left=0.08,
+    right=0.97
+)
+gs1 = gridspec.GridSpecFromSubplotSpec(
+    1, n_probls, subplot_spec=outer[0,:], wspace=0.5)
+gs2 = gridspec.GridSpecFromSubplotSpec(
+    3, n_probls, subplot_spec=outer[1:,:], wspace=0.5, hspace=0.2)
+axes = np.array(
+    [[fig.add_subplot(gs1[probl_i]) for probl_i in range(n_probls)]]
+    +
+    [
+        [fig.add_subplot(gs2[probl_i, row_i])for row_i in range(3)]
+        for probl_i in range(n_probls)
+    ]
 )
 
+# fig, axes = plt.subplots(
+#     4, n_probls,
+#     gridspec_kw={'height_ratios': [3, 1, 1, 1]},
+#     figsize=(9, 8)
+# )
+
 for probl_i in range(n_probls):
-
-    axes = axes_all[probl_i*2:probl_i*2+2,:]
-
-    # blanks
-    axes[0, 0].axis('off')
-    axes[0, 2].axis('off')
 
     x_arr = loo_s[probl_i]
     y_arr = elpd_s[probl_i]
@@ -219,30 +236,31 @@ for probl_i in range(n_probls):
     # ===============
     # joint
 
-    ax = axes[0, 1]
+    ax = axes[0, probl_i]
 
     if manual_zoom:
         if probl_i == 0:
             idxs = (
-                (-70 < x_arr) & (x_arr < -20) &
+                (-75 < x_arr) & (x_arr < -25) &
                 (-50 < y_arr) & (y_arr < -37)
             )
         if probl_i == 1:
             idxs = (
-                (-1.5 < x_arr) & (x_arr < 2.5) &
+                (-2.5 < x_arr) & (x_arr < 3.0) &
                 (-1 < y_arr) & (y_arr < 2.5)
             )
         if probl_i == 2:
             idxs = (
-                (-18 < x_arr) & (x_arr < 9) &
+                (-26 < x_arr) & (x_arr < 15) &
                 (-15 < y_arr) & (y_arr < -4)
             )
         x_arr = x_arr[idxs]
         y_arr = y_arr[idxs]
 
-    ax.hexbin(x_arr, y_arr, gridsize=40, cmap=cmap, mincnt=1)
+    ax.hexbin(x_arr, y_arr, gridsize=35, cmap=cmap, mincnt=1)
 
-    ax.set_ylabel(r'$\mathrm{elpd}$', fontsize=fontsize-2)
+    if probl_i == 0:
+        ax.set_ylabel(r'$\mathrm{elpd}$', fontsize=fontsize-2)
     ax.set_xlabel(r'$\widehat{\mathrm{elpd}}$', fontsize=fontsize-2)
 
     ax.spines['top'].set_visible(False)
@@ -254,16 +272,20 @@ for probl_i in range(n_probls):
          max(y_arr.max(), x_arr.max())],
         [min(y_arr.min(), x_arr.min()),
          max(y_arr.max(), x_arr.max())],
-        color=adjust_lightness('C3', amount=1.3)
+        color='C2'
     )
+
+    if probl_i == 2:
+        ax.set_xlim(left=-26)
 
     # ===============
     # custom points
 
-    x_y_curs = []
+    x_min, x_max = axes[0, probl_i].get_xlim()
+    x_grid = np.linspace(x_min, x_max, 100)
 
-    for ax, (elpdhat_target, elpd_target) in zip(
-            axes[1, :], custom_points[probl_i]):
+    for p_i, (ax, (elpdhat_target, elpd_target)) in enumerate(zip(
+            axes[1:, probl_i], custom_points[probl_i])):
 
         # find closest taxi distance
         idx = (
@@ -278,17 +300,15 @@ for probl_i in range(n_probls):
         n_obs = len(elpdhat_i)
         elpdtilde = elpdhat - (loo_s[probl_i] - elpd_s[probl_i])
 
-        x_y_curs.append((elpdhat, elpd))
-
         # limits
         # elpdtilde_min, elpdtilde_max = np.percentile(elpdtilde, [2.5, 97.5])
         # x_min = min(elpd, elpdhat-3*sehat, elpdtilde_min)
         # x_max = max(elpd, elpdhat+3*sehat, elpdtilde_max)
         # x_min, x_max = np.array([-1,1])*0.2*(x_max-x_min)+[x_min, x_max]
 
-        x_min, x_max = custom_limits[probl_i]
+        # x_min, x_max = custom_limits[probl_i]
 
-        x_grid = np.linspace(x_min, x_max, 100)
+        # x_grid = np.linspace(x_min, x_max, 100)
 
         # elpdtilde sliced
         # elpdtilde = elpdtilde[(x_min<elpdtilde) & (elpdtilde<x_max)]
@@ -307,86 +327,93 @@ for probl_i in range(n_probls):
         h_elpdhat_n, = ax.plot(
             x_grid,
             dens,
-            color='C2'
+            color='C1'
         )
         # plot elpdhat
-        h_elpdhat = ax.axvline(elpdhat, color='C2')
+        h_elpdhat = ax.axvline(elpdhat, color='C1')
         # plot elpd
         h_elpd = ax.axvline(elpd, color='C0', linestyle=':', linewidth=2.5)
 
         ax.set_xlim((x_min, x_max))
+        ax.set_xticklabels([])
 
         ax.set_yticks([])
 
-        # ax.spines['top'].set_visible(False)
-        # ax.spines['right'].set_visible(False)
-        # ax.spines['left'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_visible(False)
 
-    # share hists row ylim
-    max_ylim = max(map(lambda ax: ax.get_ylim()[1], axes_all[probl_i*2+1, :]))
-    for ax in axes_all[probl_i*2+1, :]:
-        ax.set_ylim(top=max_ylim)
-
-    # connect plots
-    for ax, (x_cur, y_cur) in zip(axes[1, :], x_y_curs):
-
-        # con_line = ConnectionPatch(
-        #     xyA=(x_cur, ax.get_ylim()[1]), xyB=(x_cur, y_cur),
-        #     coordsA="data", coordsB="data",
-        #     axesA=ax, axesB=axes[0, 1],
-        #     color="C1"
-        # )
-        # ax.add_artist(con_line)
-        # axes[0, 1].plot(x_cur, y_cur, color='C1', marker='o')
-
-        con_line = ConnectionPatch(
-            xyB=(0.5, 1.1),
-            xyA=(x_cur, y_cur),
-            coordsB="axes fraction", coordsA="data",
-            axesB=ax, axesA=axes[0, 1],
+        # add annotation
+        axes[0, probl_i].plot(
+            [elpdhat], [elpd],
+            'o', markersize=5,
+            markerfacecolor=adjust_lightness('C1', amount=1.3),
+            markeredgewidth=1.0, markeredgecolor='k'
+        )
+        annotation_text = axes[0, probl_i].annotate(
+            '{}'.format(p_i),
+            xy=(elpdhat, elpd),
+            xytext=(-5, 0),
+            ha='right',
+            va='center',
+            textcoords='offset points',
             color=adjust_lightness('C1', amount=1.3),
-            zorder=1,
+            fontsize=fontsize,
         )
-        axes[0, 1].add_artist(con_line)
-        axes[0, 1].plot(
-            x_cur, y_cur, color='C1', marker='.', ms=8)
+        annotation_text.set_path_effects([
+            mpl.patheffects.Stroke(linewidth=1.5, foreground='k'),
+            mpl.patheffects.Normal()
+        ])
 
-    # legend
-    if probl_i == 0:
-        # h_elpd_vert = mpl.lines.Line2D(
-        #     [], [], color=h_elpd.get_color(), marker='|', linestyle='None',
-        #     markersize=14, markeredgewidth=1.5
-        # )
-        h_elpdhat_vert = mpl.lines.Line2D(
-            [], [], color=h_elpdhat.get_color(), marker='|', linestyle='None',
-            markersize=14, markeredgewidth=1.5
-        )
-        axes[0,-1].legend(
-            [h_elpdhat_vert, h_elpd, h_elpdhat_n, hs_elpdtilde[0]],
-            [r'$\widehat{\mathrm{elpd}}$',
-                r'$\mathrm{elpd}$',
-                'normal approx.',
-                r'$\widetilde{\mathrm{elpd}}$'],
-            fontsize=fontsize-2,
-            loc='upper right',
-            handler_map={h_elpd:HandlerMiniatureLine()}
-        )
-
-fig.tight_layout()
+    # share hists col ylim
+    max_ylim = max(map(lambda ax: ax.get_ylim()[1], axes[1:, probl_i]))
+    for ax in axes[1:, probl_i]:
+        ax.set_ylim(top=max_ylim)
 
 for probl_i, probl_name in enumerate([
     'Clear case',
     'Models similar',
     'Outliers'
 ]):
-    ax = axes_all[probl_i*2+1, 0]
-    ax.text(
-        x=-0.1,
-        y=1.5,
-        s=probl_name,
-        rotation=90,
+    ax = axes[0, probl_i]
+    ax.set_title(
+        probl_name,
         fontsize=fontsize,
-        va='center',
-        ha='right',
-        transform=ax.transAxes
+        pad=10,
     )
+
+for row_i, ax in enumerate(axes[1:, 0]):
+    label_text = ax.set_ylabel(
+        '{}'.format(row_i),
+        labelpad=25,
+        color=adjust_lightness('C1', amount=1.3),
+        ha='right', va='center',
+        fontsize=fontsize, rotation=0)
+    label_text.set_path_effects([
+        mpl.patheffects.Stroke(linewidth=1.0, foreground='k'),
+        mpl.patheffects.Normal()
+    ])
+
+# legend
+# h_elpd_vert = mpl.lines.Line2D(
+#     [], [], color=h_elpd.get_color(), marker='|', linestyle='None',
+#     markersize=14, markeredgewidth=1.5
+# )
+h_elpdhat_vert = mpl.lines.Line2D(
+    [], [], color=h_elpdhat.get_color(), marker='|', linestyle='None',
+    markersize=14, markeredgewidth=1.5
+)
+axes[-1,1].legend(
+    [h_elpdhat_vert, h_elpd, h_elpdhat_n, hs_elpdtilde[0]],
+    [r'$\widehat{\mathrm{elpd}}$',
+        r'$\mathrm{elpd}$',
+        'normal approx.',
+        r'$\widetilde{\mathrm{elpd}}$'],
+    fontsize=fontsize-2,
+    loc='upper center',
+    bbox_to_anchor=(0.5, -0.3),
+    fancybox=False,
+    shadow=False,
+    ncol=4,
+    handler_map={h_elpd:HandlerMiniatureLine()}
+)
