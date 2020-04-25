@@ -5,7 +5,7 @@ from functools import partial
 import numpy as np
 from scipy import linalg, stats
 
-from setup import *
+from problem_setting import *
 
 
 
