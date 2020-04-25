@@ -31,6 +31,7 @@ n_obs, beta_t, out_dev = run_i_to_params(run_i)
 # make problem run instance
 probl_run = ProblemRun(
     n_obs=n_obs, n_obs_max=n_obs_max, beta_t=beta_t, out_dev=out_dev)
+probl_args = probl_run.get_args()
 
 # basic yobs
 X_tid, y_ti = probl_run.make_data()
@@ -126,6 +127,7 @@ os.makedirs(out_folder_name, exist_ok=True)
 np.savez_compressed(
     '{}/{}.npz'.format(out_folder_name, run_i_str),
     run_i=run_i,
+    probl_args=probl_args,
     loo_ti_A=loo_ti_A,
     loo_ti_B=loo_ti_B,
     looindep_ti_A=looindep_ti_A,

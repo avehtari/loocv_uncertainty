@@ -110,6 +110,13 @@ class ProblemRun:
         self.elpd_test_n = elpd_test_n
         self.seed = seed
 
+        self.args = (
+            self.n_obs, self.n_obs_max, self.beta_t, self.out_dev,
+            self.n_obs_out, self.sigma2_d, self.tau2, self.n_dim,
+            self.intercept, self.beta_other, self.beta_intercept, self.n_trial,
+            self.elpd_test_n, self.seed,
+        )
+
         self.sigma_d = np.sqrt(self.sigma2_d)
 
         # random number generator
@@ -119,6 +126,11 @@ class ProblemRun:
         self.beta = np.array([self.beta_other]*(self.n_dim-1)+[self.beta_t])
         if self.intercept:
             self.beta[0] = self.beta_intercept
+
+
+    def get_args(self):
+        """Return the args this problem was initialised with."""
+        return self.args
 
 
     def make_data(self, n_sets=None):
