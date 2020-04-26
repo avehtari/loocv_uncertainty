@@ -288,7 +288,8 @@ def calc_bb_mean_var_prctiles_plooneg(loo_ti, seed=BB_SEED):
     rng = np.random.RandomState(seed=seed)
     n_obs = loo_ti.shape[-1]
     alpha = rng.dirichlet(np.ones(n_obs), size=BB_N)
-    z_tb = np.sum(alpha.T*loo_ti[..., None], axis=-2)
+    # z_tb = np.sum(alpha.T*loo_ti[..., None], axis=-2)
+    z_tb = np.einsum('bi,...ib->...b', alpha, loo_ti[..., None])
     n_z_tb = np.multiply(z_tb, n_obs, out=z_tb)
     bb_mean = np.mean(n_z_tb, axis=-1)
     bb_var = np.var(n_z_tb, axis=-1, ddof=1)
@@ -302,7 +303,8 @@ def calc_loo_bb(loo_tki, seed=BMA_BB_SEED):
     rng = np.random.RandomState(seed=seed)
     n_obs = loo_tki.shape[-1]
     alpha = rng.dirichlet(np.ones(n_obs), size=BMA_BB_N)
-    z_tkb = np.sum(alpha.T*loo_tki[..., None], axis=-2)
+    # z_tkb = np.sum(alpha.T*loo_tki[..., None], axis=-2)
+    z_tkb = np.einsum('bi,...ib->...b', alpha, loo_tki[..., None])
     n_z_tkb = np.multiply(z_tkb, n_obs, out=z_tkb)
     # try to avoid precision problems
     n_z_tkb -= np.max(n_z_tkb, axis=-2, keepdims=True)
@@ -325,7 +327,8 @@ def calc_loo_bb_pair(loo_ti, seed=BMA_BB_SEED):
     rng = np.random.RandomState(seed=seed)
     n_obs = loo_ti.shape[-1]
     alpha = rng.dirichlet(np.ones(n_obs), size=BMA_BB_N)
-    z_tb = np.sum(alpha.T*loo_ti[..., None], axis=-2)
+    # z_tb = np.sum(alpha.T*loo_ti[..., None], axis=-2)
+    z_tb = np.einsum('bi,...ib->...b', alpha, loo_ti[..., None])
     n_z_tb = np.multiply(z_tb, n_obs, out=z_tb)
     w_tb = logistic_fun(n_z_tb, out=n_z_tb)
     w_t = np.mean(w_tb, axis=-1)

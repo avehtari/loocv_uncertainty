@@ -39,3 +39,10 @@ def run_i_to_params(run_i):
     beta_t = beta_t_grid.flat[run_i]
     out_dev = out_dev_grid.flat[run_i]
     return n_obs, beta_t, out_dev
+
+def params_to_run_i(n_obs, beta_t, out_dev):
+    n_obs_i = n_obs_s.index(n_obs)
+    beta_t_i = beta_t_s.index(beta_t)
+    out_dev_i = out_dev_s.index(out_dev)
+    run_i = np.ravel_multi_index((n_obs_i, beta_t_i, out_dev_i), grid_shape)
+    return run_i
