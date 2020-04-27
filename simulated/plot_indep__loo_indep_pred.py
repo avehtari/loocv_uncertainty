@@ -11,28 +11,32 @@ import matplotlib.gridspec as gridspec
 # import seaborn as sns
 # import pandas as pd
 
-from setup_some import *
+from setup_indep import *
 
 
 # ============================================================================
 # select problem
 
 # number of obs in one trial
-# n_obs_s = [16, 32, 64, 128, 256, 512, 1024]
+# n_obs_s = [32, 128, 512]
 n_obs = 128
 
 # last covariate effect not used in model A
-# beta_t_s = [0.0, 0.05, 0.1, 1.0]
+# beta_t_s = [0.0, 1.0]
 beta_t = 0.0
 
 # outlier dev
-# out_dev_s = [0.0, 100.0]
+# out_dev_s = [0.0, 20.0, 200.0]
 out_dev = 0.0
+
+# tau2
+# tau2_s = [None, 1.0]
+tau2 = None
 
 
 # ============================================================================
 
-run_i = params_to_run_i(n_obs, beta_t, out_dev)
+run_i = params_to_run_i(n_obs, beta_t, out_dev, tau2)
 
 # load results
 res_file = np.load(

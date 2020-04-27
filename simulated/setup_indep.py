@@ -5,20 +5,20 @@ from general_setup import *
 
 
 # folder name
-res_folder_name = 'res_out'
+res_folder_name = 'res_indep'
 
 
 # ============================================================================
 # grid params
 
 # number of obs in one trial
-n_obs_s = [32, 128]
+n_obs_s = [32, 128, 512]
 
 # last covariate effect not used in model A
 beta_t_s = [0.0, 1.0]
 
 # outlier dev
-out_dev_s = [0.0, 1.0, 2.0, 4.0, 10.0, 20.0, 40.0, 100.0, 1000.0]
+out_dev_s = [0.0, 20.0, 200.0]
 
 # tau2
 tau2_s = [None, 1.0]

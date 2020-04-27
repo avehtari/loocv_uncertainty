@@ -1,11 +1,10 @@
-"""LOO vs indep."""
 
 import sys, os, time
 
 import numpy as np
 from scipy import linalg, stats
 
-from setup_some import *
+from setup_beta import *
 
 
 # parse cmd input for run id
@@ -26,17 +25,20 @@ else:
 out_folder_name = res_folder_name + subfolder_name
 
 # get params and data
-n_obs, beta_t, out_dev = run_i_to_params(run_i)
+n_obs, beta_t, out_dev, tau2 = run_i_to_params(run_i)
 
 # make problem run instance
 probl_run = ProblemRun(
-    n_obs=n_obs, n_obs_max=n_obs_max, beta_t=beta_t, out_dev=out_dev)
+    n_obs=n_obs,
+    n_obs_max=n_obs_max,
+    beta_t=beta_t,
+    out_dev=out_dev,
+    tau2=tau2
+)
 probl_args = probl_run.get_args()
 
 # basic yobs
 X_tid, y_ti = probl_run.make_data()
-# yobs2 for independent predics
-X2_tid, y2_ti = probl_run.make_data()
 # yobs_test for target calculations
 X_test_tid, y_test_ti = probl_run.make_data(probl_run.elpd_test_n)
 
@@ -46,6 +48,7 @@ print(
     'n_obs: {} / {}'.format(n_obs, n_obs_s),
     'beta_t: {} / {}'.format(beta_t, beta_t_s),
     'out_dev: {} / {}'.format(out_dev, out_dev_s),
+    'tau2: {} / {}'.format(tau2, tau2_s),
     sep='\n'
 )
 
@@ -59,15 +62,6 @@ loo_ti_A = probl_run.calc_loo_ti(y_ti, X_tid[:,:,:-1])
 # model B LOO
 print('model B LOO', flush=True)
 loo_ti_B = probl_run.calc_loo_ti(y_ti, X_tid)
-
-# model A LOO indep
-print('model A LOO indep', flush=True)
-looindep_ti_A = probl_run.calc_loo_ti(
-    y_ti, X_tid[:,:,:-1], y2_ti=y2_ti, X2_tid=X2_tid[:,:,:-1])
-# model B LOO indep
-print('model B LOO indep', flush=True)
-looindep_ti_B = probl_run.calc_loo_ti(
-    y_ti, X_tid, y2_ti=y2_ti, X2_tid=X2_tid)
 
 # model A test
 print('model A test', flush=True)
@@ -130,8 +124,6 @@ np.savez_compressed(
     probl_args=probl_args,
     loo_ti_A=loo_ti_A,
     loo_ti_B=loo_ti_B,
-    looindep_ti_A=looindep_ti_A,
-    looindep_ti_B=looindep_ti_B,
     elpd_t_A=elpd_t_A,
     elpd_t_B=elpd_t_B,
     bb_mean=bb_mean,
@@ -196,29 +188,9 @@ if False:
     print('loo_b:\n{}\n{}'.format(test_loo_b, loo_ti_B[t,i]))
     # ok
 
-    # LOO A
-    test_looindep_a = calc_logpdf_for_one_pred(
-        np.delete(X_tid[t,:,:-1], i, axis=0),
-        np.delete(y_ti[t], i, axis=0),
-        X2_tid[t,i,:-1],
-        y2_ti[t,i]
-    )
-    print('looindep_a:\n{}\n{}'.format(test_looindep_a, looindep_ti_A[t,i]))
-    # ok
-
-    # LOO B
-    test_looindep_b = calc_logpdf_for_one_pred(
-        np.delete(X_tid[t], i, axis=0),
-        np.delete(y_ti[t], i, axis=0),
-        X2_tid[t,i],
-        y2_ti[t,i]
-    )
-    print('looindep_b:\n{}\n{}'.format(test_looindep_b, looindep_ti_B[t,i]))
-    # ok
-
     # test A
-    test_test_a = np.zeros((elpd_test_n, n_obs))
-    for t_i in range(elpd_test_n):
+    test_test_a = np.zeros((probl_run.elpd_test_n, n_obs))
+    for t_i in range(probl_run.elpd_test_n):
         for ii in range(n_obs):
             test_test_a[t_i,ii] = calc_logpdf_for_one_pred(
                 X_tid[t,:,:-1],
@@ -227,12 +199,12 @@ if False:
                 y_test_ti[t_i,ii]
             )
     test_test_a = np.sum(np.mean(test_test_a, axis=0))
-    print('test_a:\n{}\n{}'.format(test_test_a, test_elpd_t_A[t]))
+    print('test_a:\n{}\n{}'.format(test_test_a, elpd_t_A[t]))
     # ok
 
-    # test A
-    test_test_b = np.zeros((elpd_test_n, n_obs))
-    for t_i in range(elpd_test_n):
+    # test B
+    test_test_b = np.zeros((probl_run.elpd_test_n, n_obs))
+    for t_i in range(probl_run.elpd_test_n):
         for ii in range(n_obs):
             test_test_b[t_i,ii] = calc_logpdf_for_one_pred(
                 X_tid[t,:,:],
@@ -241,5 +213,5 @@ if False:
                 y_test_ti[t_i,ii]
             )
     test_test_b = np.sum(np.mean(test_test_b, axis=0))
-    print('test_a:\n{}\n{}'.format(test_test_b, test_elpd_t_B[t]))
+    print('test_a:\n{}\n{}'.format(test_test_b, elpd_t_B[t]))
     # ok
