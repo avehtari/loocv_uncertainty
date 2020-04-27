@@ -33,7 +33,7 @@ N_DIM = 3
 INTERCEPT = True
 BETA_OTHER = 1.0
 BETA_INTERCEPT = 0.0
-N_TRIAL = 4000
+N_TRIAL = 2000
 ELPD_TEST_N = 4000
 SEED = 2958319585
 
@@ -271,7 +271,6 @@ class ProblemRun:
                     loc=mu_pred_test,
                     scale=np.sqrt(sigma2_pred_test)
                 )
-                test_lpd_tl[t] = np.mean(test_logpdf, axis=0)
             else:
                 test_logpdf = stats.t.logpdf(
                     y_test_ti,
@@ -279,7 +278,7 @@ class ProblemRun:
                     loc=mu_pred_test,
                     scale=np.sqrt(sigma2_pred_test)
                 )
-                test_lpd_tl[t] = np.sum(test_logpdf, axis=1)
+            test_lpd_tl[t] = np.sum(test_logpdf, axis=1)
         return test_lpd_tl
 
 
