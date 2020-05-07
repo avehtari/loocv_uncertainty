@@ -24,6 +24,7 @@ n_obs_sel = [32, 128, 512]
 
 # last covariate effect not used in model A
 # beta_t_s = [0.0, 0.05, 0.1, 0.2, 0.5, 1.0]
+# beta_t_sel = [0.0, 0.1, 0.5, 1.0]
 beta_t_sel = [0.0, 0.2, 1.0]
 
 # outlier dev
@@ -32,7 +33,7 @@ out_dev = 0.0
 
 # tau2
 # tau2_s = [None, 1.0]
-tau2 = 1.0
+tau2 = None
 
 
 # ============================================================================
@@ -147,7 +148,7 @@ fontsize = 16
 cmap = truncate_colormap(cm.get_cmap('Greys'), 0.3)
 cmap.set_under('white', 1.0)
 
-kde_plot = True
+kde_plot = False
 kde_n_levels = 6
 # kde_cmap = 'copper'
 kde_cmap = truncate_colormap(cm.get_cmap('copper'), 0.3)
@@ -165,6 +166,7 @@ for n_obs_i, n_obs in enumerate(n_obs_sel):
 
         # ax.plot(x_arr, y_arr, '.')
         ax.hexbin(x_arr, y_arr, gridsize=35, cmap=cmap, mincnt=1)
+
         if kde_plot:
             sns.kdeplot(
                 x_arr, y_arr,
@@ -174,9 +176,54 @@ for n_obs_i, n_obs in enumerate(n_obs_sel):
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
 
+        ax.autoscale(enable=False)
+        ax.plot(
+            [max(ax.get_xlim()[0], ax.get_ylim()[0]),
+             min(ax.get_xlim()[1], ax.get_ylim()[1])],
+            [max(ax.get_xlim()[0], ax.get_ylim()[0]),
+             min(ax.get_xlim()[1], ax.get_ylim()[1])],
+            # color=adjust_lightness('C3', amount=1.3)
+            color='C2'
+        )
+        if ax.get_xlim()[0] < 0 and ax.get_xlim()[1] > 0:
+            ax.axvline(
+                0, color=adjust_lightness('gray', amount=1.4),
+                zorder=1, lw=0.8)
+        if ax.get_ylim()[0] < 0 and ax.get_ylim()[1] > 0:
+            ax.axhline(
+                0, color=adjust_lightness('gray', amount=1.4),
+                zorder=1, lw=0.8)
+
+        ax.tick_params(axis='both', which='major', labelsize=fontsize-2)
+        ax.tick_params(axis='both', which='minor', labelsize=fontsize-4)
+
 for ax in axes[:, 0]:
     ax.set_ylabel(r'$\mathrm{elpd}$', fontsize=fontsize-2)
 for ax in axes[-1, :]:
     ax.set_xlabel(r'$\widehat{\mathrm{elpd}}$', fontsize=fontsize-2)
 
+# set n labels
+for ax, n_obs in zip(axes[0, :], n_obs_sel):
+    # ax.set_title(r'$n={}$'.format(n_obs), fontsize=fontsize)
+    ax.text(
+        0.5, 1.20,
+        r'$n={}$'.format(n_obs),
+        transform=ax.transAxes,
+        ha='center',
+        va='bottom',
+        fontsize=fontsize,
+    )
+
+# set beta labels
+for ax, beta_t in zip(axes[:, 0], beta_t_sel):
+    ax.text(
+        -0.55, 0.5,
+        r'$\beta_t={}$'.format(beta_t),
+        transform=ax.transAxes,
+        ha='right',
+        va='center',
+        fontsize=fontsize,
+    )
+
 fig.tight_layout()
+fig.subplots_adjust(top=0.92, left=0.22)

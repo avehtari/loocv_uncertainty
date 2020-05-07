@@ -23,14 +23,14 @@ n_obs = 128
 
 # last covariate effect not used in model A
 # beta_t_s = [0.0, 1.0]
-beta_t = 1.0
+beta_t = 0.0
 
 # outlier dev
 out_dev_s = [0.0, 1.0, 2.0, 4.0, 10.0, 20.0, 40.0, 100.0, 1000.0]
 
 # tau2
 # tau2_s = [None, 1.0]
-tau2 = None
+tau2 = 1.0
 
 
 # ============================================================================

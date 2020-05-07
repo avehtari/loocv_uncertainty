@@ -149,25 +149,53 @@ fontsize = 16
 cmap = truncate_colormap(cm.get_cmap('Greys'), 0.3)
 cmap.set_under('white', 1.0)
 
+
+# example points (elpdhat, elpd)
+if tau2 is None:
+    custom_points = [
+        [[-54.0, -42.0], [-44.0, -44.0], [-47.0, -47.0]],
+        [[-0.5, 1.4], [0.6, 0.6], [0.942, 0.102]],
+        [[37.0, -4.0], [25.0, -8.0], [6.0, -9.0]],
+    ]
+    custom_hist_limits = [
+        [-75, -25],
+        [-3.2, 3.1],
+        [-55, 67]
+    ]
+else:
+    custom_points = [
+        [[-94.0, -60.0], [-59.0, -63.0], [-62.0, -62.0]],
+        [[-1.0, 2.0], [0.0, 1.0], [0.89, 0.074]],
+        [[30.0, -40.0], [-110.0, -60.0], [-55.0, -68.0]],
+    ]
+    custom_hist_limits = [
+        [-75, -25],
+        [-5, 3.1],
+        [-250, 67]
+    ]
+
+
+kde_plot = True
 # kde_cmap = 'copper'
 kde_cmap = truncate_colormap(cm.get_cmap('copper'), 0.3)
 kde_n_levels = [6, 4, 5]
 
 
-# example points (elpdhat, elpd)
-custom_points = [
-    [[-54.0, -42.0], [-44.0, -44.0], [-47.0, -47.0]],
-    [[-0.5, 1.4], [0.6, 0.6], [0.942, 0.102]],
-    [[37.0, -4.0], [25.0, -8.0], [6.0, -9.0]],
-]
-custom_hist_limits = [
-    [-75, -25],
-    [-3.2, 3.1],
-    [-55, 67]
-]
-
-kde_plot = True
 manual_zoom = True
+if tau2 is None:
+    zoom_limits = [
+        [(-75, -25), (-50, -38)],
+        [(-1.5, 3.0), (-1, 1.95)],
+        [(-10, 60), (-12, 0)],
+    ]
+else:
+    zoom_limits = [
+        [(-120, -21), (-70, -57)],
+        [(-3, 3.0), (-1, 4.5)],
+        [(-200, 60), (-100, -22)],
+    ]
+
+
 
 fig = plt.figure(figsize=(10, 8))
 outer = gridspec.GridSpec(
@@ -208,21 +236,11 @@ for probl_i in range(n_probl):
     ax = axes[0, probl_i]
 
     if manual_zoom:
-        if probl_i == 0:
-            idxs = (
-                (-75 < x_arr) & (x_arr < -25) &
-                (-50 < y_arr) & (y_arr < -38)
-            )
-        if probl_i == 1:
-            idxs = (
-                (-1.5 < x_arr) & (x_arr < 3.0) &
-                (-1 < y_arr) & (y_arr < 1.95)
-            )
-        if probl_i == 2:
-            idxs = (
-                (-10 < x_arr) & (x_arr < 60) &
-                (-12 < y_arr) & (y_arr < 0)
-            )
+        (zoom_xmin, zoom_xmax), (zoom_ymin, zoom_ymax) = zoom_limits[probl_i]
+        idxs = (
+            (zoom_xmin < x_arr) & (x_arr < zoom_xmax) &
+            (zoom_ymin < y_arr) & (y_arr < zoom_ymax)
+        )
         x_arr = x_arr[idxs]
         y_arr = y_arr[idxs]
 
@@ -241,13 +259,14 @@ for probl_i in range(n_probl):
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
-    if probl_i == 0:
-        ax.set_xlim(left=-72)
-        ax.set_ylim(bottom=-49.5)
-    if probl_i == 1:
-        ax.set_ylim(bottom=-0.7, top=2.05)
-    if probl_i == 2:
-        ax.set_xlim(left=-10)
+    if tau2 is None:
+        if probl_i == 0:
+            ax.set_xlim(left=-72)
+            ax.set_ylim(bottom=-49.5)
+        if probl_i == 1:
+            ax.set_ylim(bottom=-0.7, top=2.05)
+        if probl_i == 2:
+            ax.set_xlim(left=-10)
 
     ax.autoscale(enable=False)
     ax.plot(
@@ -258,6 +277,14 @@ for probl_i in range(n_probl):
         # color=adjust_lightness('C3', amount=1.3)
         color='C2'
     )
+    if ax.get_xlim()[0] < 0 and ax.get_xlim()[1] > 0:
+        ax.axvline(
+            0, color=adjust_lightness('gray', amount=1.4),
+            zorder=1, lw=0.8)
+    if ax.get_ylim()[0] < 0 and ax.get_ylim()[1] > 0:
+        ax.axhline(
+            0, color=adjust_lightness('gray', amount=1.4),
+            zorder=1, lw=0.8)
 
     # ===============
     # custom points
