@@ -39,8 +39,11 @@ def get_analytic_res(X_mat, beta, tau2, idx_a, idx_b, Sigma_d, mu_d=None):
     else:
         yhat_mb = np.zeros(n_obs)
 
+    # LOO
     Pt_a = np.zeros((n_obs, n_obs))
     Pt_b = np.zeros((n_obs, n_obs))
+    Dt_a = np.zeros((n_obs, n_obs))
+    Dt_b = np.zeros((n_obs, n_obs))
     for i in range(n_obs):
         X_mi = np.delete(X_mat, i, axis=0)
         XXinvX_a = linalg.solve(
@@ -48,46 +51,46 @@ def get_analytic_res(X_mat, beta, tau2, idx_a, idx_b, Sigma_d, mu_d=None):
             X_mat[i,idx_a],
             assume_a='sym'
         )
-        sXX_a = np.sqrt(X_mat[i,idx_a].dot(XXinvX_a) + 1)
+        Dt_a[i,i] = 1/(X_mat[i,idx_a].dot(XXinvX_a) + 1)
         XXinvX_b = linalg.solve(
             X_mi[:,idx_b].T.dot(X_mi[:,idx_b]),
             X_mat[i,idx_b],
             assume_a='sym'
         )
-        sXX_b = np.sqrt(X_mat[i,idx_b].dot(XXinvX_b) + 1)
+        Dt_b[i,i] = 1/(X_mat[i,idx_b].dot(XXinvX_b) + 1)
         for j in range(n_obs):
             if i == j:
                 # diag
-                Pt_a[i,i] = -1.0/sXX_a
-                Pt_b[i,i] = -1.0/sXX_b
+                Pt_a[i,i] = -1.0
+                Pt_b[i,i] = -1.0
             else:
                 # off-diag
-                Pt_a[i,j] = X_mat[j,idx_a].dot(XXinvX_a)/sXX_a
-                Pt_b[i,j] = X_mat[j,idx_b].dot(XXinvX_b)/sXX_b
+                Pt_a[i,j] = X_mat[j,idx_a].dot(XXinvX_a)
+                Pt_b[i,j] = X_mat[j,idx_b].dot(XXinvX_b)
 
-    Pt_a_T_Pt_a = Pt_a.T.dot(Pt_a)
-    Pt_b_T_Pt_b = Pt_b.T.dot(Pt_b)
+    Pt_D_Pt_a = Pt_a.T.dot(Dt_a).dot(Pt_a)
+    Pt_D_Pt_b = Pt_b.T.dot(Dt_b).dot(Pt_b)
 
-    # At_a_1 = -0.5*Pt_a_T_Pt_a
-    # At_b_1 = -0.5*Pt_b_T_Pt_b
-    Bt_a_1 = -Pt_a_T_Pt_a
-    Bt_b_1 = -Pt_b_T_Pt_b
-    Ct_a_1 = -0.5*Pt_a_T_Pt_a
-    Ct_b_1 = -0.5*Pt_b_T_Pt_b
-    # ct_a_4 = np.sum(np.log(-np.diag(Pt_a))) - n_obs/2*np.log(2*np.pi*tau2)
-    # ct_b_4 = np.sum(np.log(-np.diag(Pt_b))) - n_obs/2*np.log(2*np.pi*tau2)
+    A_loo_a_1 = -0.5*Pt_D_Pt_a
+    A_loo_b_1 = -0.5*Pt_D_Pt_b
+    B_loo_a_1 = -Pt_D_Pt_a
+    B_loo_b_1 = -Pt_D_Pt_b
+    C_loo_a_1 = -0.5*Pt_D_Pt_a
+    C_loo_b_1 = -0.5*Pt_D_Pt_b
+    c_loo_a_4 = 0.5*np.sum(np.log(np.diag(Dt_a))) - n_obs/2*np.log(2*np.pi*tau2)
+    c_loo_b_4 = 0.5*np.sum(np.log(np.diag(Dt_b))) - n_obs/2*np.log(2*np.pi*tau2)
 
-    At_1 = -0.5*(Pt_a_T_Pt_a - Pt_b_T_Pt_b)
-    Ct_4 = np.sum(np.log(-np.diag(Pt_a))) - np.sum(np.log(-np.diag(Pt_b)))
+    A_loo_1 = -0.5*(Pt_D_Pt_a - Pt_D_Pt_b)
+    C_loo_4 = 0.5*np.sum(np.log(np.diag(Dt_a))) - 0.5*np.sum(np.log(np.diag(Dt_b)))
 
-    At = 1/tau2 * At_1
-    bt = 1/tau2 * (Bt_a_1.dot(yhat_ma) - Bt_b_1.dot(yhat_mb))
-    ct =(
+    A_loo = 1/tau2 * A_loo_1
+    b_loo = 1/tau2 * (B_loo_a_1.dot(yhat_ma) - B_loo_b_1.dot(yhat_mb))
+    c_loo =(
         1/tau2 * (
-            yhat_ma.dot(Ct_a_1).dot(yhat_ma)
-            - yhat_mb.dot(Ct_b_1).dot(yhat_mb)
+            yhat_ma.dot(C_loo_a_1).dot(yhat_ma)
+            - yhat_mb.dot(C_loo_b_1).dot(yhat_mb)
         )
-        + Ct_4
+        + C_loo_4
     )
 
     P_a = X_mat[:,idx_a].dot(
@@ -165,43 +168,43 @@ def get_analytic_res(X_mat, beta, tau2, idx_a, idx_b, Sigma_d, mu_d=None):
     # )
 
     A_err_1 = 0.5*(
-        Pt_a_T_Pt_a
-        - P_a.dot(D_a).dot(P_a)
-        - Pt_b_T_Pt_b
-        + P_b.dot(D_b).dot(P_b)
+        - Pt_D_Pt_a
+        + P_a.dot(D_a).dot(P_a)
+        + Pt_D_Pt_b
+        - P_b.dot(D_b).dot(P_b)
     )
-    B_err_a_1 = Pt_a_T_Pt_a - P_a.dot(D_a).dot(P_a - np.eye(n_obs))
-    B_err_b_1 = Pt_b_T_Pt_b - P_b.dot(D_b).dot(P_b - np.eye(n_obs))
+    B_err_a_1 = -Pt_D_Pt_a + P_a.dot(D_a).dot(P_a - np.eye(n_obs))
+    B_err_b_1 = -Pt_D_Pt_b + P_b.dot(D_b).dot(P_b - np.eye(n_obs))
     C_err_a_1 = 0.5*(
-        Pt_a_T_Pt_a - (P_a-np.eye(n_obs)).dot(D_a).dot(P_a-np.eye(n_obs)))
+        -Pt_D_Pt_a + (P_a-np.eye(n_obs)).dot(D_a).dot(P_a-np.eye(n_obs)))
     C_err_b_1 = 0.5*(
-        Pt_b_T_Pt_b - (P_b-np.eye(n_obs)).dot(D_b).dot(P_b-np.eye(n_obs)))
-    c_err_4 = 0.5*(
-        np.sum(np.log(np.diag(D_a))) + np.sum(np.log(np.diag(Pt_b)**2))
-        - np.sum(np.log(np.diag(D_b))) - np.sum(np.log(np.diag(Pt_a)**2))
+        -Pt_D_Pt_b + (P_b-np.eye(n_obs)).dot(D_b).dot(P_b-np.eye(n_obs)))
+    c_err_4 = -0.5*(
+        np.sum(np.log(np.diag(D_a))) + np.sum(np.log(np.diag(Dt_b)))
+        - np.sum(np.log(np.diag(D_b))) - np.sum(np.log(np.diag(Dt_a)))
     )
 
     A_err = 1/tau2 * A_err_1
     b_err = 1/tau2 * (
         B_err_a_1.dot(yhat_ma)
         - B_err_b_1.dot(yhat_mb)
-        + (Be_2.dot(mu_d) if mu_d is not None else 0.0)
+        - (Be_2.dot(mu_d) if mu_d is not None else 0.0)
     )
     c_err =(
         1/tau2 * (
             yhat_ma.dot(C_err_a_1).dot(yhat_ma)
             - yhat_mb.dot(C_err_b_1).dot(yhat_mb)
-            + (yhat_ma.dot(Ce_a_2).dot(mu_d) if mu_d is not None else 0.0)
-            - (yhat_mb.dot(Ce_b_2).dot(mu_d) if mu_d is not None else 0.0)
-            + (mu_d.dot(Ce_3).dot(mu_d) if mu_d is not None else 0.0)
-            + sigma_d.dot(Ce_3).dot(sigma_d)
+            - (yhat_ma.dot(Ce_a_2).dot(mu_d) if mu_d is not None else 0.0)
+            + (yhat_mb.dot(Ce_b_2).dot(mu_d) if mu_d is not None else 0.0)
+            - (mu_d.dot(Ce_3).dot(mu_d) if mu_d is not None else 0.0)
+            - sigma_d.dot(Ce_3).dot(sigma_d)
         )
         + c_err_4
     )
 
     # loo
     mean_loo, var_loo, skew_loo = moments_from_a_b_c(
-        At, bt, ct, Sigma_d, mu_d)
+        A_loo, b_loo, c_loo, Sigma_d, mu_d)
     # error
     mean_err, var_err, skew_err = moments_from_a_b_c(
         A_err, b_err, c_err, Sigma_d, mu_d)

@@ -11,7 +11,7 @@ rng = np.random.RandomState(seed)
 
 # ===========================================================================
 
-s_star = 1.73
+s_star = 1.37
 m_star = 12.3
 mu_star = np.zeros(n)
 mu_star[0] = m_star
@@ -49,10 +49,10 @@ linalg.cholesky(Sigma_star)  # ensure pos-def
 
 # randn noncenter
 # -----------------
-# k = 4
-# k_a = np.array([0, 1])
-# k_b = np.array([0, 2, 3])
-# X = rng.randn(n, k) - 123.4
+k = 4
+k_a = np.array([0, 1])
+k_b = np.array([0, 2, 3])
+X = rng.randn(n, k) - 123.4
 
 
 # first dim as intercept, linspace
@@ -65,14 +65,14 @@ linalg.cholesky(Sigma_star)  # ensure pos-def
 
 # first dim as intercept, half -1 1
 # -----------------
-k = 2
-k_a = np.array([0])
-k_b = np.array([0, 1])
-X = np.ones(n)
-X[rng.choice(n, n//2, replace=False)] = -1.0
-X = np.vstack((np.ones(n), X)).T
-x = X[:,1]
-xx = (x[:,None] * x[None,:])
+# k = 2
+# k_a = np.array([0])
+# k_b = np.array([0, 1])
+# X = np.ones(n)
+# X[rng.choice(n, n//2, replace=False)] = -1.0
+# X = np.vstack((np.ones(n), X)).T
+# x = X[:,1]
+# xx = (x[:,None] * x[None,:])
 
 
 # first dim as intercept, rand unif -1 1
@@ -398,33 +398,33 @@ elpds_samp_target = elpds_a_samp_target - elpds_b_samp_target
 # Pt_a, Pt_b, P_a, P_b, D_a, D_b
 
 A_err_1 = 0.5*(
-    Pt_D_Pt_a
-    - P_a.dot(D_a).dot(P_a)
-    - Pt_D_Pt_b
-    + P_b.dot(D_b).dot(P_b)
+    - Pt_D_Pt_a
+    + P_a.dot(D_a).dot(P_a)
+    + Pt_D_Pt_b
+    - P_b.dot(D_b).dot(P_b)
 )
-B_err_a_1 = Pt_D_Pt_a - P_a.dot(D_a).dot(P_a - np.eye(n))
-B_err_b_1 = Pt_D_Pt_b - P_b.dot(D_b).dot(P_b - np.eye(n))
+B_err_a_1 = -Pt_D_Pt_a + P_a.dot(D_a).dot(P_a - np.eye(n))
+B_err_b_1 = -Pt_D_Pt_b + P_b.dot(D_b).dot(P_b - np.eye(n))
 C_err_a_1 = 0.5*(
-    Pt_D_Pt_a - (P_a-np.eye(n)).dot(D_a).dot(P_a-np.eye(n)))
+    -Pt_D_Pt_a + (P_a-np.eye(n)).dot(D_a).dot(P_a-np.eye(n)))
 C_err_b_1 = 0.5*(
-    Pt_D_Pt_b - (P_b-np.eye(n)).dot(D_b).dot(P_b-np.eye(n)))
-c_err_4 = 0.5*(
+    -Pt_D_Pt_b + (P_b-np.eye(n)).dot(D_b).dot(P_b-np.eye(n)))
+c_err_4 = -0.5*(
     np.sum(np.log(np.diag(D_a))) + np.sum(np.log(np.diag(Dt_b)))
     - np.sum(np.log(np.diag(D_b))) - np.sum(np.log(np.diag(Dt_a)))
 )
 
 A_err = 1/tau2 * A_err_1
 b_err = 1/tau2 * (
-    B_err_a_1.dot(yhat_ma) - B_err_b_1.dot(yhat_mb) + B_elpd_2.dot(mu_star))
+    B_err_a_1.dot(yhat_ma) - B_err_b_1.dot(yhat_mb) - B_elpd_2.dot(mu_star))
 c_err =(
     1/tau2 * (
         yhat_ma.dot(C_err_a_1).dot(yhat_ma)
         - yhat_mb.dot(C_err_b_1).dot(yhat_mb)
-        + yhat_ma.dot(C_elpd_a_2).dot(mu_star)
-        - yhat_mb.dot(C_elpd_b_2).dot(mu_star)
-        + mu_star.dot(C_elpd_3).dot(mu_star)
-        + sigma_star.dot(C_elpd_3).dot(sigma_star)
+        - yhat_ma.dot(C_elpd_a_2).dot(mu_star)
+        + yhat_mb.dot(C_elpd_b_2).dot(mu_star)
+        - mu_star.dot(C_elpd_3).dot(mu_star)
+        - sigma_star.dot(C_elpd_3).dot(sigma_star)
     )
     + c_err_4
 )
@@ -459,3 +459,78 @@ m3_err = (
     + 24*b_err.dot(Sigma_star).dot(A_err).dot(Sigma_star).dot(A_err).dot(mu_star)
     + 24*mu_star.dot(A_err).dot(Sigma_star).dot(A_err).dot(Sigma_star).dot(A_err).dot(mu_star)
 )
+
+
+# ===========================================================================
+# outlier effect orders
+# ===========================================================================
+if False:
+    Q_m1 = 1/tau2*(
+        A_err_1
+        -B_elpd_2
+        -C_elpd_3
+    )
+    q_m1 = 1/tau2*(
+        (B_err_a_1 - C_elpd_a_2).dot(yhat_ma)
+        -(B_err_b_1 - C_elpd_b_2).dot(yhat_mb)
+    )
+
+    Q_m2 = 1/tau2**2*(
+        4*A_err_1.dot(Sigma_star).dot(A_err_1)
+        -4*A_err_1.dot(Sigma_star).dot(B_elpd_2)
+        + B_elpd_2.T.dot(Sigma_star).dot(B_elpd_2)
+    )
+
+    Q_m3 = 1/tau2**3*(
+        24*A_err_1.dot(Sigma_star).dot(A_err_1).dot(Sigma_star).dot(A_err_1)
+        -24*A_err_1.dot(Sigma_star).dot(A_err_1).dot(Sigma_star).dot(B_elpd_2)
+        + 6*B_elpd_2.T.dot(Sigma_star).dot(A_err_1).dot(Sigma_star).dot(B_elpd_2)
+    )
+
+    # zero for Q_m1
+    ia = 0
+    ib = 2
+    mu_a = 1
+    mu_b = (-(Q_m1[ib,ia]+Q_m1[ia,ib]) + np.sqrt(
+            (Q_m1[ib,ia]+Q_m1[ia,ib])**2 - 4*Q_m1[ia,ia]*Q_m1[ib,ib]
+        ))/(2*Q_m1[ib,ib])
+    mu_cur = np.zeros(n)
+    mu_cur[ia] = mu_a
+    mu_cur[ib] = mu_b
+
+    # zero for Q_m2
+    Q_m2_s = (Q_m2 + Q_m2.T)/2
+    l, S = linalg.eigh(Q_m2_s)
+    print(l)
+    mu_cur2 = np.zeros(n)
+    mu_cur2[0] = 1.0
+    mu_cur = linalg.solve(S.T, mu_cur2)
+    print(mu_cur.dot(Q_m2).dot(mu_cur))
+    print(mu_cur.dot(Q_m3).dot(mu_cur))
+
+
+# # temp
+# m1_test = np.zeros(17)
+# for i, mu_r in enumerate(np.linspace(-100, 100, 17)):
+#     mu_cur = mu_r*np.ones(n)
+#     A_err_cur = 1/tau2 * A_err_1
+#     b_err_cur = 1/tau2 * (
+#         B_err_a_1.dot(yhat_ma) - B_err_b_1.dot(yhat_mb) - B_elpd_2.dot(mu_cur))
+#     c_err_cur =(
+#         1/tau2 * (
+#             yhat_ma.dot(C_err_a_1).dot(yhat_ma)
+#             - yhat_mb.dot(C_err_b_1).dot(yhat_mb)
+#             - yhat_ma.dot(C_elpd_a_2).dot(mu_cur)
+#             + yhat_mb.dot(C_elpd_b_2).dot(mu_cur)
+#             - mu_cur.dot(C_elpd_3).dot(mu_cur)
+#             - sigma_star.dot(C_elpd_3).dot(sigma_star)
+#         )
+#         + c_err_4
+#     )
+#
+#     m1_test[i] = (
+#         np.trace(Sigma_star_12.dot(A_err_cur).dot(Sigma_star_12))
+#         + c_err_cur
+#         + b_err_cur.dot(mu_cur)
+#         + mu_cur.dot(A_err_cur).dot(mu_cur)
+#     )

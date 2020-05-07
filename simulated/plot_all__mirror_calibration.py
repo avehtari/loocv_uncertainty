@@ -19,15 +19,15 @@ from setup_all import *
 
 # number of obs in one trial
 # n_obs_s = [16, 32, 64, 128, 256, 512, 1024]
-probl_n_obs_s = [128, 32, 512, 128]
+probl_n_obs_s = [32, 32, 32, 128, 128, 128, 512, 512, 512]
 
 # last covariate effect not used in model A
 # beta_t_s = [0.0, 0.05, 0.1, 0.2, 0.5, 1.0]
-probl_beta_t_s = [1.0, 1.0, 0.0, 1.0]
+probl_beta_t_s = [0.0, 0.1, 1.0, 0.0, 0.1, 1.0, 0.0, 0.1, 1.0]
 
 # outlier dev
 # out_dev_s = [0.0, 20.0, 200.0]
-probl_out_dev_s = [0.0, 0.0, 0.0, 20.0]
+probl_out_dev_s = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
 # tau2
 # tau2_s = [None, 1.0]
@@ -69,7 +69,7 @@ for probl_i, (n_obs, beta_t, out_dev) in enumerate(zip(
 loo_pti = loo_pti_A-loo_pti_B
 loo_pt = np.array([np.sum(loo_ti, axis=-1) for loo_ti in loo_pti])
 loo_var_hat_pt = np.array(
-    [n_obs*np.var(loo_ti, ddof=1, axis=-1) for loo_ti in loo_pti])
+    [loo_ti.shape[-1]*np.var(loo_ti, ddof=1, axis=-1) for loo_ti in loo_pti])
 loo_skew_hat_pt = np.array(
     [stats.skew(loo_ti, axis=-1, bias=False) for loo_ti in loo_pti])
 loo_napprox_pneg_pt = stats.norm.cdf(
@@ -173,8 +173,6 @@ def adjust_lightness(color, amount=0.5):
     c = colorsys.rgb_to_hls(*mc.to_rgb(c))
     return colorsys.hls_to_rgb(c[0], max(0, min(1, amount * c[1])), c[2])
 
-title_str = 'n_obs={}, out_dev={}, tau2={}'.format(n_obs, out_dev, tau2)
-
 q005 = stats.binom.ppf(0.005, n_trial, 1/cal_nbins)
 q995 = stats.binom.ppf(0.995, n_trial, 1/cal_nbins)
 
@@ -182,41 +180,34 @@ q995 = stats.binom.ppf(0.995, n_trial, 1/cal_nbins)
 # plot cal hists
 # ============================================================================
 
-fig, axes = plt.subplots(n_probl, 4, sharex=True, sharey='row')
+fig, axes = plt.subplots(
+    n_probl, 4, sharex=True, sharey='row', figsize=(8, 15))
+
+col_data = np.array([
+    loo_n_cal_counts,
+    loo_bb_cal_counts,
+    loo_bbmir_cal_counts,
+    loo_mirror_cal_counts,
+])
+col_names = [
+    'normal approx.',
+    'bb',
+    'bb mirror',
+    'elpd_hat(y) mirror',
+]
 
 for probl_i in range(n_probl):
 
-    ax = axes[probl_i, 0]
-    ax.bar(
-        cal_limits[:-1],
-        loo_n_cal_counts[probl_i],
-        width=1/cal_nbins,
-        align='edge'
-    )
+    for col_i, ax in enumerate(axes[probl_i]):
+        data = col_data[col_i][probl_i]
+        col_name = col_names[col_i]
 
-    ax = axes[probl_i, 1]
-    ax.bar(
-        cal_limits[:-1],
-        loo_bb_cal_counts[probl_i],
-        width=1/cal_nbins,
-        align='edge'
-    )
-
-    ax = axes[probl_i, 2]
-    ax.bar(
-        cal_limits[:-1],
-        loo_bbmir_cal_counts[probl_i],
-        width=1/cal_nbins,
-        align='edge'
-    )
-
-    ax = axes[probl_i, 3]
-    ax.bar(
-        cal_limits[:-1],
-        loo_mirror_cal_counts[probl_i],
-        width=1/cal_nbins,
-        align='edge'
-    )
+        ax.bar(
+            cal_limits[:-1],
+            data,
+            width=1/cal_nbins,
+            align='edge'
+        )
 
 for ax in axes.ravel():
     ax.fill_between(
@@ -230,7 +221,18 @@ for ax in axes.ravel():
     # ax.spines['bottom'].set_visible(False)
     ax.spines['left'].set_visible(False)
 
-for ax, name in zip(axes[0,:], ['norm', 'bb', 'bb mirror', 'loo(y) mirror']):
+for ax, name in zip(axes[0, :], col_names):
     ax.set_title(name)
+
+for probl_i, (n_obs, beta_t, out_dev) in enumerate(zip(
+        probl_n_obs_s, probl_beta_t_s, probl_out_dev_s)):
+    axes[probl_i,0].set_ylabel(
+        r'$n={}$'.format(n_obs) + '\n' +
+        r'$\beta_t={}$'.format(beta_t) + '\n' +
+        'out_dev={}'.format(out_dev),
+        rotation=0,
+        ha='right',
+        va='center',
+    )
 
 fig.tight_layout()

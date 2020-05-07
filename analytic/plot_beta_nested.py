@@ -14,13 +14,15 @@ from problem_setting import *
 
 load_res = False
 plot = True
+filename = 'res_n_nested.npz'
+
 
 # data seed
 # np.random.RandomState().randint(np.iinfo(np.uint32).max)
 data_seed = 247169102
 
 # number of trials
-n_trial = 6
+n_trial = 3
 # fixed model tau2 value
 tau2 = 1.0
 # dimensionality of X
@@ -40,14 +42,14 @@ idx_b = [0,1,2]
 sigma_d_2 = 1.0
 
 # plot configs
-plot_multilines = False
+plot_multilines = True
 multilines_max = 50
 multilines_alpha = 0.05
 
 # grid parameters
-n_obs_s = np.round(np.linspace(10, 300, 10)).astype(int)
+n_obs_s = np.array([64, 128])
 # last beta effect missing in model A
-beta_t_s = np.array([0.0, 0.05, 0.1, 0.2, 0.5, 1.0])
+beta_t_s = np.linspace(0, 100, 10)
 
 # ============================================================================
 
@@ -92,7 +94,7 @@ make_x = data_generation.make_x
 # As a function of n
 
 if load_res:
-    res_file = np.load('res_n_nested.npz')
+    res_file = np.load(filename)
     mean_loo_s = res_file['mean_loo_s']
     var_loo_s = res_file['var_loo_s']
     skew_loo_s = res_file['skew_loo_s']
@@ -138,7 +140,7 @@ else:
     print('done', flush=True)
 
     np.savez_compressed(
-        'res_n_nested.npz',
+        filename,
         mean_loo_s=mean_loo_s,
         var_loo_s=var_loo_s,
         skew_loo_s=skew_loo_s,
@@ -156,15 +158,15 @@ if plot:
     # skew
     ax = axes[0]
     ax.axhline(0, color='red', lw=1.0)#, zorder=0)
-    for b_i, beta_t in enumerate(beta_t_s):
-        color = 'C{}'.format(b_i)
-        label = r'$\beta_t={}$'.format(beta_t)
-        data = skew_err_s[b_i]
+    for n_i, n_obs in enumerate(n_obs_s):
+        color = 'C{}'.format(n_i)
+        label = r'$n={}$'.format(n_obs)
+        data = skew_err_s[:,n_i]
         if plot_multilines:
             median = np.percentile(data, 50, axis=-1)
-            ax.plot(n_obs_s, median, color=color, label=label)
+            ax.plot(beta_t_s, median, color=color, label=label)
             ax.plot(
-                n_obs_s,
+                beta_t_s,
                 data[:,:multilines_max],
                 color=color,
                 alpha=multilines_alpha
@@ -173,8 +175,8 @@ if plot:
             median = np.percentile(data, 50, axis=-1)
             q025 = np.percentile(data, 2.5, axis=-1)
             q975 = np.percentile(data, 97.5, axis=-1)
-            ax.fill_between(n_obs_s, q025, q975, alpha=0.2, color=color)
-            ax.plot(n_obs_s, median, color=color, label=label)
+            ax.fill_between(beta_t_s, q025, q975, alpha=0.2, color=color)
+            ax.plot(beta_t_s, median, color=color, label=label)
 
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -185,20 +187,20 @@ if plot:
     # mean
     ax = axes[1]
     ax.axhline(0, color='red', lw=1.0)#, zorder=0)
-    for b_i, beta_t in enumerate(beta_t_s):
-        color = 'C{}'.format(b_i)
-        label = r'$\beta_t={}$'.format(beta_t)
+    for n_i, n_obs in enumerate(beta_t_s):
+        color = 'C{}'.format(n_i)
+        label = r'$n={}$'.format(n_obs)
 
         # data = 1-stats.norm.cdf(
-        #     0, loc=mean_err_s[b_i], scale=np.sqrt(var_err_s[b_i]))
-        # data = mean_err_s[b_i] / np.sqrt(var_err_s[b_i])
-        data = mean_err_s[b_i]
+        #     0, loc=mean_err_s[:,n_i], scale=np.sqrt(var_err_s[:,n_i]))
+        # data = mean_err_s[:,n_i] / np.sqrt(var_err_s[:,n_i])
+        data = mean_err_s[:,n_i]
 
         if plot_multilines:
             median = np.percentile(data, 50, axis=-1)
-            ax.plot(n_obs_s, median, color=color, label=label)
+            ax.plot(beta_t_s, median, color=color, label=label)
             ax.plot(
-                n_obs_s,
+                beta_t_s,
                 data[:,:multilines_max],
                 color=color,
                 alpha=multilines_alpha
@@ -207,8 +209,8 @@ if plot:
             median = np.percentile(data, 50, axis=-1)
             q025 = np.percentile(data, 2.5, axis=-1)
             q975 = np.percentile(data, 97.5, axis=-1)
-            ax.fill_between(n_obs_s, q025, q975, alpha=0.2, color=color)
-            ax.plot(n_obs_s, median, color=color, label=label)
+            ax.fill_between(beta_t_s, q025, q975, alpha=0.2, color=color)
+            ax.plot(beta_t_s, median, color=color, label=label)
 
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)

@@ -15,12 +15,14 @@ from problem_setting import *
 load_res = False
 plot = True
 
+filename = 'res_n_nested_mu.npz'
+
 # data seed
 # np.random.RandomState().randint(np.iinfo(np.uint32).max)
 data_seed = 247169102
 
 # number of trials
-n_trial = 6
+n_trial = 1
 # fixed model tau2 value
 tau2 = 1.0
 # dimensionality of X
@@ -44,10 +46,41 @@ plot_multilines = False
 multilines_max = 50
 multilines_alpha = 0.05
 
+# ------------
+# fixed params
+# ------------
+
+# number of observations
+n_obs = 32
+
+# base outlier mu vector
+
+# # 1
+# mu_base = np.zeros(n_obs)
+# mu_base[0] = 1
+
+# # 2
+# mu_base = np.zeros(n_obs)
+# mu_base[0] = 1
+# mu_base[1] = -1
+
+# # 3
+# mu_base = np.zeros(n_obs)
+# mu_base[:n_obs//2] = 1
+
+# 4
+mu_base = np.ones(n_obs)
+
+# ---------------
 # grid parameters
-n_obs_s = np.round(np.linspace(10, 300, 10)).astype(int)
+# ---------------
+
+# outliers
+mu_r_s = np.linspace(-1000, 1000, 51)
+
 # last beta effect missing in model A
 beta_t_s = np.array([0.0, 0.05, 0.1, 0.2, 0.5, 1.0])
+# beta_t_s = np.array([1.0])
 
 # ============================================================================
 
@@ -60,19 +93,25 @@ if plot:
 
 class DataGeneration:
 
-    def __init__(self, n_obs_max, data_seed=None):
+    def __init__(self, data_seed=None):
         self.rng = np.random.RandomState(seed=data_seed)
+
+    def make_x(self, n_obs, n_dim):
+        # X
         if intercept:
             # firs dim (column) ones for intercept
-            self.X_mat_all = np.hstack((
-                np.ones((n_obs_max, 1)),
-                self.rng.randn(n_obs_max, n_dim-1)
+            # X_mat = np.hstack((
+            #     np.ones((n_obs, 1)),
+            #     self.rng.uniform(low=-1.0, high=1.0, size=(n_obs, n_dim-1))
+            # ))
+            X_mat = np.hstack((
+                np.ones((n_obs, 1)),
+                self.rng.randn(n_obs, n_dim-1)
             ))
         else:
-            self.X_mat_all = self.rng.randn(n_obs_max, n_dim)
-
-    def make_x(self, n_obs):
-        return self.X_mat_all[:n_obs,:]
+            # X_mat = self.rng.uniform(low=-1.0, high=1.0, size=(n_obs, n_dim))
+            X_mat = self.rng.randn(n_obs, n_dim)
+        return X_mat
 
 # ============================================================================
 
@@ -84,15 +123,19 @@ for b_i, beta_t in enumerate(beta_t_s):
         beta[0] = beta_intercept
     beta_s[b_i] = beta
 
-data_generation = DataGeneration(np.max(n_obs_s), data_seed)
+# construct mu vectors
+mu_s =  mu_r_s[:,None]*mu_base
+
+data_generation = DataGeneration(data_seed)
 make_x = data_generation.make_x
 
+X_mat = make_x(n_obs, n_dim)
 
 # ============================================================================
 # As a function of n
 
 if load_res:
-    res_file = np.load('res_n_nested.npz')
+    res_file = np.load(filename)
     mean_loo_s = res_file['mean_loo_s']
     var_loo_s = res_file['var_loo_s']
     skew_loo_s = res_file['skew_loo_s']
@@ -104,12 +147,12 @@ if load_res:
 else:
 
     start_time = time.time()
-    mean_loo_s = np.full((len(beta_t_s), len(n_obs_s), n_trial), np.nan)
-    var_loo_s = np.full((len(beta_t_s), len(n_obs_s), n_trial), np.nan)
-    skew_loo_s = np.full((len(beta_t_s), len(n_obs_s), n_trial), np.nan)
-    mean_err_s = np.full((len(beta_t_s), len(n_obs_s), n_trial), np.nan)
-    var_err_s = np.full((len(beta_t_s), len(n_obs_s), n_trial), np.nan)
-    skew_err_s = np.full((len(beta_t_s), len(n_obs_s), n_trial), np.nan)
+    mean_loo_s = np.full((len(beta_t_s), len(mu_r_s), n_trial), np.nan)
+    var_loo_s = np.full((len(beta_t_s), len(mu_r_s), n_trial), np.nan)
+    skew_loo_s = np.full((len(beta_t_s), len(mu_r_s), n_trial), np.nan)
+    mean_err_s = np.full((len(beta_t_s), len(mu_r_s), n_trial), np.nan)
+    var_err_s = np.full((len(beta_t_s), len(mu_r_s), n_trial), np.nan)
+    skew_err_s = np.full((len(beta_t_s), len(mu_r_s), n_trial), np.nan)
 
     for i0, beta in enumerate(beta_s):
 
@@ -118,15 +161,15 @@ else:
         print('{}/{}, elapsed time: {:.2} min'.format(
             i0+1, len(beta_t_s), cur_time_min), flush=True)
 
-        for i1, n_obs in enumerate(n_obs_s):
+        for i1, mu in enumerate(mu_s):
 
             for t_i in range(n_trial):
 
-                X_mat = make_x(n_obs)
+                # X_mat = make_x(n_obs, n_dim)
                 mean_loo, var_loo, skew_loo, mean_err, var_err, skew_err = (
                     get_analytic_res(
                         X_mat, beta, tau2, idx_a, idx_b,
-                        Sigma_d=sigma_d_2, mu_d=None
+                        Sigma_d=sigma_d_2, mu_d=mu
                     )
                 )
                 mean_loo_s[i0, i1, t_i] = mean_loo
@@ -138,7 +181,7 @@ else:
     print('done', flush=True)
 
     np.savez_compressed(
-        'res_n_nested.npz',
+        filename,
         mean_loo_s=mean_loo_s,
         var_loo_s=var_loo_s,
         skew_loo_s=skew_loo_s,
@@ -162,9 +205,9 @@ if plot:
         data = skew_err_s[b_i]
         if plot_multilines:
             median = np.percentile(data, 50, axis=-1)
-            ax.plot(n_obs_s, median, color=color, label=label)
+            ax.plot(mu_r_s, median, color=color, label=label)
             ax.plot(
-                n_obs_s,
+                mu_r_s,
                 data[:,:multilines_max],
                 color=color,
                 alpha=multilines_alpha
@@ -173,8 +216,8 @@ if plot:
             median = np.percentile(data, 50, axis=-1)
             q025 = np.percentile(data, 2.5, axis=-1)
             q975 = np.percentile(data, 97.5, axis=-1)
-            ax.fill_between(n_obs_s, q025, q975, alpha=0.2, color=color)
-            ax.plot(n_obs_s, median, color=color, label=label)
+            ax.fill_between(mu_r_s, q025, q975, alpha=0.2, color=color)
+            ax.plot(mu_r_s, median, color=color, label=label)
 
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -196,9 +239,9 @@ if plot:
 
         if plot_multilines:
             median = np.percentile(data, 50, axis=-1)
-            ax.plot(n_obs_s, median, color=color, label=label)
+            ax.plot(mu_r_s, median, color=color, label=label)
             ax.plot(
-                n_obs_s,
+                mu_r_s,
                 data[:,:multilines_max],
                 color=color,
                 alpha=multilines_alpha
@@ -207,8 +250,8 @@ if plot:
             median = np.percentile(data, 50, axis=-1)
             q025 = np.percentile(data, 2.5, axis=-1)
             q975 = np.percentile(data, 97.5, axis=-1)
-            ax.fill_between(n_obs_s, q025, q975, alpha=0.2, color=color)
-            ax.plot(n_obs_s, median, color=color, label=label)
+            ax.fill_between(mu_r_s, q025, q975, alpha=0.2, color=color)
+            ax.plot(mu_r_s, median, color=color, label=label)
 
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -217,7 +260,7 @@ if plot:
     # ax.set_ylabel(r'$p(\mathrm{\widehat{elpd}_D}>0)$', fontsize=18)
     # ax.set_ylabel('mean/sd', fontsize=18)
     ax.set_ylabel('mean', fontsize=18)
-    ax.set_xlabel(r'$n$', fontsize=18)
+    ax.set_xlabel(r'$mu_r$', fontsize=18)
 
     fig.tight_layout()
     for ax in axes:

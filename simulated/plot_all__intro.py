@@ -73,7 +73,7 @@ for probl_i, (n_obs, beta_t, out_dev) in enumerate(zip(
 loo_pti = loo_pti_A-loo_pti_B
 loo_pt = np.array([np.sum(loo_ti, axis=-1) for loo_ti in loo_pti])
 loo_var_hat_pt = np.array(
-    [n_obs*np.var(loo_ti, ddof=1, axis=-1) for loo_ti in loo_pti])
+    [loo_ti.shape[-1]*np.var(loo_ti, ddof=1, axis=-1) for loo_ti in loo_pti])
 loo_skew_hat_pt = np.array(
     [stats.skew(loo_ti, axis=-1, bias=False) for loo_ti in loo_pti])
 loo_napprox_pneg_pt = stats.norm.cdf(
