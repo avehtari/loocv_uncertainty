@@ -38,6 +38,9 @@ tau2 = None
 # ============================================================================
 # other config
 
+mirror_elpdhaty = False
+mirror_bb = False
+
 cal_nbins = 7
 
 bb_n = 1000
@@ -150,6 +153,8 @@ for probl_i in range(n_probl):
     for trial_i in range(n_trial):
         temp = weights.dot(loo_ti[trial_i])
         temp *= n_obs
+        if mirror_bb:
+            temp = 2*np.mean(temp) - temp
         cdf_elpd[trial_i] = np.mean(temp < elpd_pt[probl_i][trial_i])
     cal_bb_counts[probl_i] = np.histogram(cdf_elpd, cal_limits)[0]
     cal_bb_prob_err[probl_i] = cdf_elpd - elpdtilde_elpd_prob[probl_i]
@@ -174,7 +179,10 @@ cal_elpdhaty_ks = np.zeros((n_probl,))
 for probl_i in range(n_probl):
     loo_t = loo_pt[probl_i]
     loo_t_center = loo_t - np.mean(loo_t)
-    elpd_hat_unk_hat_t = loo_t[:,None] + loo_t_center
+    if mirror_elpdhaty:
+        elpd_hat_unk_hat_t = loo_t[:,None] - loo_t_center
+    else:
+        elpd_hat_unk_hat_t = loo_t[:,None] + loo_t_center
     cdf_elpd = np.mean(elpd_hat_unk_hat_t<elpd_pt[probl_i][:,None], axis=-1)
     cal_elpdhaty_counts[probl_i] = np.histogram(cdf_elpd, cal_limits)[0]
     cal_elpdhaty_prob_err[probl_i] = cdf_elpd - elpdtilde_elpd_prob[probl_i]
@@ -256,11 +264,6 @@ axes = np.array([
     for data_i in range(len(datas))
 ])
 
-# fig, axes = plt.subplots(
-#     len(beta_t_sel)*len(datas), len(n_obs_sel),
-#     sharex=True, figsize=(8, 14)
-# )
-
 for n_obs_i, n_obs in enumerate(n_obs_sel):
     for beta_t_i, beta_t in enumerate(beta_t_sel):
         probl_i = params_to_probl_i(n_obs, beta_t)
@@ -331,8 +334,6 @@ for ax in axes.ravel():
 
 for ax in axes[:-1,:].ravel():
     ax.set_xticklabels([])
-for ax in axes[:-1,:].ravel():
-    ax.set_xticklabels([], fontsize=fontsize-2)
 
 # set n labels
 for ax, n_obs in zip(axes[0, :], n_obs_sel):
@@ -357,62 +358,3 @@ for beta_t_i, beta_t in enumerate(beta_t_sel):
         va='center',
         fontsize=fontsize,
     )
-
-# fig.tight_layout()
-
-# ============================================================================
-# plot joints
-# ============================================================================
-
-# cmap = truncate_colormap(cm.get_cmap('Greys'), 0.3)
-# cmap.set_under('white', 1.0)
-#
-# # kde_cmap = 'copper'
-# kde_cmap = truncate_colormap(cm.get_cmap('copper'), 0.3)
-# kde_n_levels = [6, 4, 5]
-#
-#
-#
-# fig, axes = plt.subplots(
-#     len(beta_t_sel), len(n_obs_sel),
-#     sharex=True, sharey='row', figsize=(8, 8)
-# )
-# for n_obs_i, n_obs in enumerate(n_obs_sel):
-#     for beta_t_i, beta_t in enumerate(beta_t_sel):
-#         probl_i = params_to_probl_i(n_obs, beta_t)
-#         ax = axes[beta_t_i, n_obs_i]
-#
-#         ax.plot(loo_pt[probl_i], elpd_pt[probl_i], '.')
-#         ax.spines['top'].set_visible(False)
-#         ax.spines['right'].set_visible(False)
-# axes[-1].set_xlabel('loo')
-# for ax in axes:
-#     ax.set_ylabel('elpd')
-# fig.tight_layout()
-
-# # ============================================================================
-# # plot probability error
-# # ============================================================================
-#
-# datas = np.array([
-#     cal_n_prob_err,
-#     cal_bb_prob_err,
-#     # cal_ntrue_prob_err,
-#     cal_elpdhaty_prob_err,
-# ])
-# data_names = [
-#     'normal approx.',
-#     'bb',
-#     'true normal approx',
-#     'elpd_hat(y)',
-# ]
-#
-# fig, axes = plt.subplots(
-#     n_probl, 1, sharex=True, figsize=(4, 15))
-# for probl_i, ax in enumerate(axes):
-#     df = pd.DataFrame({
-#         data_name:data[probl_i]
-#         for data, data_name in zip(datas, data_names)
-#     })
-#     sns.violinplot(data=df, palette="Pastel1", ax=ax)
-# fig.tight_layout()

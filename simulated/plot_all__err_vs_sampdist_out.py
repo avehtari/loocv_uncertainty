@@ -29,7 +29,7 @@ beta_t_sel = [0.0, 0.2, 1.0]
 
 # outlier dev
 # out_dev_s = [0.0, 20.0, 200.0]
-out_dev = 0.0
+out_dev = 20.0
 
 # tau2
 # tau2_s = [None, 1.0]
@@ -38,6 +38,7 @@ tau2 = None
 
 # ============================================================================
 # other config
+
 
 # ============================================================================
 
@@ -134,74 +135,128 @@ def adjust_lightness(color, amount=0.5):
     return colorsys.hls_to_rgb(c[0], max(0, min(1, amount * c[1])), c[2])
 
 
-fontsize = 16
-
 # ============================================================================
 # plot joints
 # ============================================================================
 
-cmap = truncate_colormap(cm.get_cmap('Greys'), 0.3)
-cmap.set_under('white', 1.0)
+fontsize = 16
+n_bins = 25
 
-kde_plot = True
-kde_n_levels = 6
-# kde_cmap = 'copper'
-kde_cmap = truncate_colormap(cm.get_cmap('copper'), 0.3)
+datas = [
+    loo_pt,
+    np.mean(loo_pt, axis=-1, keepdims=True) - (loo_pt - elpd_pt),
+]
+names = [
+    r'${}^\mathrm{sv}\widehat{\mathrm{elpd}}_{\mathrm{LOO}}(y)$',
+    r'${}^\mathrm{sv}\widetilde{\mathrm{elpd}}_{\mathrm{LOO}}(y^\mathrm{obs})$',
+]
 
-fig, axes = plt.subplots(
+fig = plt.figure(figsize=(10, 10))
+outer = gridspec.GridSpec(
     len(beta_t_sel), len(n_obs_sel),
-    figsize=(8, 8)
+    hspace=0.38,
+    wspace=0.34,
+    top=0.94,
+    bottom=0.03,
+    left=0.2,
+    right=0.95
 )
+gs_s = np.array([
+    [gridspec.GridSpecFromSubplotSpec(
+        len(datas), 1, subplot_spec=outer[gs_i, gs_j], hspace=0.1)
+        for gs_j in range(len(n_obs_sel))]
+    for gs_i in range(len(beta_t_sel))
+])
+axes = np.array([
+    [fig.add_subplot(gs_s[gs_i, gs_j][data_i])
+        for gs_j in range(len(n_obs_sel))]
+    for gs_i in range(len(beta_t_sel))
+    for data_i in range(len(datas))
+])
+
 for n_obs_i, n_obs in enumerate(n_obs_sel):
     for beta_t_i, beta_t in enumerate(beta_t_sel):
         probl_i = params_to_probl_i(n_obs, beta_t)
-        ax = axes[beta_t_i, n_obs_i]
-        x_arr = loo_pt[probl_i]
-        y_arr = elpd_pt[probl_i]
 
-        # ax.plot(x_arr, y_arr, '.')
-        ax.hexbin(x_arr, y_arr, gridsize=35, cmap=cmap, mincnt=1)
-
-        if kde_plot:
-            sns.kdeplot(
-                x_arr, y_arr,
-                n_levels=kde_n_levels,
-                cmap=kde_cmap, ax=ax
-            )
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-
-        ax.autoscale(enable=False)
-        ax.plot(
-            [max(ax.get_xlim()[0], ax.get_ylim()[0]),
-             min(ax.get_xlim()[1], ax.get_ylim()[1])],
-            [max(ax.get_xlim()[0], ax.get_ylim()[0]),
-             min(ax.get_xlim()[1], ax.get_ylim()[1])],
-            # color=adjust_lightness('C3', amount=1.3)
-            color='C2'
+        xmin = min(
+            np.percentile(datas[data_i][probl_i], 2.5)
+            for data_i in range(len(datas))
         )
-        if ax.get_xlim()[0] < 0 and ax.get_xlim()[1] > 0:
-            ax.axvline(
-                0, color=adjust_lightness('gray', amount=1.4),
-                zorder=1, lw=0.8)
-        if ax.get_ylim()[0] < 0 and ax.get_ylim()[1] > 0:
-            ax.axhline(
-                0, color=adjust_lightness('gray', amount=1.4),
-                zorder=1, lw=0.8)
+        xmax = max(
+            np.percentile(datas[data_i][probl_i], 97.5)
+            for data_i in range(len(datas))
+        )
+        xmin, xmax = 0.05*(xmax-xmin)*np.array([-1,1])+np.array([xmin,xmax])
+        binlims = np.linspace(xmin, xmax, n_bins+1)
 
-        ax.tick_params(axis='both', which='major', labelsize=fontsize-2)
-        ax.tick_params(axis='both', which='minor', labelsize=fontsize-4)
+        axes_cur = axes[beta_t_i*len(datas):(beta_t_i+1)*len(datas), n_obs_i]
+        for data_i, ax in enumerate(axes_cur):
+            data = datas[data_i][probl_i]
 
-for ax in axes[:, 0]:
-    ax.set_ylabel(r'$\mathrm{elpd}$', fontsize=fontsize-2)
-for ax in axes[-1, :]:
-    ax.set_xlabel(r'$\widehat{\mathrm{elpd}}$', fontsize=fontsize-2)
+            ax.hist(
+                data,
+                bins=binlims,
+                color=adjust_lightness('C0', amount=1.8)
+            )
+            ax.axvline(np.mean(data), color='C1')
+
+            # ax.axvline(np.percentile(data, 50), color='C1')
+            # ax.axvline(
+            #     np.percentile(data, 2.5),
+            #     color=adjust_lightness('C1', amount=1.2)
+            # )
+            # ax.axvline(
+            #     np.percentile(data, 97.5),
+            #     color=adjust_lightness('C1', amount=1.2)
+            # )
+
+            # set row title
+            if n_obs_i == 0:
+                ax.set_ylabel(
+                    names[data_i],
+                    rotation=0,
+                    ha='right',
+                    va='center',
+                    fontsize=fontsize-2,
+                )
+
+            if data_i < len(datas)-1:
+                ax.set_xticklabels([])
+
+            # set sd text
+            sdtext = (
+                'SD:\n{:.2}'.format(np.std(data, ddof=1))
+                if np.std(data, ddof=1) < 10 else
+                'SD:\n{}'.format(int(round(np.std(data, ddof=1))))
+            )
+            ax.text(
+                1.01, 0.1,
+                sdtext,
+                transform=ax.transAxes,
+                ha='left',
+                va='bottom',
+                fontsize=fontsize-2,
+            )
+
+        # share ylim
+        maxy = max(ax.get_ylim()[1] for ax in axes_cur)
+        for ax in axes_cur:
+            ax.set_ylim(top=maxy)
+
+for ax in axes.ravel():
+    ax.set_yticks([])
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    # ax.spines['bottom'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.tick_params(axis='both', which='major', labelsize=fontsize-2)
+    ax.tick_params(axis='both', which='minor', labelsize=fontsize-4)
 
 # set n labels
 for ax, n_obs in zip(axes[0, :], n_obs_sel):
     # ax.set_title(r'$n={}$'.format(n_obs), fontsize=fontsize)
     ax.text(
-        0.5, 1.20,
+        0.5, 1.25,
         r'$n={}$'.format(n_obs),
         transform=ax.transAxes,
         ha='center',
@@ -210,15 +265,13 @@ for ax, n_obs in zip(axes[0, :], n_obs_sel):
     )
 
 # set beta labels
-for ax, beta_t in zip(axes[:, 0], beta_t_sel):
+for beta_t_i, beta_t in enumerate(beta_t_sel):
+    ax = axes[beta_t_i*len(datas)+1, 0]
     ax.text(
-        -0.55, 0.5,
+        -0.54, 1.1,
         r'$\beta_t={}$'.format(beta_t),
         transform=ax.transAxes,
         ha='right',
         va='center',
         fontsize=fontsize,
     )
-
-fig.tight_layout()
-fig.subplots_adjust(top=0.92, left=0.22)
