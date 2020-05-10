@@ -4,7 +4,7 @@ from scipy import linalg, stats
 n = 6
 tau2 = 1.7
 
-n_trial = 3
+n_trial = 4000
 
 seed = 11
 rng = np.random.RandomState(seed)
@@ -12,7 +12,8 @@ rng = np.random.RandomState(seed)
 # ===========================================================================
 
 s_star = 1.37
-m_star = 12.3
+m_star = 0.0
+# m_star = 12.3
 mu_star = np.zeros(n)
 mu_star[0] = m_star
 Sigma_star = s_star**2*np.eye(n)
@@ -460,6 +461,17 @@ m3_err = (
     + 24*mu_star.dot(A_err).dot(Sigma_star).dot(A_err).dot(Sigma_star).dot(A_err).dot(mu_star)
 )
 
+# from problem_setting import moments_from_a_b_c
+# print(moments_from_a_b_c(A_err, b_err, c_err, np.diag(Sigma_star), mu_d=None))
+
+print(np.mean(errs))
+print(m1_err)
+
+print(np.std(errs, ddof=1))
+print(np.sqrt(m2_err))
+
+print(stats.skew(errs, bias=False))
+print(m3_err/(m2_err)**(3/2))
 
 # ===========================================================================
 # outlier effect orders

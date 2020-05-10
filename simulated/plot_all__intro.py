@@ -254,7 +254,7 @@ for probl_i in range(n_probl):
 
     if probl_i == 0:
         ax.set_ylabel(r'$\mathrm{elpd}$', fontsize=fontsize-2)
-    ax.set_xlabel(r'$\widehat{\mathrm{elpd}}$', fontsize=fontsize-2)
+    ax.set_xlabel(r'$\widehat{\mathrm{elpd}}_\mathrm{LOO}$', fontsize=fontsize-2)
 
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -334,7 +334,7 @@ for probl_i in range(n_probl):
         if p_i < len(custom_points[0])-1:
             ax.set_xticklabels([])
         else:
-            ax.set_xlabel(r'$\widehat{\mathrm{elpd}}$', fontsize=fontsize-2)
+            ax.set_xlabel(r'$\widehat{\mathrm{elpd}}_\mathrm{LOO}$', fontsize=fontsize-2)
 
         ax.set_yticks([])
 
@@ -407,10 +407,10 @@ h_elpdhat_vert = mpl.lines.Line2D(
 )
 axes[-1,1].legend(
     [h_elpdhat_vert, h_elpd, h_elpdhat_n, hs_elpdtilde[0]],
-    [r'$\widehat{\mathrm{elpd}}$',
+    [r'$\widehat{\mathrm{elpd}}_\mathrm{LOO}$',
         r'$\mathrm{elpd}$',
         'normal approx.',
-        r'$\widetilde{\mathrm{elpd}}$'],
+        r'$\widetilde{\mathrm{elpd}}_\mathrm{LOO}$'],
     fontsize=fontsize-2,
     loc='upper center',
     bbox_to_anchor=(0.5, -0.7),

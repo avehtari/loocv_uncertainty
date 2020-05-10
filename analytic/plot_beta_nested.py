@@ -22,7 +22,7 @@ filename = 'res_n_nested.npz'
 data_seed = 247169102
 
 # number of trials
-n_trial = 3
+n_trial = 6
 # fixed model tau2 value
 tau2 = 1.0
 # dimensionality of X
@@ -42,7 +42,7 @@ idx_b = [0,1,2]
 sigma_d_2 = 1.0
 
 # plot configs
-plot_multilines = True
+plot_multilines = False
 multilines_max = 50
 multilines_alpha = 0.05
 
@@ -187,14 +187,14 @@ if plot:
     # mean
     ax = axes[1]
     ax.axhline(0, color='red', lw=1.0)#, zorder=0)
-    for n_i, n_obs in enumerate(beta_t_s):
+    for n_i, n_obs in enumerate(n_obs_s):
         color = 'C{}'.format(n_i)
         label = r'$n={}$'.format(n_obs)
 
         # data = 1-stats.norm.cdf(
         #     0, loc=mean_err_s[:,n_i], scale=np.sqrt(var_err_s[:,n_i]))
-        # data = mean_err_s[:,n_i] / np.sqrt(var_err_s[:,n_i])
-        data = mean_err_s[:,n_i]
+        data = mean_err_s[:,n_i] / np.sqrt(var_err_s[:,n_i])
+        # data = mean_err_s[:,n_i]
 
         if plot_multilines:
             median = np.percentile(data, 50, axis=-1)
@@ -217,8 +217,8 @@ if plot:
     ax.tick_params(axis='both', which='major', labelsize=16)
     ax.tick_params(axis='both', which='minor', labelsize=14)
     # ax.set_ylabel(r'$p(\mathrm{\widehat{elpd}_D}>0)$', fontsize=18)
-    # ax.set_ylabel('mean/sd', fontsize=18)
-    ax.set_ylabel('mean', fontsize=18)
+    ax.set_ylabel('mean/sd', fontsize=18)
+    # ax.set_ylabel('mean', fontsize=18)
     ax.set_xlabel(r'$n$', fontsize=18)
 
     fig.tight_layout()
