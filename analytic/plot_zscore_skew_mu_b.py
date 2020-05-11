@@ -12,8 +12,8 @@ from problem_setting import *
 # ============================================================================
 # conf
 
-load_res = True
-filename = 'res_zscore_skew_n_b.npz'
+load_res = False
+filename = 'res_zscore_skew_mu_b.npz'
 
 plot = True
 
@@ -22,7 +22,7 @@ plot = True
 data_seed = 247169102
 
 # number of trials
-n_trial = 4
+n_trial = 100
 # fixed model tau2 value
 tau2 = 1.0
 # dimensionality of X
@@ -41,11 +41,41 @@ idx_b = [0,1,2]
 # constant data variance
 sigma_d_2 = 1.0
 
+# ------------
+# fixed params
+# ------------
+
+# number of observations
+n_obs = 32
+
+# base outlier mu vector
+
+# # 1
+mu_base = np.zeros(n_obs)
+mu_base[0] = 1
+
+# # 2
+# mu_base = np.zeros(n_obs)
+# mu_base[0] = 1
+# mu_base[1] = -1
+
+# # 3
+# mu_base = np.zeros(n_obs)
+# mu_base[:n_obs//2] = 1
+
+# 4
+# mu_base = np.ones(n_obs)
+
+# ---------------
 # grid parameters
-n_obs_s = np.round(np.linspace(10, 500, 10)).astype(int)
+# ---------------
+
+# outliers
+mu_r_s = np.linspace(-200, 200, 21)
+
 # last beta effect missing in model A
-# beta_t_s = np.array([0.0, 0.05, 0.1, 0.2, 0.5, 1.0])
 beta_t_s = np.array([0.0, 0.1, 0.2, 0.5, 1.0])
+# beta_t_s = np.array([1.0])
 
 # ============================================================================
 
@@ -58,22 +88,22 @@ if plot:
 
 class DataGeneration:
 
-    def __init__(self, n_trial, n_obs_max, data_seed=None):
+    def __init__(self, n_trial, data_seed=None):
         self.rng = np.random.RandomState(seed=data_seed)
         if intercept:
             # firs dim (column) ones for intercept
             self.X_mat_all = np.concatenate(
                 (
-                    np.ones((n_trial, n_obs_max, 1)),
-                    self.rng.randn(n_trial, n_obs_max, n_dim-1)
+                    np.ones((n_trial, n_obs, 1)),
+                    self.rng.randn(n_trial, n_obs, n_dim-1)
                 ),
                 axis=-1,
             )
         else:
-            self.X_mat_all = self.rng.randn(n_trial, n_obs_max, n_dim)
+            self.X_mat_all = self.rng.randn(n_trial, n_obs, n_dim)
 
-    def get_x(self, trial_i, n_obs):
-        return self.X_mat_all[trial_i, :n_obs, :]
+    def get_x(self, trial_i):
+        return self.X_mat_all[trial_i, :, :]
 
 # ============================================================================
 
@@ -85,7 +115,10 @@ for b_i, beta_t in enumerate(beta_t_s):
         beta[0] = beta_intercept
     beta_s[b_i] = beta
 
-data_generation = DataGeneration(n_trial, np.max(n_obs_s), data_seed)
+# construct mu vectors
+mu_s =  mu_r_s[:,None]*mu_base
+
+data_generation = DataGeneration(n_trial, data_seed)
 
 
 # ============================================================================
@@ -107,15 +140,15 @@ if load_res:
 else:
 
     start_time = time.time()
-    mean_loo_s = np.full((len(beta_t_s), len(n_obs_s), n_trial), np.nan)
-    var_loo_s = np.full((len(beta_t_s), len(n_obs_s), n_trial), np.nan)
-    skew_loo_s = np.full((len(beta_t_s), len(n_obs_s), n_trial), np.nan)
-    mean_elpd_s = np.full((len(beta_t_s), len(n_obs_s), n_trial), np.nan)
-    var_elpd_s = np.full((len(beta_t_s), len(n_obs_s), n_trial), np.nan)
-    skew_elpd_s = np.full((len(beta_t_s), len(n_obs_s), n_trial), np.nan)
-    mean_err_s = np.full((len(beta_t_s), len(n_obs_s), n_trial), np.nan)
-    var_err_s = np.full((len(beta_t_s), len(n_obs_s), n_trial), np.nan)
-    skew_err_s = np.full((len(beta_t_s), len(n_obs_s), n_trial), np.nan)
+    mean_loo_s = np.full((len(beta_t_s), len(mu_r_s), n_trial), np.nan)
+    var_loo_s = np.full((len(beta_t_s), len(mu_r_s), n_trial), np.nan)
+    skew_loo_s = np.full((len(beta_t_s), len(mu_r_s), n_trial), np.nan)
+    mean_elpd_s = np.full((len(beta_t_s), len(mu_r_s), n_trial), np.nan)
+    var_elpd_s = np.full((len(beta_t_s), len(mu_r_s), n_trial), np.nan)
+    skew_elpd_s = np.full((len(beta_t_s), len(mu_r_s), n_trial), np.nan)
+    mean_err_s = np.full((len(beta_t_s), len(mu_r_s), n_trial), np.nan)
+    var_err_s = np.full((len(beta_t_s), len(mu_r_s), n_trial), np.nan)
+    skew_err_s = np.full((len(beta_t_s), len(mu_r_s), n_trial), np.nan)
 
     for i0, beta in enumerate(beta_s):
 
@@ -124,11 +157,11 @@ else:
         print('{}/{}, elapsed time: {:.2} min'.format(
             i0+1, len(beta_t_s), cur_time_min), flush=True)
 
-        for i1, n_obs in enumerate(n_obs_s):
+        for i1, mu in enumerate(mu_s):
 
             for t_i in range(n_trial):
 
-                X_mat = data_generation.get_x(t_i, n_obs)
+                X_mat = data_generation.get_x(t_i)
                 (
                     mean_loo, var_loo, moment3_loo,
                     mean_elpd, var_elpd, moment3_elpd,
@@ -136,7 +169,7 @@ else:
                 ) = (
                     get_analytic_res(
                         X_mat, beta, tau2, idx_a, idx_b,
-                        Sigma_d=sigma_d_2, mu_d=None
+                        Sigma_d=sigma_d_2, mu_d=mu
                     )
                 )
                 mean_loo_s[i0, i1, t_i] = mean_loo
@@ -239,9 +272,9 @@ for d_j, data_i in enumerate(datas):
             data = data_ij[b_i]
             if plot_multilines:
                 median = np.percentile(data, 50, axis=-1)
-                ax.plot(n_obs_s, median, color=color, label=label)
+                ax.plot(mu_r_s, median, color=color, label=label)
                 ax.plot(
-                    n_obs_s,
+                    mu_r_s,
                     data[:,:multilines_max],
                     color=color,
                     alpha=multilines_alpha
@@ -250,9 +283,9 @@ for d_j, data_i in enumerate(datas):
                 if not plot_only_median:
                     q025 = np.percentile(data, 2.5, axis=-1)
                     q975 = np.percentile(data, 97.5, axis=-1)
-                    ax.fill_between(n_obs_s, q025, q975, alpha=0.2, color=color)
+                    ax.fill_between(mu_r_s, q025, q975, alpha=0.2, color=color)
                 median = np.percentile(data, 50, axis=-1)
-                ax.plot(n_obs_s, median, color=color, label=label)
+                ax.plot(mu_r_s, median, color=color, label=label)
 
         if show_zero_line[d_j][d_i]:
             ax.axhline(0, color='gray', lw=1.0)#, zorder=0)
@@ -269,7 +302,7 @@ for ax, name in zip(axes[0, :], data_names):
     ax.set_title(name, fontsize=fontsize)
 
 for ax in axes[-1, :]:
-    ax.set_xlabel(r'$n$', fontsize=fontsize-2)
+    ax.set_xlabel(r'$\mu_{\star,\mathrm{r}}$', fontsize=fontsize-2)
 
 fig.tight_layout()
 

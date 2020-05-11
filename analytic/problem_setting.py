@@ -192,19 +192,19 @@ def get_analytic_res(X_mat, beta, tau2, idx_a, idx_b, Sigma_d, mu_d=None):
     # ----------------------------------------------------
 
     # loo
-    mean_loo, var_loo, skew_loo = moments_from_a_b_c(
+    mean_loo, var_loo, moment3_loo = moments_from_a_b_c(
         A_loo, b_loo, c_loo, Sigma_d, mu_d)
     # elpd
-    mean_elpd, var_elpd, skew_elpd = moments_from_a_b_c(
+    mean_elpd, var_elpd, moment3_elpd = moments_from_a_b_c(
         A_elpd, b_elpd, c_elpd, Sigma_d, mu_d)
     # error
-    mean_err, var_err, skew_err = moments_from_a_b_c(
+    mean_err, var_err, moment3_err = moments_from_a_b_c(
         A_err, b_err, c_err, Sigma_d, mu_d)
 
     return (
-        mean_loo, var_loo, skew_loo,
-        mean_elpd, var_elpd, skew_elpd,
-        mean_err, var_err, skew_err
+        mean_loo, var_loo, moment3_loo,
+        mean_elpd, var_elpd, moment3_elpd,
+        mean_err, var_err, moment3_err
     )
 
 
@@ -291,6 +291,36 @@ def moments_from_a_b_c(A_mat, b_vec, c_sca, Sigma_d, mu_d=None):
             moment3 += 24*(mu_d_A_Sigma.dot(mu_d_A_Sigma_A.T))
 
         # skew
-        skew = moment3 / np.sqrt(var)**3
+        # skew = moment3 / np.sqrt(var)**3
 
-    return mean, var, skew
+    return mean, var, moment3
+
+
+def calc_tot_mean_var_moment3_form_given_x(
+        mean_s, var_s, moment3_s, known_zero_mean_tot=False):
+    n_trial = mean_s.shape[-1]
+    if known_zero_mean_tot:
+        mean_tot_s = np.zeros(mean_s.shape[:-1])
+        var_tot_s = var_s.mean(axis=-1) + np.mean(mean_s**2, axis=-1)
+        m3_tot_s = (
+            moment3_s.mean(axis=-1) +
+            stats.skew(mean_s, axis=-1, bias=False) +
+            3*np.sum(
+                mean_s*
+                (var_s - var_s.mean(axis=-1, keepdims=True)),
+                axis=-1
+            )/(n_trial-1)
+        )
+    else:
+        mean_tot_s = mean_s.mean(axis=-1)
+        var_tot_s = var_s.mean(axis=-1) + mean_s.var(axis=-1, ddof=1)
+        m3_tot_s = (
+            moment3_s.mean(axis=-1) +
+            stats.skew(mean_s, axis=-1, bias=False) +
+            3*np.sum(
+                (mean_s - mean_s.mean(axis=-1, keepdims=True))*
+                (var_s - var_s.mean(axis=-1, keepdims=True)),
+                axis=-1
+            )/(n_trial-1)
+        )
+    return mean_tot_s, var_tot_s, m3_tot_s

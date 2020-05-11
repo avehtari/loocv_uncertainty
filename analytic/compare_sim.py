@@ -42,9 +42,9 @@ linalg.cholesky(Sigma_star)  # ensure pos-def
 
 # rand
 # -----------------
-# k = 4
+# k = 3
 # k_a = np.array([0, 1])
-# k_b = np.array([0, 2, 3])
+# k_b = np.array([0, 1, 2])
 # X = rng.rand(n, k)*2-1
 
 
