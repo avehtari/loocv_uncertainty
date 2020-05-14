@@ -196,7 +196,7 @@ for n_obs_i, n_obs in enumerate(n_obs_sel):
             ax.hist(
                 data,
                 bins=binlims,
-                color=adjust_lightness('C0', amount=1.8)
+                color=adjust_lightness('C0', amount=1.6)
             )
             ax.axvline(np.mean(data), color='C1')
 

@@ -22,7 +22,7 @@ plot = True
 data_seed = 247169102
 
 # number of trials
-n_trial = 4
+n_trial = 10
 # fixed model tau2 value
 tau2 = 1.0
 # dimensionality of X
@@ -204,7 +204,7 @@ plot_multilines = False
 multilines_max = 50
 multilines_alpha = 0.05
 
-plot_only_median = True
+plot_only_median = False
 
 datas = [
     [mean_loo_s/np.sqrt(var_loo_s), skew_loo_s],
@@ -235,7 +235,7 @@ for d_j, data_i in enumerate(datas):
 
         for b_i, beta_t in enumerate(beta_t_s):
             color = 'C{}'.format(b_i)
-            label = r'$\beta_t={}$'.format(beta_t)
+            label = r'${}$'.format(beta_t)
             data = data_ij[b_i]
             if plot_multilines:
                 median = np.percentile(data, 50, axis=-1)
@@ -276,6 +276,8 @@ fig.tight_layout()
 axes[1, -1].legend(
     loc='center left', bbox_to_anchor=(1, 0.5),
     fontsize=fontsize-2, fancybox=False,
+    title=r'$\beta_t$',
+    title_fontsize=fontsize-2,
 )
 
-fig.subplots_adjust(right=0.80)
+fig.subplots_adjust(right=0.88)

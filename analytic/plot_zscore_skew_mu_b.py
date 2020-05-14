@@ -12,7 +12,7 @@ from problem_setting import *
 # ============================================================================
 # conf
 
-load_res = False
+load_res = True
 filename = 'res_zscore_skew_mu_b.npz'
 
 plot = True
@@ -71,11 +71,11 @@ mu_base[0] = 1
 # ---------------
 
 # outliers
-mu_r_s = np.linspace(-200, 200, 21)
+mu_r_s = np.linspace(0, 500, 21)
 
 # last beta effect missing in model A
-beta_t_s = np.array([0.0, 0.1, 0.2, 0.5, 1.0])
-# beta_t_s = np.array([1.0])
+# beta_t_s = np.array([0.0, 0.1, 0.2, 0.5, 1.0])
+beta_t_s = np.array([1.0])
 
 # ============================================================================
 
@@ -231,13 +231,15 @@ def adjust_lightness(color, amount=0.5):
 
 # configs
 
+selected_b_i = 0
+
 fontsize = 16
 
 plot_multilines = False
 multilines_max = 50
 multilines_alpha = 0.05
 
-plot_only_median = True
+plot_only_median = False
 
 datas = [
     [mean_loo_s/np.sqrt(var_loo_s), skew_loo_s],
@@ -252,7 +254,7 @@ data_names = [
 data_statistic_names = ['mean/SD', 'skewness']
 show_zero_line = [
     [True, True],
-    [True, False],
+    [True, True],
     [True, True],
 ]
 
@@ -266,26 +268,26 @@ for d_j, data_i in enumerate(datas):
 
         ax = axes[d_i, d_j]
 
-        for b_i, beta_t in enumerate(beta_t_s):
-            color = 'C{}'.format(b_i)
-            label = r'$\beta_t={}$'.format(beta_t)
-            data = data_ij[b_i]
-            if plot_multilines:
-                median = np.percentile(data, 50, axis=-1)
-                ax.plot(mu_r_s, median, color=color, label=label)
-                ax.plot(
-                    mu_r_s,
-                    data[:,:multilines_max],
-                    color=color,
-                    alpha=multilines_alpha
-                )
-            else:
-                if not plot_only_median:
-                    q025 = np.percentile(data, 2.5, axis=-1)
-                    q975 = np.percentile(data, 97.5, axis=-1)
-                    ax.fill_between(mu_r_s, q025, q975, alpha=0.2, color=color)
-                median = np.percentile(data, 50, axis=-1)
-                ax.plot(mu_r_s, median, color=color, label=label)
+        # for b_i, beta_t in enumerate(beta_t_s):
+        color = 'C0'
+        # label = r'$\beta_t={}$'.format(beta_t)
+        data = data_ij[selected_b_i]
+        if plot_multilines:
+            median = np.percentile(data, 50, axis=-1)
+            ax.plot(mu_r_s, median, color=color, label=label)
+            ax.plot(
+                mu_r_s,
+                data[:,:multilines_max],
+                color=color,
+                alpha=multilines_alpha
+            )
+        else:
+            if not plot_only_median:
+                q025 = np.percentile(data, 2.5, axis=-1)
+                q975 = np.percentile(data, 97.5, axis=-1)
+                ax.fill_between(mu_r_s, q025, q975, alpha=0.2, color=color)
+            median = np.percentile(data, 50, axis=-1)
+            ax.plot(mu_r_s, median, color=color)
 
         if show_zero_line[d_j][d_i]:
             ax.axhline(0, color='gray', lw=1.0)#, zorder=0)
@@ -306,9 +308,9 @@ for ax in axes[-1, :]:
 
 fig.tight_layout()
 
-axes[1, -1].legend(
-    loc='center left', bbox_to_anchor=(1, 0.5),
-    fontsize=fontsize-2, fancybox=False,
-)
-
-fig.subplots_adjust(right=0.80)
+# axes[1, -1].legend(
+#     loc='center left', bbox_to_anchor=(1, 0.5),
+#     fontsize=fontsize-2, fancybox=False,
+# )
+#
+# fig.subplots_adjust(right=0.80)

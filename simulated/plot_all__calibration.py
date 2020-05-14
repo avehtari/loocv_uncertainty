@@ -234,21 +234,21 @@ datas_ks = np.array([
     cal_elpdhaty_ks,
 ])
 names = [
-    'normal\napprox.',
+    'normal',
     'BB',
     # 'true normal approx',
-    r'$\widehat{\mathrm{elpd}}(y)$',
+    'sampling\ndist.',
 ]
 
 
-fig = plt.figure(figsize=(10, 14))
+fig = plt.figure(figsize=(11, 14))
 outer = gridspec.GridSpec(
     len(beta_t_sel), len(n_obs_sel),
     hspace=0.2,
     wspace=0.34,
-    top=0.96,
-    bottom=0.03,
-    left=0.18,
+    top=0.94,
+    bottom=0.06,
+    left=0.21,
     right=0.94
 )
 gs_s = np.array([
@@ -275,7 +275,8 @@ for n_obs_i, n_obs in enumerate(n_obs_sel):
                 cal_limits[:-1],
                 data,
                 width=1/cal_nbins,
-                align='edge'
+                align='edge',
+                color=adjust_lightness('C0', amount=1.6),
             )
 
             # set ks
@@ -347,11 +348,29 @@ for ax, n_obs in zip(axes[0, :], n_obs_sel):
         fontsize=fontsize,
     )
 
+# set approx title
+ax = axes[0, 0]
+ax.text(
+    -0.1, 1.25,
+    'approximated\nwith',
+    transform=ax.transAxes,
+    ha='right',
+    va='bottom',
+    fontsize=fontsize,
+
+)
+
+for ax in axes[-1,:]:
+    ax.set_xlabel(
+        r'$p(\widehat{\widetilde{\mathrm{elpd}}} < \mathrm{elpd})$',
+        fontsize=fontsize-3
+    )
+
 # set beta labels
 for beta_t_i, beta_t in enumerate(beta_t_sel):
     ax = axes[beta_t_i*len(datas)+1, 0]
     ax.text(
-        -0.45, 0.5,
+        -0.65, 0.5,
         r'$\beta_t={}$'.format(beta_t),
         transform=ax.transAxes,
         ha='right',

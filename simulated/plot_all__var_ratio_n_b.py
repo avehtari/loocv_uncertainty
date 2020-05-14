@@ -8,8 +8,8 @@ import matplotlib.colors as colors
 from matplotlib import cm
 import matplotlib.gridspec as gridspec
 
-import seaborn as sns
-import pandas as pd
+# import seaborn as sns
+# import pandas as pd
 
 from setup_all import *
 
@@ -20,16 +20,18 @@ from setup_all import *
 # number of obs in one trial
 # n_obs_s = [16, 32, 64, 128, 256, 512, 1024]
 # n_obs_sel = [16, 64, 256, 1024]
-n_obs_sel = [32, 128, 512]
+# n_obs_sel = [32, 128, 512]
+n_obs_sel = n_obs_s
 
 # last covariate effect not used in model A
 # beta_t_s = [0.0, 0.05, 0.1, 0.2, 0.5, 1.0]
 # beta_t_sel = [0.0, 0.1, 0.5, 1.0]
-beta_t_sel = [0.0, 0.2, 1.0]
+# beta_t_sel = [0.0, 0.2, 1.0]
+beta_t_sel = [0.0, 0.1, 0.2, 0.5, 1.0]
 
 # outlier dev
 # out_dev_s = [0.0, 20.0, 200.0]
-out_dev = 20.0
+out_dev = 0.0
 
 # tau2
 # tau2_s = [None, 1.0]
@@ -38,6 +40,11 @@ tau2 = None
 
 # ============================================================================
 # other config
+
+bb_seed = 514762934
+bb_n = 1000
+bb_alpha = 1.0
+
 
 # ============================================================================
 
@@ -96,6 +103,9 @@ loo_napprox_pneg_pt = stats.norm.cdf(
 # elpd
 elpd_pt = elpd_pt_A - elpd_pt_B
 
+# err
+err_pt = loo_pt - elpd_pt
+
 # elpd(y)
 elpd_y_mean_p = np.mean(elpd_pt, axis=-1)
 elpd_y_var_p = np.var(elpd_pt, ddof=1, axis=-1)
@@ -107,6 +117,22 @@ loo_y_mean_p = np.mean(loo_pt, axis=-1)
 loo_y_var_p = np.var(loo_pt, ddof=1, axis=-1)
 loo_y_skew_p = stats.skew(loo_pt, bias=False, axis=-1)
 loo_y_pneg_p = np.mean(loo_pt<0, axis=-1)
+
+# err(y)
+err_y_mean_p = np.mean(err_pt, axis=-1)
+err_y_var_p = np.var(err_pt, ddof=1, axis=-1)
+err_y_skew_p = stats.skew(err_pt, bias=False, axis=-1)
+err_y_pneg_p = np.mean((err_pt)<0, axis=-1)
+
+
+# ratio SE_hat / SE of err(y)
+err_var_p = np.var(err_pt, ddof=1, axis=-1)
+se_hat_ratio_mean_p = np.sqrt(
+    np.mean(loo_var_hat_pt, axis=-1)/err_var_p)
+bb_rng = np.random.RandomState(seed=bb_seed)
+w_bt = bb_rng.dirichlet(np.full(n_trial, bb_alpha), size=bb_n)
+se_hat_ratio_pb = np.sqrt(
+    np.einsum('bt,pt->pb', w_bt, loo_var_hat_pt)/err_var_p[:,None])
 
 
 
@@ -134,91 +160,65 @@ def adjust_lightness(color, amount=0.5):
     return colorsys.hls_to_rgb(c[0], max(0, min(1, amount * c[1])), c[2])
 
 
-fontsize = 16
-
 # ============================================================================
 # plot joints
 # ============================================================================
 
-cmap = truncate_colormap(cm.get_cmap('Greys'), 0.3)
-cmap.set_under('white', 1.0)
+fontsize = 16
 
-kde_plot = True
-kde_n_levels = 5
-# kde_cmap = 'copper'
-kde_cmap = truncate_colormap(cm.get_cmap('copper'), 0.3)
+fig = plt.figure(figsize=(7,5))
+ax = fig.gca()
 
-fig, axes = plt.subplots(
-    len(beta_t_sel), len(n_obs_sel),
-    figsize=(8, 8)
-)
-for n_obs_i, n_obs in enumerate(n_obs_sel):
-    for beta_t_i, beta_t in enumerate(beta_t_sel):
+data_pb = se_hat_ratio_pb
+
+ax.axhline(1.0, color='gray')
+
+m_lines = []
+for b_i, beta_t in enumerate(beta_t_sel):
+    color = 'C{}'.format(b_i)
+    label = r'${}$'.format(beta_t)
+    data = np.zeros((len(n_obs_sel), data_pb.shape[-1]))
+    for n_i, n_obs in enumerate(n_obs_sel):
         probl_i = params_to_probl_i(n_obs, beta_t)
-        ax = axes[beta_t_i, n_obs_i]
-        x_arr = loo_pt[probl_i]
-        y_arr = elpd_pt[probl_i]
+        data[n_i] = data_pb[probl_i]
 
-        # ax.plot(x_arr, y_arr, '.')
-        ax.hexbin(x_arr, y_arr, gridsize=35, cmap=cmap, mincnt=1)
+    q025 = np.percentile(data, 2.5, axis=-1)
+    q975 = np.percentile(data, 97.5, axis=-1)
+    ax.fill_between(n_obs_sel, q025, q975, alpha=0.2, color=color)
+    median = np.percentile(data, 50, axis=-1)
+    m_line, = ax.plot(n_obs_sel, median, color=color, label=label)
+    m_lines.append(m_line)
 
-        if kde_plot:
-            sns.kdeplot(
-                x_arr, y_arr,
-                n_levels=kde_n_levels,
-                cmap=kde_cmap, ax=ax
-            )
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+ax.tick_params(axis='both', which='major', labelsize=fontsize-2)
+ax.tick_params(axis='both', which='minor', labelsize=fontsize-4)
 
-        ax.autoscale(enable=False)
-        ax.plot(
-            [max(ax.get_xlim()[0], ax.get_ylim()[0]),
-             min(ax.get_xlim()[1], ax.get_ylim()[1])],
-            [max(ax.get_xlim()[0], ax.get_ylim()[0]),
-             min(ax.get_xlim()[1], ax.get_ylim()[1])],
-            # color=adjust_lightness('C3', amount=1.3)
-            color='C2'
-        )
-        if ax.get_xlim()[0] < 0 and ax.get_xlim()[1] > 0:
-            ax.axvline(
-                0, color=adjust_lightness('gray', amount=1.4),
-                zorder=1, lw=0.8)
-        if ax.get_ylim()[0] < 0 and ax.get_ylim()[1] > 0:
-            ax.axhline(
-                0, color=adjust_lightness('gray', amount=1.4),
-                zorder=1, lw=0.8)
+ax.set_xscale('log')
 
-        ax.tick_params(axis='both', which='major', labelsize=fontsize-2)
-        ax.tick_params(axis='both', which='minor', labelsize=fontsize-4)
+ax.set_xticks(n_obs_sel)
+ax.set_xticklabels(n_obs_sel)
+ax.minorticks_off()
+ax.set_ylim(bottom=0)
 
-for ax in axes[:, 0]:
-    ax.set_ylabel(r'$\mathrm{elpd}$', fontsize=fontsize-2)
-for ax in axes[-1, :]:
-    ax.set_xlabel(r'$\widehat{\mathrm{elpd}}$', fontsize=fontsize-2)
-
-# set n labels
-for ax, n_obs in zip(axes[0, :], n_obs_sel):
-    # ax.set_title(r'$n={}$'.format(n_obs), fontsize=fontsize)
-    ax.text(
-        0.5, 1.20,
-        r'$n={}$'.format(n_obs),
-        transform=ax.transAxes,
-        ha='center',
-        va='bottom',
-        fontsize=fontsize,
-    )
-
-# set beta labels
-for ax, beta_t in zip(axes[:, 0], beta_t_sel):
-    ax.text(
-        -0.55, 0.5,
-        r'$\beta_t={}$'.format(beta_t),
-        transform=ax.transAxes,
-        ha='right',
-        va='center',
-        fontsize=fontsize,
-    )
-
+ax.set_ylabel(
+    r'$\widehat{\mathrm{SE}}_\mathrm{LOO}'
+    r'/'
+    r'\mathrm{SE}(\mathrm{err}_\mathrm{LOO})$',
+    fontsize=fontsize
+)
+ax.set_xlabel(r'$n$', fontsize=fontsize)
 fig.tight_layout()
-fig.subplots_adjust(top=0.92, left=0.22)
+
+ax.legend(
+    loc='lower right',
+    fontsize=fontsize-2,
+    fancybox=False, shadow=False, framealpha=1.0,
+    title=r'$\beta_t$',
+    title_fontsize=fontsize-2,
+)
+
+# # annotate lines
+# fig.subplots_adjust(right=0.8)
+# for b_i, (beta_t, m_line) in enumerate(zip(beta_t_sel, m_lines)):
+#     m_line.get_data()

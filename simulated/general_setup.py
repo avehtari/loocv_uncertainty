@@ -49,6 +49,12 @@ BMA_BB_SEED = 1022464040
 # BB sample size
 BMA_BB_N = 2000
 
+# config for BB moment estimation
+# BB seed
+BB_MOMENT_SEED = 243682451
+# BB sample size
+BB_MOMENT_N = 2000
+
 
 # ============================================================================
 
@@ -356,3 +362,39 @@ def calc_p_bma_pair(loo_t):
     """
     w_t = logistic_fun(loo_t)
     return w_t
+
+
+def bb_mean_sd_skew(data_pi, seed=BB_MOMENT_SEED):
+    # BB moments
+    n_probl, n_data = data_pi.shape
+    rng = np.random.RandomState(seed=seed)
+    w_bi = rng.dirichlet(np.ones(n_data), size=BB_MOMENT_N)
+
+    # sum_w_b = np.sum(w_bi, axis=-1)  # = 1
+    # sum_w_2_b = sum_w_b**2  # = 1
+    # sum_w_3_b = sum_w_2_b*sum_w_b  # = 1
+    sum_w2_b = np.sum(w_bi**2, axis=-1)
+    sum_w3_b = np.sum(w_bi**3, axis=-1)
+    norm_var = 1 - np.sum(w_bi**2, axis=-1)
+    norm_skew = 1 - 3*sum_w2_b + 2*sum_w3_b
+
+    mean_pb = data_pi.dot(w_bi.T)
+    # looping though p because of memory reasons (should be cythonised)
+    # data_centered_pib = data_pi[:, :, None] - mean_pb[:, None, :]
+    sd_pb = np.zeros((n_probl, BB_MOMENT_N))
+    skew_pb = np.zeros((n_probl, BB_MOMENT_N))
+    for p in range(n_probl):
+        work_data_bi = data_pi[p, None, :] - mean_pb[p, :, None]
+        # sd
+        sd_pb[p] = np.einsum(
+            'bi,bi,bi->b', w_bi, work_data_bi, work_data_bi)
+        sd_pb[p] /= norm_var
+        np.sqrt(sd_pb[p], out=sd_pb[p])
+        # skew
+        work_data_bi /= sd_pb[p][:, None]
+        skew_pb[p] = np.einsum(
+            'bi,bi,bi,bi->b',
+            w_bi, work_data_bi, work_data_bi, work_data_bi
+        )
+        skew_pb[p] /= norm_skew
+    return mean_pb, sd_pb, skew_pb
