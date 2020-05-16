@@ -209,7 +209,7 @@ for n_obs_i, n_obs in enumerate(n_obs_sel):
         if [beta_t_i, n_obs_i] in empty_plots:
             ax.text(
                 0.5, 0.5,
-                'All weights and\nprobabilities\nare 0.',
+                'All weights\nare 0.',
                 transform=ax.transAxes,
                 ha='center',
                 va='center',
@@ -255,53 +255,53 @@ for n_obs_i, n_obs in enumerate(n_obs_sel):
             # color='C1'
         )
 
-        ax.autoscale(enable=False)
-        ax.plot(
-            [max(ax.get_xlim()[0], ax.get_ylim()[0]),
-             min(ax.get_xlim()[1], ax.get_ylim()[1])],
-            [min(ax.get_xlim()[1], ax.get_ylim()[1]),
-             max(ax.get_xlim()[0], ax.get_ylim()[0])],
-            # color=adjust_lightness('C3', amount=1.3)
-            color=adjust_lightness('C1', amount=1.1)
-            # color='C1'
-        )
+        # ax.autoscale(enable=False)
+        # ax.plot(
+        #     [max(ax.get_xlim()[0], ax.get_ylim()[0]),
+        #      min(ax.get_xlim()[1], ax.get_ylim()[1])],
+        #     [min(ax.get_xlim()[1], ax.get_ylim()[1]),
+        #      max(ax.get_xlim()[0], ax.get_ylim()[0])],
+        #     # color=adjust_lightness('C3', amount=1.3)
+        #     color=adjust_lightness('C1', amount=1.1)
+        #     # color='C1'
+        # )
 
-        ax.text(
-            0.5, 0.25,
-            '{}'.format(int(np.sum((data_y<data_x) & (data_y<1-data_x)))),
-            transform=ax.transAxes,
-            ha='center',
-            va='center',
-            fontsize=fontsize-3,
-            color='C3'
-        )
-        ax.text(
-            0.25, 0.5,
-            '{}'.format(int(np.sum((data_y>=data_x) & (data_y<1-data_x)))),
-            transform=ax.transAxes,
-            ha='center',
-            va='center',
-            fontsize=fontsize-3,
-            color='C2'
-        )
-        ax.text(
-            0.5, 0.75,
-            '{}'.format(int(np.sum((data_y>=data_x) & (data_y>=1-data_x)))),
-            transform=ax.transAxes,
-            ha='center',
-            va='center',
-            fontsize=fontsize-3,
-            color='C3'
-        )
-        ax.text(
-            0.75, 0.5,
-            '{}'.format(int(np.sum((data_y<data_x) & (data_y>=1-data_x)))),
-            transform=ax.transAxes,
-            ha='center',
-            va='center',
-            fontsize=fontsize-3,
-            color='C2'
-        )
+        # ax.text(
+        #     0.5, 0.25,
+        #     '{}'.format(int(np.sum((data_y<data_x) & (data_y<1-data_x)))),
+        #     transform=ax.transAxes,
+        #     ha='center',
+        #     va='center',
+        #     fontsize=fontsize-3,
+        #     color='C3'
+        # )
+        # ax.text(
+        #     0.25, 0.5,
+        #     '{}'.format(int(np.sum((data_y>=data_x) & (data_y<1-data_x)))),
+        #     transform=ax.transAxes,
+        #     ha='center',
+        #     va='center',
+        #     fontsize=fontsize-3,
+        #     color='C2'
+        # )
+        # ax.text(
+        #     0.5, 0.75,
+        #     '{}'.format(int(np.sum((data_y>=data_x) & (data_y>=1-data_x)))),
+        #     transform=ax.transAxes,
+        #     ha='center',
+        #     va='center',
+        #     fontsize=fontsize-3,
+        #     color='C3'
+        # )
+        # ax.text(
+        #     0.75, 0.5,
+        #     '{}'.format(int(np.sum((data_y<data_x) & (data_y>=1-data_x)))),
+        #     transform=ax.transAxes,
+        #     ha='center',
+        #     va='center',
+        #     fontsize=fontsize-3,
+        #     color='C2'
+        # )
 
 
 for ax in axes.ravel():
@@ -321,7 +321,7 @@ for ax, beta_t in zip(axes[:, 0], beta_t_sel):
 
 for ax, beta_t in zip(axes[-1, :], n_obs_sel):
     ax.set_xlabel(
-        'p-BMA',
+        'P-BMA',
         rotation=0,
         fontsize=fontsize-2,
     )

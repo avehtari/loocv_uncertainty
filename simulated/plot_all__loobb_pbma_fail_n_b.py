@@ -183,7 +183,7 @@ for n_obs_i, n_obs in enumerate(n_obs_sel):
         if [beta_t_i, n_obs_i] in empty_plots:
             ax.text(
                 0.5, 0.5,
-                'All weights and\nprobabilities\nare 0.',
+                'All weights\nare 0.',
                 transform=ax.transAxes,
                 ha='center',
                 va='center',
@@ -227,13 +227,13 @@ for ax in axes.ravel():
 for ax, beta_t in zip(axes[:, 0], beta_t_sel):
     ax.set_ylabel(
         # 'LOO-BB-weight',
-        'LOO-BB - p-BMA',
+        'LOO-BB - P-BMA',
         fontsize=fontsize-2,
     )
 
 for ax, beta_t in zip(axes[-1, :], n_obs_sel):
     ax.set_xlabel(
-        'p-BMA',
+        'P-BMA',
         rotation=0,
         fontsize=fontsize-2,
     )
