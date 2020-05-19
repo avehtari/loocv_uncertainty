@@ -150,12 +150,16 @@ cmap = truncate_colormap(cm.get_cmap('Greys'), 0.3)
 cmap.set_under('white', 1.0)
 
 
-# example points (elpdhat, elpd)
+# example points (elpdhat, elpd) or (trial_idx)
 custom_points = [
     [[-58.0, -41.0], [-44.0, -44.0]],
+    # [[-0.8, 1.6], 845],
     [[-0.8, 1.6], [0.95, 0.11]],
     [[25.0, -8.0], [37.0, -4.0]],
-    [[-11.0, -11.0], [0.0, -10.0]],
+    [1071, 1297],
+    # [1806, 1297],
+    # [898, 1840],
+    # [[-11.0, -11.0], [-1.0, -9.0]],
 ]
 
 
@@ -180,8 +184,8 @@ fig, axes = plt.subplots(
 
 fig.subplots_adjust(
     top=0.942,
-    bottom=0.140,
-    left=0.198,
+    bottom=0.142,
+    left=0.210,
     right=0.979,
     hspace=0.287,
     wspace=0.125
@@ -252,14 +256,18 @@ for probl_i in range(n_probl):
     # ===============
     # custom points
 
-    for p_i, (ax, (elpdhat_target, elpd_target)) in enumerate(zip(
+    for p_i, (ax, target) in enumerate(zip(
             axes[probl_i, 1:], custom_points[probl_i])):
 
-        # find closest taxi distance
-        idx = (
-            np.abs(loo_pt[probl_i] - elpdhat_target)
-            + np.abs(elpd_pt[probl_i] - elpd_target)
-        ).argmin()
+        if hasattr(target, '__len__'):
+            elpdhat_target, elpd_target = target
+            # find closest taxi distance
+            idx = (
+                np.abs(loo_pt[probl_i] - elpdhat_target)
+                + np.abs(elpd_pt[probl_i] - elpd_target)
+            ).argmin()
+        else:
+            idx = target
 
         elpd = elpd_pt[probl_i, idx]
         loo = loo_pt[probl_i, idx]
@@ -414,7 +422,7 @@ axes[-1,1].legend(
     ],
     fontsize=fontsize-2,
     loc='upper center',
-    bbox_to_anchor=(0.5, -0.4),
+    bbox_to_anchor=(0.5, -0.45),
     fancybox=False,
     shadow=False,
     ncol=4,
