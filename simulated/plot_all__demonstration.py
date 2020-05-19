@@ -24,15 +24,15 @@ from setup_all import *
 
 # number of obs in one trial
 # n_obs_s = [16, 32, 64, 128, 256, 512, 1024]
-probl_n_obs_s = [128, 128, 128]
+probl_n_obs_s = [128, 128, 128, 32]
 
 # last covariate effect not used in model A
 # beta_t_s = [0.0, 0.05, 0.1, 0.2, 0.5, 1.0]
-probl_beta_t_s = [1.0, 0.0, 1.0]
+probl_beta_t_s = [1.0, 0.0, 1.0, 1.0]
 
 # outlier dev
 # out_dev_s = [0.0, 20.0, 200.0]
-probl_out_dev_s = [0.0, 0.0, 20.0]
+probl_out_dev_s = [0.0, 0.0, 20.0, 0.0]
 
 # tau2
 # tau2_s = [None, 1.0]
@@ -150,37 +150,52 @@ cmap = truncate_colormap(cm.get_cmap('Greys'), 0.3)
 cmap.set_under('white', 1.0)
 
 
+# example points (elpdhat, elpd)
+custom_points = [
+    [[-58.0, -41.0], [-44.0, -44.0]],
+    [[-0.8, 1.6], [0.95, 0.11]],
+    [[25.0, -8.0], [37.0, -4.0]],
+    [[-11.0, -11.0], [0.0, -10.0]],
+]
+
+
 kde_plot = True
 # kde_cmap = 'copper'
 kde_cmap = truncate_colormap(cm.get_cmap('copper'), 0.3)
 kde_n_levels = [0.05, 0.3, 0.6, 0.9]
 
 
-
 zoom_limits = [
     [(-75, -21), (-53, -31)],
-    [(-1.5, 2.1), (-0.8, 1.95)],
+    [(-1.5, 3.0), (-0.8, 1.95)],
     [(-10, 60), (-13, 1.0)],
+    [(-30, 5), (-20, 3)],
 ]
-# if tau2 is None:
-# zoom_limits = [
-#     [(-120, -21), (-70, -57)],
-#     [(-3, 3.0), (-1, 4.5)],
-#     [(-200, 60), (-100, -22)],
-# ]
 
 fig, axes = plt.subplots(
-    1, n_probl,
-    figsize=(8, 4)
+    n_probl, max(map(len, custom_points))+1,
+    gridspec_kw={'width_ratios': [2, 3, 3]},
+    figsize=(9, 8)
 )
 
-for probl_i, ax in enumerate(axes):
+fig.subplots_adjust(
+    top=0.942,
+    bottom=0.140,
+    left=0.198,
+    right=0.979,
+    hspace=0.287,
+    wspace=0.125
+)
+
+for probl_i in range(n_probl):
 
     x_arr = loo_pt[probl_i]
     y_arr = elpd_pt[probl_i]
 
     # ===============
     # joint
+
+    ax = axes[probl_i, 0]
 
     (zoom_xmin, zoom_xmax), (zoom_ymin, zoom_ymax) = zoom_limits[probl_i]
     idxs = (
@@ -190,14 +205,7 @@ for probl_i, ax in enumerate(axes):
     x_arr = x_arr[idxs]
     y_arr = y_arr[idxs]
 
-    # ax.hexbin(x_arr, y_arr, gridsize=35, cmap=cmap, mincnt=1)
-    ax.hexbin(
-        x_arr, y_arr,
-        gridsize=45,
-        extent=(zoom_xmin, zoom_xmax, zoom_ymin, zoom_ymax),
-        cmap=cmap, mincnt=1
-    )
-
+    ax.hexbin(x_arr, y_arr, gridsize=35, cmap=cmap, mincnt=1)
     if kde_plot:
         # sns.kdeplot(
         #     x_arr, y_arr,
@@ -220,14 +228,6 @@ for probl_i, ax in enumerate(axes):
             levels = kde_n_levels
         ax.contour(X, Y, Z, levels=levels, cmap=kde_cmap)
 
-
-    if probl_i == 0:
-        ax.set_ylabel(r'$\mathrm{elpd}(M_a,M_b|y)$', fontsize=fontsize-2)
-    ax.set_xlabel(
-        r'$\widehat{\mathrm{elpd}}_\mathrm{LOO}(M_a,M_b|y)$',
-        fontsize=fontsize-2
-    )
-
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
@@ -249,16 +249,174 @@ for probl_i, ax in enumerate(axes):
             0, color=adjust_lightness('gray', amount=1.4),
             zorder=1, lw=0.8)
 
-for probl_i, probl_name in enumerate([
-    'Clear case',
-    'Models similar',
-    'Outliers'
-]):
-    ax = axes[probl_i]
-    ax.set_title(
-        probl_name,
-        fontsize=fontsize,
-        pad=10,
+    # ===============
+    # custom points
+
+    for p_i, (ax, (elpdhat_target, elpd_target)) in enumerate(zip(
+            axes[probl_i, 1:], custom_points[probl_i])):
+
+        # find closest taxi distance
+        idx = (
+            np.abs(loo_pt[probl_i] - elpdhat_target)
+            + np.abs(elpd_pt[probl_i] - elpd_target)
+        ).argmin()
+
+        elpd = elpd_pt[probl_i, idx]
+        loo = loo_pt[probl_i, idx]
+        loo_i = loo_pti[probl_i][idx]
+        sehat = np.sqrt(loo_var_hat_pt[probl_i, idx])
+        n_obs = len(loo_i)
+        elpdtilde = loo - (loo_pt[probl_i] - elpd_pt[probl_i])
+
+        elpdtilde_min, elpdtilde_max = np.percentile(elpdtilde, [0.1, 99])
+        elpdhat_min, elpdhat_max = loo + 3*sehat*np.array([-1, 1])
+        x_min = min(elpdtilde_min, elpdhat_min)
+        x_max = max(elpdtilde_max, elpdhat_max)
+        x_grid = np.linspace(x_min, x_max, 100)
+
+        # plot elpdtilde hist
+        _, _, hs_elpdtilde = ax.hist(
+            elpdtilde,
+            density=True,
+            color=adjust_lightness('C0', amount=2.0),
+            # alpha=0.4,
+            bins=int(round((elpdtilde.max()-elpdtilde.min())/(x_max-x_min)*32)),
+        )
+        # plot normal approx
+        dens = stats.norm.pdf(x_grid, loc=loo, scale=sehat)
+        #dens *= ax.get_ylim()[1]*0.95/dens.max()
+        h_elpdhat_n, = ax.plot(
+            x_grid,
+            dens,
+            color='C1'
+        )
+        # plot loo
+        # h_elpdhat = ax.axvline(loo, color='C1')
+        # plot elpd
+        h_elpd = ax.axvline(
+            elpd,
+            color='C0',
+            # linestyle=':',
+            # linewidth=2.5
+        )
+
+        ax.set_xlim((x_min, x_max))
+
+        ax.set_yticks([])
+
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+
+        # add annotation
+        axes[probl_i, 0].plot(
+            [loo], [elpd],
+            'o', markersize=6,
+            # markerfacecolor=adjust_lightness('C1', amount=1.3),
+            markerfacecolor='C3',
+            markeredgewidth=0.0,# markeredgecolor='k'
+        )
+        annotation_text = axes[probl_i, 0].annotate(
+            '{}'.format(p_i+1),
+            xy=(loo, elpd),
+            xytext=(-5, 0),
+            ha='right',
+            va='center',
+            textcoords='offset points',
+            # color=adjust_lightness('C1', amount=1.3),
+            color='w',
+            fontsize=fontsize,
+        )
+        annotation_text.set_path_effects([
+            mpl.patheffects.Stroke(linewidth=1.8, foreground='k'),
+            mpl.patheffects.Normal()
+        ])
+
+    # share hists row ylim
+    max_ylim = max(map(lambda ax: ax.get_ylim()[1], axes[probl_i, 1:]))
+    for ax in axes[probl_i, 1:]:
+        ax.set_ylim(top=max_ylim)
+
+# for ax in axes[-1, 1:]:
+#     ax.set_xlabel(
+#         r'$\widehat{\mathrm{elpd}}_\mathrm{LOO}$',
+#         fontsize=fontsize-2
+#     )
+
+axes[-1, 0].set_xlabel(
+    r'$\widehat{\mathrm{elpd}}_\mathrm{LOO}(M_a,M_b|y)$',
+    fontsize=fontsize-2
+)
+
+for ax in axes[:, 0]:
+    ax.text(
+        -0.25, 0.5,
+        r'$\widehat{\mathrm{elpd}}_\mathrm{LOO}$',
+        transform=ax.transAxes,
+        ha='right',
+        va='center',
+        fontsize=fontsize-2,
+        rotation=90,
     )
 
-fig.tight_layout()
+for probl_i, ax in enumerate(axes[:, 0]):
+    ax.text(
+        -0.52, 0.5,
+        (
+            r'$\beta_t={}$'.format(probl_beta_t_s[probl_i]) +
+            '\n' +
+            r'$n={}$'.format(probl_n_obs_s[probl_i]) +
+            '\n' +
+            r'$\mu_{\star,r}=' + '{}$'.format(probl_out_dev_s[probl_i])
+        ),
+        transform=ax.transAxes,
+        ha='right',
+        va='center',
+        fontsize=fontsize-2,
+    )
+
+for col_i, ax in enumerate(axes[0, 1:]):
+    label_text = ax.text(
+        0.5, 1.1,
+        '{}'.format(col_i+1),
+        transform=ax.transAxes,
+        ha='center', va='bottom',
+        fontsize=fontsize-2,
+        color='w',
+    )
+    label_text.set_path_effects([
+        mpl.patheffects.Stroke(linewidth=1.8, foreground='k'),
+        mpl.patheffects.Normal()
+    ])
+
+
+# legend
+# h_elpd_vert = mpl.lines.Line2D(
+#     [], [], color=h_elpd.get_color(), marker='|', linestyle='None',
+#     markersize=14, markeredgewidth=1.5
+# )
+# h_elpdhat_vert = mpl.lines.Line2D(
+#     [], [], color=h_elpdhat.get_color(), marker='|', linestyle='None',
+#     markersize=14, markeredgewidth=1.5
+# )
+axes[-1,1].legend(
+    [
+        # h_elpdhat_vert,
+        h_elpd,
+        hs_elpdtilde[0],
+        h_elpdhat_n,
+    ],
+    [
+        # r'$\widehat{\mathrm{elpd}}_\mathrm{LOO}$',
+        r'$\mathrm{elpd}$',
+        r'$\widetilde{\mathrm{elpd}}_\mathrm{LOO}$',
+        'normal approx.',
+    ],
+    fontsize=fontsize-2,
+    loc='upper center',
+    bbox_to_anchor=(0.5, -0.4),
+    fancybox=False,
+    shadow=False,
+    ncol=4,
+    handler_map={h_elpd:HandlerMiniatureLine()}
+)
