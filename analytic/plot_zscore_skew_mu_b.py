@@ -12,17 +12,17 @@ from problem_setting import *
 # ============================================================================
 # conf
 
-load_res = True
-filename = 'res_zscore_skew_mu_b.npz'
-
-plot = True
+folder_name = 'res_zscore_skew_mu_b'
+run_moments = True
+distributed = True
+plot = False
 
 # data seed
 # np.random.RandomState().randint(np.iinfo(np.uint32).max)
 data_seed = 247169102
 
 # number of trials
-n_trial = 100
+n_trial = 2000
 # fixed model tau2 value
 tau2 = 1.0
 # dimensionality of X
@@ -74,8 +74,8 @@ mu_base[0] = 1
 mu_r_s = np.linspace(0, 500, 21)
 
 # last beta effect missing in model A
-# beta_t_s = np.array([0.0, 0.1, 0.2, 0.5, 1.0])
-beta_t_s = np.array([1.0])
+beta_t_s = np.array([0.0, 0.1, 0.2, 0.5, 1.0])
+# beta_t_s = np.array([1.0])
 
 # ============================================================================
 
@@ -122,83 +122,143 @@ data_generation = DataGeneration(n_trial, data_seed)
 
 
 # ============================================================================
+# setup the grid
+
+# set grid
+mu_r_grid, beta_t_grid = np.meshgrid(mu_r_s, beta_t_s, indexing='ij')
+grid_shape = mu_r_grid.shape
+n_runs = mu_r_grid.size
+
+def run_i_to_params(run_i):
+    mu_r = mu_r_grid.flat[run_i]
+    beta_t = beta_t_grid.flat[run_i]
+    return mu_r, beta_t
+
+def params_to_run_i(mu_r, beta_t, out_dev, tau2):
+    mu_r_i = mu_r_s.index(mu_r)
+    beta_t_i = beta_t_s.index(beta_t)
+    run_i = np.ravel_multi_index((mu_r_i, beta_t_i), grid_shape)
+    return run_i
+
+
+# ============================================================================
 # As a function of n
 
-if load_res:
-    res_file = np.load(filename)
-    mean_loo_s = res_file['mean_loo_s']
-    var_loo_s = res_file['var_loo_s']
-    skew_loo_s = res_file['skew_loo_s']
-    mean_elpd_s = res_file['mean_elpd_s']
-    var_elpd_s = res_file['var_elpd_s']
-    skew_elpd_s = res_file['skew_elpd_s']
-    mean_err_s = res_file['mean_err_s']
-    var_err_s = res_file['var_err_s']
-    skew_err_s = res_file['skew_err_s']
-    res_file.close()
+def run_and_save_run_i(run_i):
+    run_i_str = str(run_i).zfill(4)
 
-else:
+    mu_r, beta_t = run_i_to_params(run_i)
+    mu = mu_r*mu_base
+    beta = np.array([beta_other]*(n_dim-1)+[beta_t])
+    if intercept:
+        beta[0] = beta_intercept
 
-    start_time = time.time()
-    mean_loo_s = np.full((len(beta_t_s), len(mu_r_s), n_trial), np.nan)
-    var_loo_s = np.full((len(beta_t_s), len(mu_r_s), n_trial), np.nan)
-    skew_loo_s = np.full((len(beta_t_s), len(mu_r_s), n_trial), np.nan)
-    mean_elpd_s = np.full((len(beta_t_s), len(mu_r_s), n_trial), np.nan)
-    var_elpd_s = np.full((len(beta_t_s), len(mu_r_s), n_trial), np.nan)
-    skew_elpd_s = np.full((len(beta_t_s), len(mu_r_s), n_trial), np.nan)
-    mean_err_s = np.full((len(beta_t_s), len(mu_r_s), n_trial), np.nan)
-    var_err_s = np.full((len(beta_t_s), len(mu_r_s), n_trial), np.nan)
-    skew_err_s = np.full((len(beta_t_s), len(mu_r_s), n_trial), np.nan)
+    mean_loo_t = np.full((n_trial,), np.nan)
+    var_loo_t = np.full((n_trial,), np.nan)
+    moment3_loo_t = np.full((n_trial,), np.nan)
+    mean_elpd_t = np.full((n_trial,), np.nan)
+    var_elpd_t = np.full((n_trial,), np.nan)
+    moment3_elpd_t = np.full((n_trial,), np.nan)
+    mean_err_t = np.full((n_trial,), np.nan)
+    var_err_t = np.full((n_trial,), np.nan)
+    moment3_err_t = np.full((n_trial,), np.nan)
 
-    for i0, beta in enumerate(beta_s):
-
-        # progress
-        cur_time_min = (time.time() - start_time)/60
-        print('{}/{}, elapsed time: {:.2} min'.format(
-            i0+1, len(beta_t_s), cur_time_min), flush=True)
-
-        for i1, mu in enumerate(mu_s):
-
-            for t_i in range(n_trial):
-
-                X_mat = data_generation.get_x(t_i)
-                (
-                    mean_loo, var_loo, moment3_loo,
-                    mean_elpd, var_elpd, moment3_elpd,
-                    mean_err, var_err, moment3_err
-                ) = (
-                    get_analytic_res(
-                        X_mat, beta, tau2, idx_a, idx_b,
-                        Sigma_d=sigma_d_2, mu_d=mu
-                    )
-                )
-                mean_loo_s[i0, i1, t_i] = mean_loo
-                var_loo_s[i0, i1, t_i] = var_loo
-                skew_loo_s[i0, i1, t_i] = moment3_loo/np.sqrt(var_loo)**3
-                mean_elpd_s[i0, i1, t_i] = mean_elpd
-                var_elpd_s[i0, i1, t_i] = var_elpd
-                skew_elpd_s[i0, i1, t_i] = moment3_elpd/np.sqrt(var_elpd)**3
-                mean_err_s[i0, i1, t_i] = mean_err
-                var_err_s[i0, i1, t_i] = var_err
-                skew_err_s[i0, i1, t_i] = moment3_err/np.sqrt(var_err)**3
-    print('done', flush=True)
+    for t_i in range(n_trial):
+        X_mat = data_generation.get_x(t_i)
+        (
+            mean_loo, var_loo, moment3_loo,
+            mean_elpd, var_elpd, moment3_elpd,
+            mean_err, var_err, moment3_err
+        ) = (
+            get_analytic_res(
+                X_mat, beta, tau2, idx_a, idx_b,
+                Sigma_d=sigma_d_2, mu_d=mu
+            )
+        )
+        mean_loo_t[t_i] = mean_loo
+        var_loo_t[t_i] = var_loo
+        moment3_loo_t[t_i] = moment3_loo
+        mean_elpd_t[t_i] = mean_elpd
+        var_elpd_t[t_i] = var_elpd
+        moment3_elpd_t[t_i] = moment3_elpd
+        mean_err_t[t_i] = mean_err
+        var_err_t[t_i] = var_err
+        moment3_err_t[t_i] = moment3_err
 
     np.savez_compressed(
-        filename,
-        mean_loo_s=mean_loo_s,
-        var_loo_s=var_loo_s,
-        skew_loo_s=skew_loo_s,
-        mean_elpd_s=mean_elpd_s,
-        var_elpd_s=var_elpd_s,
-        skew_elpd_s=skew_elpd_s,
-        mean_err_s=mean_err_s,
-        var_err_s=var_err_s,
-        skew_err_s=skew_err_s,
+        folder_name+'/'+'res_'+run_i_str+'.npz',
+        mean_loo_t=mean_loo_t,
+        var_loo_t=var_loo_t,
+        moment3_loo_t=moment3_loo_t,
+        mean_elpd_t=mean_elpd_t,
+        var_elpd_t=var_elpd_t,
+        moment3_elpd_t=moment3_elpd_t,
+        mean_err_t=mean_err_t,
+        var_err_t=var_err_t,
+        moment3_err_t=moment3_err_t,
     )
 
+if run_moments:
+    # os.makedirs(folder_name, exist_ok=True)  # make beforehand
+    if distributed:
+        # parse cmd input for run id
+        if len(sys.argv) > 1:
+            # get run_i
+            run_i = int(sys.argv[1])
+        else:
+            raise ValueError('Provide run_i as cmd line arg.')
+        if run_i < 0 or run_i >= n_runs:
+            raise ValueError('invalid run_i, max is {}'.format(n_runs-1))
+        mu_r, beta_t = run_i_to_params(run_i)
+        print('mu_r:{}, beta_t:{}'.format(mu_r, beta_t))
+        start_time = time.time()
+        run_and_save_run_i(run_i)
+        cur_time_min = (time.time() - start_time)/60
+        print('elapsed time: {:.2} min'.format(cur_time_min), flush=True)
+    else:
+        start_time = time.time()
+        for run_i in range(n_runs):
+            # progress
+            cur_time_min = (time.time() - start_time)/60
+            print('{}/{}, elapsed time: {:.2} min'.format(
+                run_i+1, len(n_runs), cur_time_min), flush=True)
+            run_and_save_run_i(run_i)
+print('done', flush=True)
+
+# ============================================================================
 if not plot:
     # all done if not plotting anything
     raise SystemExit
+
+# ============================================================================
+# Load results
+
+mean_loo_t = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
+var_loo_t = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
+moment3_loo_t = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
+mean_elpd_t = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
+var_elpd_t = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
+moment3_elpd_t = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
+mean_err_t = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
+var_err_t = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
+moment3_err_t = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
+
+for run_i in range(n_runs):
+    run_i_str = str(run_i).zfill(4)
+    mu_r, beta_t = run_i_to_params(run_i)
+    mu_r_i = mu_r_s.index(mu_r)
+    beta_t_i = beta_t_s.index(beta_t)
+    res_file = np.load(folder_name+'/'+'res_'+run_i_str+'.npz')
+    mean_loo_s[mu_r_i, beta_t_i, :] = res_file['mean_loo_t']
+    var_loo_s[mu_r_i, beta_t_i, :] = res_file['var_loo_t']
+    moment3_loo_s[mu_r_i, beta_t_i, :] = res_file['moment3_loo_t']
+    mean_elpd_s[mu_r_i, beta_t_i, :] = res_file['mean_elpd_t']
+    var_elpd_s[mu_r_i, beta_t_i, :] = res_file['var_elpd_t']
+    moment3_elpd_s[mu_r_i, beta_t_i, :] = res_file['moment3_elpd_t']
+    mean_err_s[mu_r_i, beta_t_i, :] = res_file['mean_err_t']
+    var_err_s[mu_r_i, beta_t_i, :] = res_file['var_err_t']
+    moment3_err_s[mu_r_i, beta_t_i, :] = res_file['moment3_err_t']
+    res_file.close()
 
 
 # ============================================================================

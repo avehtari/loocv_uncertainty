@@ -4,7 +4,7 @@ from scipy import linalg, stats
 n = 6
 tau2 = 1.7
 
-n_trial = 4000
+n_trial = 3
 
 seed = 11
 rng = np.random.RandomState(seed)
@@ -12,8 +12,8 @@ rng = np.random.RandomState(seed)
 # ===========================================================================
 
 s_star = 1.37
-m_star = 0.0
-# m_star = 12.3
+# m_star = 0.0
+m_star = 12.3
 mu_star = np.zeros(n)
 mu_star[0] = m_star
 Sigma_star = s_star**2*np.eye(n)
@@ -50,10 +50,10 @@ linalg.cholesky(Sigma_star)  # ensure pos-def
 
 # randn noncenter
 # -----------------
-k = 4
-k_a = np.array([0, 1])
-k_b = np.array([0, 2, 3])
-X = rng.randn(n, k) - 123.4
+# k = 4
+# k_a = np.array([0, 1])
+# k_b = np.array([0, 2, 3])
+# X = rng.randn(n, k) - 123.4
 
 
 # first dim as intercept, linspace
@@ -66,14 +66,15 @@ X = rng.randn(n, k) - 123.4
 
 # first dim as intercept, half -1 1
 # -----------------
-# k = 2
-# k_a = np.array([0])
-# k_b = np.array([0, 1])
-# X = np.ones(n)
-# X[rng.choice(n, n//2, replace=False)] = -1.0
-# X = np.vstack((np.ones(n), X)).T
-# x = X[:,1]
-# xx = (x[:,None] * x[None,:])
+k = 2
+k_a = np.array([0])
+k_b = np.array([0, 1])
+X = np.ones(n)
+X[1] = -1
+X[rng.choice(n-2, (n-2)//2, replace=False)+2] = -1.0
+X = np.vstack((np.ones(n), X)).T
+x = X[:,1]
+xx = (x[:,None] * x[None,:])
 
 
 # first dim as intercept, rand unif -1 1
@@ -433,6 +434,125 @@ c_err =(
 errs = np.einsum('ti,ij,jt->t', eps_t, A_err, eps_t.T)
 errs += eps_t.dot(b_err)
 errs += c_err
+
+
+# ===========================================================================
+# elpd test analytic one cov case
+# ===========================================================================
+
+# A_elpd
+# 1/tau2*(-1/(2*(n+1)*(n+2)) + xx*1/(2*(n+2)))
+
+# b_elpd
+# 1/tau2*m_star*(1/((n+1)*(n+2)) - x*1/((n+2)))
+
+# c_elpd
+# 1/tau2 * (
+#      -beta[1]**2 * (n**2)/(2*(n+1))
+#     - beta[1]*m_star*(n)/(n+1)
+#     - (n)/(2*(n+1)*(n+2)) * (m_star**2 + n*s_star**2)
+# ) + n/2*np.log((n+2)/(n+1))
+
+# np.trace(Sigma_star_12.dot(A_elpd).dot(Sigma_star_12))
+# s_star**2/tau2 * n**2/(2*(n+1)*(n+2))
+
+# b_elpd.dot(mu_star)
+# -1/tau2*m_star**2 * n/((n+2)*(n+1))
+
+# mu_star.dot(A_elpd).dot(mu_star)
+# 1/tau2 * m_star**2 * n/(2*(n+2)*(n+1))
+
+# m_1
+# np.trace(Sigma_star_12.dot(A_elpd).dot(Sigma_star_12)) + c_elpd + b_elpd.dot(mu_star) + mu_star.dot(A_elpd).dot(mu_star)
+# 1/tau2*(-n**2/(2*(n+1))*beta[1]**2 - n/(n+1)*beta[1]*m_star -n/((n+2)*(n+1))*m_star**2) + n/2*np.log((n+2)/(n+1))
+
+# -----
+
+# A_elpd.dot(A_elpd)
+# 1/tau2**2*((n)/(4*(n+1)**2*(n+2)**2) + (n)/(4*(n+2)**2)*xx)
+
+# np.trace((Sigma_star_12.dot(A_elpd).dot(Sigma_star_12)).dot((Sigma_star_12.dot(A_elpd).dot(Sigma_star_12))))
+# s_star**4/tau2**2*(n**2*(n**2+2*n+2)/(4*(n+1)**2*(n+2)**2))
+
+# b_elpd.dot(b_elpd)
+# 1/tau2**2 * m_star**2 * (n*(n**2+2*n+2))/((n+1)**2*(n+2)**2)
+
+# b_elpd.dot(A_elpd).dot(mu_star)
+# -1/tau2**2 * m_star**2 * (n*(n**2+2*n+2))/(2*(n+1)**2*(n+2)**2)
+
+# mu_star.dot(A_elpd.dot(A_elpd)).dot(mu_star)
+# 1/tau2**2 * m_star**2 * (n*(n**2+2*n+2)/(4*(n+1)**2*(n+2)**2))
+
+# m_2
+# (
+#     2*np.trace((Sigma_star_12.dot(A_elpd).dot(Sigma_star_12)).dot((Sigma_star_12.dot(A_elpd).dot(Sigma_star_12))))
+#     + b_elpd.dot(Sigma_star).dot(b_elpd)
+#     + 4 * b_elpd.dot(Sigma_star).dot(A_elpd).dot(mu_star)
+#     + 4 * mu_star.dot(A_elpd).dot(Sigma_star).dot(A_elpd).dot(mu_star)
+# )
+# 1/tau2**2*s_star**4*(n**2*(n**2+2*n+2)/(2*(n+1)**2*(n+2)**2))
+
+
+# ===========================================================================
+# loo test analytic one cov case
+# ===========================================================================
+
+# A_loo
+# (1)/(tau2)*( (n)/(2*(n-2)*(n-1))*np.eye(n) - (1)/(2*(n-2)*(n-1)) - (1)/(2*(n-2))*xx)
+
+# b_loo
+# -1/tau2 * beta[1] * n/(n-1) * x
+
+# c_loo
+# -1/tau2 * beta[1]**2 * n**2/(2*(n-1)) + n/2 * np.log((n-1)/(n-2))
+
+# s_star**2*np.trace(A_loo)
+# 0
+
+# b_loo.dot(mu_star)
+# -1/tau2 * beta[1] * m_star * n/(n-1)
+
+# mu_star.dot(A_loo).dot(mu_star)
+# 0
+
+# m_1
+# s_star**2*np.trace(A_loo) + c_loo + b_loo.dot(mu_star) + mu_star.dot(A_loo).dot(mu_star)
+# 1/tau2 *( -n**2/(2*(n-1))*beta[1]**2 - n/(n-1)*beta[1]*m_star) + n/2 * np.log((n-1)/(n-2))
+
+# -----
+
+# A_loo.dot(A_loo)
+# 1/tau2**2*(
+#     (n**2)/(4*(n-1)**2*(n-2)**2) * np.eye(n)
+#     - (n)/(4*(n-1)**2*(n-2)**2)
+#     + (n*(n-3))/(4*(n-2)**2*(n-1))*xx
+# )
+
+# np.trace((Sigma_star_12.dot(A_loo).dot(Sigma_star_12)).dot((Sigma_star_12.dot(A_loo).dot(Sigma_star_12))))
+# 1/tau2**2*s_star**4*(n**2)/(4*(n-2)*(n-1))
+
+# b_loo.dot(b_loo)
+# 1/tau2**2 * beta[1]**2 * (n**3)/((n-1)**2)
+
+# b_loo.dot(A_loo).dot(mu_star)
+# 1/tau2**2 * beta[1] * m_star * (n**2)/(2*(n-1)**2)
+
+# mu_star.dot(A_loo).dot(A_loo).dot(mu_star)
+# 1/tau2**2 * m_star**2 * (n)/(4*(n-2)*(n-1))
+
+# m_2
+# (
+#     2*np.trace((Sigma_star_12.dot(A_loo).dot(Sigma_star_12)).dot((Sigma_star_12.dot(A_loo).dot(Sigma_star_12))))
+#     + b_loo.dot(Sigma_star).dot(b_loo)
+#     + 4 * b_loo.dot(Sigma_star).dot(A_loo).dot(mu_star)
+#     + 4 * mu_star.dot(A_loo).dot(Sigma_star).dot(A_loo).dot(mu_star)
+# )
+# 1/tau2**2*(
+#     s_star**2*beta[1]**2 * n**3/((n-1)**2)
+#     + s_star**2*beta[1]*m_star * (2*n**2)/((n-1)**2)
+#     + s_star**2*m_star**2 * (n)/((n-2)*(n-1))
+#     + s_star**4 * (n**2)/(2*(n-2)*(n-1))
+# )
 
 # ===========================================================================
 # error moments
