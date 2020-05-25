@@ -4,6 +4,11 @@ from scipy import linalg, stats
 
 
 
+BB_MOMENT_SEED = 14673429
+BB_MOMENT_N = 2000
+
+
+
 def get_analytic_res(X_mat, beta, tau2, idx_a, idx_b, Sigma_d, mu_d=None):
     """Analytic results.
 
@@ -299,12 +304,13 @@ def moments_from_a_b_c(A_mat, b_vec, c_sca, Sigma_d, mu_d=None):
 def calc_tot_mean_var_moment3_form_given_x(
         mean_s, var_s, moment3_s, known_zero_mean_tot=False):
     n_trial = mean_s.shape[-1]
+    moment3_bias_correction = n_trial**2/((n_trial-1)*(n_trial-2))
     if known_zero_mean_tot:
         mean_tot_s = np.zeros(mean_s.shape[:-1])
         var_tot_s = var_s.mean(axis=-1) + np.mean(mean_s**2, axis=-1)
         m3_tot_s = (
             moment3_s.mean(axis=-1) +
-            stats.skew(mean_s, axis=-1, bias=False) +
+            moment3_bias_correction*stats.moment(mean_s, moment=3, axis=-1) +
             3*np.sum(
                 mean_s*
                 (var_s - var_s.mean(axis=-1, keepdims=True)),
@@ -316,7 +322,7 @@ def calc_tot_mean_var_moment3_form_given_x(
         var_tot_s = var_s.mean(axis=-1) + mean_s.var(axis=-1, ddof=1)
         m3_tot_s = (
             moment3_s.mean(axis=-1) +
-            stats.skew(mean_s, axis=-1, bias=False) +
+            moment3_bias_correction*stats.moment(mean_s, moment=3, axis=-1) +
             3*np.sum(
                 (mean_s - mean_s.mean(axis=-1, keepdims=True))*
                 (var_s - var_s.mean(axis=-1, keepdims=True)),
@@ -324,3 +330,125 @@ def calc_tot_mean_var_moment3_form_given_x(
             )/(n_trial-1)
         )
     return mean_tot_s, var_tot_s, m3_tot_s
+
+
+def bb_mean(data_pi, seed=BB_MOMENT_SEED):
+    # BB moments
+    n_probl, n_data = data_pi.shape
+    rng = np.random.RandomState(seed=seed)
+    w_bi = rng.dirichlet(np.ones(n_data), size=BB_MOMENT_N)
+    # sum_w_b = np.sum(w_bi, axis=-1)  # = 1
+    mean_pb = data_pi.dot(w_bi.T)
+    return mean_pb
+
+
+def bb_mean_var(data_pi, seed=BB_MOMENT_SEED):
+    # BB moments
+    n_probl, n_data = data_pi.shape
+    rng = np.random.RandomState(seed=seed)
+    w_bi = rng.dirichlet(np.ones(n_data), size=BB_MOMENT_N)
+
+    # sum_w_b = np.sum(w_bi, axis=-1)  # = 1
+    # sum_w_2_b = sum_w_b**2  # = 1
+    sum_w2_b = np.sum(w_bi**2, axis=-1)
+    norm_var = 1 - sum_w2_b
+
+    mean_pb = data_pi.dot(w_bi.T)
+    # looping though p because of memory reasons (should be cythonised)
+    # data_centered_pib = data_pi[:, :, None] - mean_pb[:, None, :]
+    var_pb = np.zeros((n_probl, BB_MOMENT_N))
+    for p in range(n_probl):
+        work_data_bi = data_pi[p, None, :] - mean_pb[p, :, None]
+        # sd
+        var_pb[p] = np.einsum(
+            'bi,bi,bi->b', w_bi, work_data_bi, work_data_bi)
+        var_pb[p] /= norm_var
+    return mean_pb, var_pb
+
+
+def bb_mean_var_moment3(data_pi, seed=BB_MOMENT_SEED):
+    # BB moments
+    n_probl, n_data = data_pi.shape
+    rng = np.random.RandomState(seed=seed)
+    w_bi = rng.dirichlet(np.ones(n_data), size=BB_MOMENT_N)
+
+    # sum_w_b = np.sum(w_bi, axis=-1)  # = 1
+    # sum_w_2_b = sum_w_b**2  # = 1
+    # sum_w_3_b = sum_w_2_b*sum_w_b  # = 1
+    sum_w2_b = np.sum(w_bi**2, axis=-1)
+    sum_w3_b = np.sum(w_bi**3, axis=-1)
+    norm_var = 1 - sum_w2_b
+    norm_skew = 1 - 3*sum_w2_b + 2*sum_w3_b
+
+    mean_pb = data_pi.dot(w_bi.T)
+    # looping though p because of memory reasons (should be cythonised)
+    # data_centered_pib = data_pi[:, :, None] - mean_pb[:, None, :]
+    var_pb = np.zeros((n_probl, BB_MOMENT_N))
+    moment3_pb = np.zeros((n_probl, BB_MOMENT_N))
+    for p in range(n_probl):
+        work_data_bi = data_pi[p, None, :] - mean_pb[p, :, None]
+        # sd
+        var_pb[p] = np.einsum(
+            'bi,bi,bi->b', w_bi, work_data_bi, work_data_bi)
+        var_pb[p] /= norm_var
+        # moment3
+        moment3_pb[p] = np.einsum(
+            'bi,bi,bi,bi->b',
+            w_bi, work_data_bi, work_data_bi, work_data_bi
+        )
+        moment3_pb[p] /= norm_skew
+    return mean_pb, var_pb, moment3_pb
+
+
+def bb_cov(data1_pi, data2_pi, seed=BB_MOMENT_SEED):
+    # BB moments
+    n_probl, n_data = data1_pi.shape
+    rng = np.random.RandomState(seed=seed)
+    w_bi = rng.dirichlet(np.ones(n_data), size=BB_MOMENT_N)
+
+    # sum_w_b = np.sum(w_bi, axis=-1)  # = 1
+    # sum_w_2_b = sum_w_b**2  # = 1
+    sum_w2_b = np.sum(w_bi**2, axis=-1)
+    norm_var = 1 - sum_w2_b
+
+    mean1_pb = data1_pi.dot(w_bi.T)
+    mean2_pb = data2_pi.dot(w_bi.T)
+    # looping though p because of memory reasons (should be cythonised)
+    # data_centered_pib = data_pi[:, :, None] - mean_pb[:, None, :]
+    cov_pb = np.zeros((n_probl, BB_MOMENT_N))
+    for p in range(n_probl):
+        work_data1_bi = data1_pi[p, None, :] - mean1_pb[p, :, None]
+        work_data2_bi = data2_pi[p, None, :] - mean2_pb[p, :, None]
+        # sd
+        cov_pb[p] = np.einsum(
+            'bi,bi,bi->b', w_bi, work_data1_bi, work_data2_bi)
+        cov_pb[p] /= norm_var
+    return cov_pb
+
+
+def calc_tot_mean_var_moment3_form_given_x_bb(mean_s, var_s, moment3_s):
+    n_trial = mean_s.shape[-1]
+    probl_shape = mean_s.shape[:-1]
+    n_probl = np.prod(probl_shape)
+    mean_pi = mean_s.reshape((n_probl, n_trial))
+    var_pi = var_s.reshape((n_probl, n_trial))
+    moment3_pi = moment3_s.reshape((n_probl, n_trial))
+
+    mean_mean_pb, var_mean_pb, moment3_mean_pb = bb_mean_var_moment3(mean_pi)
+    mean_var_pb = bb_mean(var_pi)
+    mean_moment3_pb = bb_mean(moment3_pi)
+    cov_mean_var_pb = bb_cov(mean_pi, var_pi)
+
+    mean_tot_pb = mean_mean_pb
+    var_tot_pb = mean_var_pb + var_mean_pb
+    moment3_tot_pb = (
+        mean_moment3_pb +
+        moment3_mean_pb +
+        3*cov_mean_var_pb
+    )
+
+    mean_tot_sb = mean_tot_pb.reshape(mean_s.shape)
+    var_tot_sb = var_tot_pb.reshape(mean_s.shape)
+    moment3_tot_sb = moment3_tot_pb.reshape(mean_s.shape)
+
+    return mean_tot_sb, var_tot_sb, moment3_tot_sb

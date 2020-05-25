@@ -13,9 +13,9 @@ from problem_setting import *
 # conf
 
 folder_name = 'res_zscore_skew_mu_b'
-run_moments = True
+run_moments = False
 distributed = True
-plot = False
+plot = True
 
 # data seed
 # np.random.RandomState().randint(np.iinfo(np.uint32).max)
@@ -134,15 +134,15 @@ def run_i_to_params(run_i):
     beta_t = beta_t_grid.flat[run_i]
     return mu_r, beta_t
 
-def params_to_run_i(mu_r, beta_t, out_dev, tau2):
-    mu_r_i = mu_r_s.index(mu_r)
-    beta_t_i = beta_t_s.index(beta_t)
+def params_to_run_i(mu_r, beta_t):
+    mu_r_i = np.nonzero(mu_r_s == mu_r)[0][0]
+    beta_t_i = np.nonzero(beta_t_s == beta_t)[0][0]
     run_i = np.ravel_multi_index((mu_r_i, beta_t_i), grid_shape)
     return run_i
 
 
 # ============================================================================
-# As a function of n
+# As a function of mu_r
 
 def run_and_save_run_i(run_i):
     run_i_str = str(run_i).zfill(4)
@@ -223,7 +223,7 @@ if run_moments:
             print('{}/{}, elapsed time: {:.2} min'.format(
                 run_i+1, len(n_runs), cur_time_min), flush=True)
             run_and_save_run_i(run_i)
-print('done', flush=True)
+    print('done', flush=True)
 
 # ============================================================================
 if not plot:
@@ -233,21 +233,21 @@ if not plot:
 # ============================================================================
 # Load results
 
-mean_loo_t = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
-var_loo_t = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
-moment3_loo_t = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
-mean_elpd_t = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
-var_elpd_t = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
-moment3_elpd_t = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
-mean_err_t = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
-var_err_t = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
-moment3_err_t = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
+mean_loo_s = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
+var_loo_s = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
+moment3_loo_s = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
+mean_elpd_s = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
+var_elpd_s = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
+moment3_elpd_s = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
+mean_err_s = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
+var_err_s = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
+moment3_err_s = np.full((len(mu_r_s), len(beta_t_s), n_trial,), np.nan)
 
 for run_i in range(n_runs):
     run_i_str = str(run_i).zfill(4)
     mu_r, beta_t = run_i_to_params(run_i)
-    mu_r_i = mu_r_s.index(mu_r)
-    beta_t_i = beta_t_s.index(beta_t)
+    mu_r_i = np.nonzero(mu_r_s == mu_r)[0][0]
+    beta_t_i = np.nonzero(beta_t_s == beta_t)[0][0]
     res_file = np.load(folder_name+'/'+'res_'+run_i_str+'.npz')
     mean_loo_s[mu_r_i, beta_t_i, :] = res_file['mean_loo_t']
     var_loo_s[mu_r_i, beta_t_i, :] = res_file['var_loo_t']
@@ -259,6 +259,13 @@ for run_i in range(n_runs):
     var_err_s[mu_r_i, beta_t_i, :] = res_file['var_err_t']
     moment3_err_s[mu_r_i, beta_t_i, :] = res_file['moment3_err_t']
     res_file.close()
+
+# ============================================================================
+
+# cal skews
+skew_loo_s = moment3_loo_s/np.sqrt(var_loo_s)**3
+skew_elpd_s = moment3_elpd_s/np.sqrt(var_elpd_s)**3
+skew_err_s = moment3_err_s/np.sqrt(var_err_s)**3
 
 
 # ============================================================================
@@ -331,7 +338,7 @@ for d_j, data_i in enumerate(datas):
         # for b_i, beta_t in enumerate(beta_t_s):
         color = 'C0'
         # label = r'$\beta_t={}$'.format(beta_t)
-        data = data_ij[selected_b_i]
+        data = data_ij[:, selected_b_i]
         if plot_multilines:
             median = np.percentile(data, 50, axis=-1)
             ax.plot(mu_r_s, median, color=color, label=label)

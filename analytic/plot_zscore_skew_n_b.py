@@ -13,9 +13,9 @@ from problem_setting import *
 # conf
 
 folder_name = 'res_zscore_skew_n_b'
-run_moments = True
+run_moments = False
 distributed = True
-plot = False
+plot = True
 
 # data seed
 # np.random.RandomState().randint(np.iinfo(np.uint32).max)
@@ -100,9 +100,9 @@ def run_i_to_params(run_i):
     beta_t = beta_t_grid.flat[run_i]
     return n_obs, beta_t
 
-def params_to_run_i(n_obs, beta_t, out_dev, tau2):
-    n_obs_i = n_obs_s.index(n_obs)
-    beta_t_i = beta_t_s.index(beta_t)
+def params_to_run_i(n_obs, beta_t):
+    n_obs_i = np.nonzero(n_obs_s == n_obs)[0][0]
+    beta_t_i = np.nonzero(beta_t_s == beta_t)[0][0]
     run_i = np.ravel_multi_index((n_obs_i, beta_t_i), grid_shape)
     return run_i
 
@@ -188,7 +188,7 @@ if run_moments:
             print('{}/{}, elapsed time: {:.2} min'.format(
                 run_i+1, len(n_runs), cur_time_min), flush=True)
             run_and_save_run_i(run_i)
-print('done', flush=True)
+    print('done', flush=True)
 
 # ============================================================================
 if not plot:
@@ -198,21 +198,21 @@ if not plot:
 # ============================================================================
 # Load results
 
-mean_loo_t = np.full((len(n_obs_s), len(beta_t_s), n_trial,), np.nan)
-var_loo_t = np.full((len(n_obs_s), len(beta_t_s), n_trial,), np.nan)
-moment3_loo_t = np.full((len(n_obs_s), len(beta_t_s), n_trial,), np.nan)
-mean_elpd_t = np.full((len(n_obs_s), len(beta_t_s), n_trial,), np.nan)
-var_elpd_t = np.full((len(n_obs_s), len(beta_t_s), n_trial,), np.nan)
-moment3_elpd_t = np.full((len(n_obs_s), len(beta_t_s), n_trial,), np.nan)
-mean_err_t = np.full((len(n_obs_s), len(beta_t_s), n_trial,), np.nan)
-var_err_t = np.full((len(n_obs_s), len(beta_t_s), n_trial,), np.nan)
-moment3_err_t = np.full((len(n_obs_s), len(beta_t_s), n_trial,), np.nan)
+mean_loo_s = np.full((len(n_obs_s), len(beta_t_s), n_trial,), np.nan)
+var_loo_s = np.full((len(n_obs_s), len(beta_t_s), n_trial,), np.nan)
+moment3_loo_s = np.full((len(n_obs_s), len(beta_t_s), n_trial,), np.nan)
+mean_elpd_s = np.full((len(n_obs_s), len(beta_t_s), n_trial,), np.nan)
+var_elpd_s = np.full((len(n_obs_s), len(beta_t_s), n_trial,), np.nan)
+moment3_elpd_s = np.full((len(n_obs_s), len(beta_t_s), n_trial,), np.nan)
+mean_err_s = np.full((len(n_obs_s), len(beta_t_s), n_trial,), np.nan)
+var_err_s = np.full((len(n_obs_s), len(beta_t_s), n_trial,), np.nan)
+moment3_err_s = np.full((len(n_obs_s), len(beta_t_s), n_trial,), np.nan)
 
 for run_i in range(n_runs):
     run_i_str = str(run_i).zfill(4)
     n_obs, beta_t = run_i_to_params(run_i)
-    n_obs_i = n_obs_s.index(n_obs)
-    beta_t_i = beta_t_s.index(beta_t)
+    n_obs_i = np.nonzero(n_obs_s == n_obs)[0][0]
+    beta_t_i = np.nonzero(beta_t_s == beta_t)[0][0]
     res_file = np.load(folder_name+'/'+'res_'+run_i_str+'.npz')
     mean_loo_s[n_obs_i, beta_t_i, :] = res_file['mean_loo_t']
     var_loo_s[n_obs_i, beta_t_i, :] = res_file['var_loo_t']
@@ -252,6 +252,27 @@ mean_tot_err_s, var_tot_err_s, moment3_tot_err_s = (
         mean_err_s, var_err_s, moment3_err_s)
 )
 skew_tot_err_s = moment3_tot_err_s/np.sqrt(var_tot_err_s)**3
+
+
+# calc total mean, variance and skew with bb
+# loo
+mean_tot_loo_sb, var_tot_loo_sb, moment3_tot_loo_sb = (
+    calc_tot_mean_var_moment3_form_given_x_bb(
+        mean_loo_s, var_loo_s, moment3_loo_s)
+)
+skew_tot_loo_sb = moment3_tot_loo_sb/np.sqrt(var_tot_loo_sb)**3
+# elpd
+mean_tot_elpd_sb, var_tot_elpd_sb, moment3_tot_elpd_sb = (
+    calc_tot_mean_var_moment3_form_given_x_bb(
+        mean_elpd_s, var_elpd_s, moment3_elpd_s)
+)
+skew_tot_elpd_sb = moment3_tot_elpd_sb/np.sqrt(var_tot_elpd_sb)**3
+# err
+mean_tot_err_sb, var_tot_err_sb, moment3_tot_err_sb = (
+    calc_tot_mean_var_moment3_form_given_x_bb(
+        mean_err_s, var_err_s, moment3_err_s)
+)
+skew_tot_err_sb = moment3_tot_err_sb/np.sqrt(var_tot_err_sb)**3
 
 
 # ============================================================================
@@ -305,7 +326,7 @@ data_names = [
 data_statistic_names = ['mean/SD', 'skewness']
 show_zero_line = [
     [True, True],
-    [True, False],
+    [True, True],
     [True, True],
 ]
 
@@ -322,7 +343,7 @@ for d_j, data_i in enumerate(datas):
         for b_i, beta_t in enumerate(beta_t_s):
             color = 'C{}'.format(b_i)
             label = r'${}$'.format(beta_t)
-            data = data_ij[b_i]
+            data = data_ij[:, b_i]
             if plot_multilines:
                 median = np.percentile(data, 50, axis=-1)
                 ax.plot(n_obs_s, median, color=color, label=label)
@@ -373,12 +394,79 @@ fig.subplots_adjust(right=0.88)
 # plot tot moments
 # ============================================================================
 
+# fontsize = 16
+#
+# datas = [
+#     [mean_tot_loo_s/np.sqrt(var_tot_loo_s), skew_tot_loo_s],
+#     [mean_tot_elpd_s/np.sqrt(var_tot_elpd_s), skew_tot_elpd_s],
+#     [mean_tot_err_s/np.sqrt(var_tot_err_s), skew_tot_err_s],
+# ]
+# data_names = [
+#     r'$\widehat{\mathrm{elpd}}_\mathrm{LOO}$',
+#     r'$\mathrm{elpd}$',
+#     r'$\mathrm{err}_\mathrm{LOO}$'
+# ]
+# data_statistic_names = ['mean/SD', 'skewness']
+# show_zero_line = [
+#     [True, True],
+#     [True, True],
+#     [True, True],
+# ]
+#
+# fig, axes = plt.subplots(
+#     len(datas[0]), len(datas), sharex=True, figsize=(10,6))
+#
+# for d_j, data_i in enumerate(datas):
+#
+#     for d_i, data_ij in enumerate(data_i):
+#
+#         ax = axes[d_i, d_j]
+#
+#         for b_i, beta_t in enumerate(beta_t_s):
+#             color = 'C{}'.format(b_i)
+#             label = r'${}$'.format(beta_t)
+#             data = data_ij[:, b_i]
+#             ax.plot(n_obs_s, data, color=color, label=label)
+#
+#         if show_zero_line[d_j][d_i]:
+#             ax.axhline(0, color='gray', lw=1.0)#, zorder=0)
+#
+#         ax.spines['top'].set_visible(False)
+#         ax.spines['right'].set_visible(False)
+#         ax.tick_params(axis='both', which='major', labelsize=fontsize-2)
+#         ax.tick_params(axis='both', which='minor', labelsize=fontsize-4)
+#
+# for ax, name in zip(axes[:, 0], data_statistic_names):
+#     ax.set_ylabel(name, fontsize=fontsize)
+#
+# for ax, name in zip(axes[0, :], data_names):
+#     ax.set_title(name, fontsize=fontsize)
+#
+# for ax in axes[-1, :]:
+#     ax.set_xlabel(r'$n$', fontsize=fontsize-2)
+#
+# fig.tight_layout()
+#
+# axes[1, -1].legend(
+#     loc='center left', bbox_to_anchor=(1, 0.5),
+#     fontsize=fontsize-2, fancybox=False,
+#     title=r'$\beta_t$',
+#     title_fontsize=fontsize-2,
+# )
+#
+# fig.subplots_adjust(right=0.88)
+
+
+# ============================================================================
+# plot tot moments bb
+# ============================================================================
+
 fontsize = 16
 
 datas = [
-    [mean_tot_loo_s/np.sqrt(var_tot_loo_s), skew_tot_loo_s],
-    [mean_tot_elpd_s/np.sqrt(var_tot_elpd_s), skew_tot_elpd_s],
-    [mean_tot_err_s/np.sqrt(var_tot_err_s), skew_tot_err_s],
+    [mean_tot_loo_sb/np.sqrt(var_tot_loo_sb), skew_tot_loo_sb],
+    [mean_tot_elpd_sb/np.sqrt(var_tot_elpd_sb), skew_tot_elpd_sb],
+    [mean_tot_err_sb/np.sqrt(var_tot_err_sb), skew_tot_err_sb],
 ]
 data_names = [
     r'$\widehat{\mathrm{elpd}}_\mathrm{LOO}$',
@@ -392,7 +480,6 @@ show_zero_line = [
     [True, True],
 ]
 
-
 fig, axes = plt.subplots(
     len(datas[0]), len(datas), sharex=True, figsize=(10,6))
 
@@ -405,8 +492,12 @@ for d_j, data_i in enumerate(datas):
         for b_i, beta_t in enumerate(beta_t_s):
             color = 'C{}'.format(b_i)
             label = r'${}$'.format(beta_t)
-            data = data_ij[b_i]
-            ax.plot(n_obs_s, data, color=color, label=label)
+            data = data_ij[:, b_i]
+            q025 = np.percentile(data, 2.5, axis=-1)
+            q975 = np.percentile(data, 97.5, axis=-1)
+            ax.fill_between(n_obs_s, q025, q975, alpha=0.2, color=color)
+            median = np.percentile(data, 50, axis=-1)
+            ax.plot(n_obs_s, median, color=color, label=label)
 
         if show_zero_line[d_j][d_i]:
             ax.axhline(0, color='gray', lw=1.0)#, zorder=0)

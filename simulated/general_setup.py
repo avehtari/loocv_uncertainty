@@ -375,7 +375,7 @@ def bb_mean_sd_skew(data_pi, seed=BB_MOMENT_SEED):
     # sum_w_3_b = sum_w_2_b*sum_w_b  # = 1
     sum_w2_b = np.sum(w_bi**2, axis=-1)
     sum_w3_b = np.sum(w_bi**3, axis=-1)
-    norm_var = 1 - np.sum(w_bi**2, axis=-1)
+    norm_var = 1 - sum_w2_b
     norm_skew = 1 - 3*sum_w2_b + 2*sum_w3_b
 
     mean_pb = data_pi.dot(w_bi.T)
