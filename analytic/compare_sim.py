@@ -1,8 +1,9 @@
 import numpy as np
 from scipy import linalg, stats
 
-n = 6
-tau2 = 1.7
+n = 3
+# tau2 = 1.7
+tau2 = 1.0
 
 n_trial = 3
 
@@ -11,9 +12,10 @@ rng = np.random.RandomState(seed)
 
 # ===========================================================================
 
-s_star = 1.37
-# m_star = 0.0
-m_star = 12.3
+s_star = 1.00
+# s_star = 1.37
+m_star = 0.0
+# m_star = 12.3
 mu_star = np.zeros(n)
 mu_star[0] = m_star
 Sigma_star = s_star**2*np.eye(n)
@@ -47,13 +49,19 @@ linalg.cholesky(Sigma_star)  # ensure pos-def
 # k_b = np.array([0, 1, 2])
 # X = rng.rand(n, k)*2-1
 
-
 # randn noncenter
-# -----------------
-# k = 4
+# ---------------------------
+# k = 3
+# k_a = np.array([0, 1])
+# k_b = np.array([0, 2])
+# X = rng.randn(n, k)*0.2 - 12.3
+
+# randn noncenter missing cov
+# ---------------------------
+# k = 5
 # k_a = np.array([0, 1])
 # k_b = np.array([0, 2, 3])
-# X = rng.randn(n, k) - 123.4
+# X = rng.randn(n, k) - 12.3
 
 
 # first dim as intercept, linspace
@@ -66,15 +74,15 @@ linalg.cholesky(Sigma_star)  # ensure pos-def
 
 # first dim as intercept, half -1 1
 # -----------------
-k = 2
-k_a = np.array([0])
-k_b = np.array([0, 1])
-X = np.ones(n)
-X[1] = -1
-X[rng.choice(n-2, (n-2)//2, replace=False)+2] = -1.0
-X = np.vstack((np.ones(n), X)).T
-x = X[:,1]
-xx = (x[:,None] * x[None,:])
+# k = 2
+# k_a = np.array([0])
+# k_b = np.array([0, 1])
+# X = np.ones(n)
+# X[1] = -1
+# X[rng.choice(n-2, (n-2)//2, replace=False)+2] = -1.0
+# X = np.vstack((np.ones(n), X)).T
+# x = X[:,1]
+# xx = (x[:,None] * x[None,:])
 
 
 # first dim as intercept, rand unif -1 1
@@ -85,10 +93,26 @@ xx = (x[:,None] * x[None,:])
 # X = np.vstack((np.ones(n), rng.rand(n)*2-1)).T
 
 
+# const skewness with mu
+k = 2
+k_a = np.array([0])
+k_b = np.array([0,1])
+X = np.array([
+    [1, 0],
+    [1, 1],
+    [1, -1]
+])
+
+
 # ===========================================================================
 
 k_ma = np.array(sorted(set(range(k)) - set(k_a)))
 k_mb = np.array(sorted(set(range(k)) - set(k_b)))
+
+k_amb = np.array(sorted(set(k_a) - set(k_b)))
+k_bma = np.array(sorted(set(k_b) - set(k_a)))
+
+k_mamb = np.array(sorted(set(range(k)) - set(k_a) - set(k_b)))
 
 beta = rng.randn(k)
 
@@ -558,87 +582,94 @@ errs += c_err
 # error moments
 # ===========================================================================
 
-Ss_A_Ss = Sigma_star_12.dot(A_err).dot(Sigma_star_12)
-
-m1_err = (
-    np.trace(Ss_A_Ss)
-    + c_err
-    + b_err.dot(mu_star)
-    + mu_star.dot(A_err).dot(mu_star)
-)
-
-m2_err = (
-    2*np.trace(Ss_A_Ss.dot(Ss_A_Ss))
-    + b_err.dot(Sigma_star).dot(b_err)
-    + 4*b_err.dot(Sigma_star).dot(A_err).dot(mu_star)
-    + 4*mu_star.dot(A_err).dot(Sigma_star).dot(A_err).dot(mu_star)
-)
-
-m3_err = (
-    8*np.trace(Ss_A_Ss.dot(Ss_A_Ss).dot(Ss_A_Ss))
-    + 6*b_err.dot(Sigma_star).dot(A_err).dot(Sigma_star).dot(b_err)
-    + 24*b_err.dot(Sigma_star).dot(A_err).dot(Sigma_star).dot(A_err).dot(mu_star)
-    + 24*mu_star.dot(A_err).dot(Sigma_star).dot(A_err).dot(Sigma_star).dot(A_err).dot(mu_star)
-)
-
-# from problem_setting import moments_from_a_b_c
-# print(moments_from_a_b_c(A_err, b_err, c_err, np.diag(Sigma_star), mu_d=None))
-
-print(np.mean(errs))
-print(m1_err)
-
-print(np.std(errs, ddof=1))
-print(np.sqrt(m2_err))
-
-print(stats.skew(errs, bias=False))
-print(m3_err/(m2_err)**(3/2))
+# Ss_A_Ss = Sigma_star_12.dot(A_err).dot(Sigma_star_12)
+#
+# m1_err = (
+#     np.trace(Ss_A_Ss)
+#     + c_err
+#     + b_err.dot(mu_star)
+#     + mu_star.dot(A_err).dot(mu_star)
+# )
+#
+# m2_err = (
+#     2*np.trace(Ss_A_Ss.dot(Ss_A_Ss))
+#     + b_err.dot(Sigma_star).dot(b_err)
+#     + 4*b_err.dot(Sigma_star).dot(A_err).dot(mu_star)
+#     + 4*mu_star.dot(A_err).dot(Sigma_star).dot(A_err).dot(mu_star)
+# )
+#
+# m3_err = (
+#     8*np.trace(Ss_A_Ss.dot(Ss_A_Ss).dot(Ss_A_Ss))
+#     + 6*b_err.dot(Sigma_star).dot(A_err).dot(Sigma_star).dot(b_err)
+#     + 24*b_err.dot(Sigma_star).dot(A_err).dot(Sigma_star).dot(A_err).dot(mu_star)
+#     + 24*mu_star.dot(A_err).dot(Sigma_star).dot(A_err).dot(Sigma_star).dot(A_err).dot(mu_star)
+# )
+#
+# # from problem_setting import moments_from_a_b_c
+# # print(moments_from_a_b_c(A_err, b_err, c_err, np.diag(Sigma_star), mu_d=None))
+#
+# print(np.mean(errs))
+# print(m1_err)
+#
+# print(np.std(errs, ddof=1))
+# print(np.sqrt(m2_err))
+#
+# print(stats.skew(errs, bias=False))
+# print(m3_err/(m2_err)**(3/2))
 
 # ===========================================================================
 # outlier effect orders
 # ===========================================================================
-if False:
-    Q_m1 = 1/tau2*(
-        A_err_1
-        -B_elpd_2
-        -C_elpd_3
-    )
-    q_m1 = 1/tau2*(
-        (B_err_a_1 - C_elpd_a_2).dot(yhat_ma)
-        -(B_err_b_1 - C_elpd_b_2).dot(yhat_mb)
-    )
 
-    Q_m2 = 1/tau2**2*(
-        4*A_err_1.dot(Sigma_star).dot(A_err_1)
-        -4*A_err_1.dot(Sigma_star).dot(B_elpd_2)
-        + B_elpd_2.T.dot(Sigma_star).dot(B_elpd_2)
-    )
+Q_m1 = 1/tau2*(
+    A_err_1
+    -B_elpd_2
+    -C_elpd_3
+)
+q_m1 = 1/tau2*(
+    (B_err_a_1 - C_elpd_a_2).dot(yhat_ma)
+    -(B_err_b_1 - C_elpd_b_2).dot(yhat_mb)
+)
 
-    Q_m3 = 1/tau2**3*(
-        24*A_err_1.dot(Sigma_star).dot(A_err_1).dot(Sigma_star).dot(A_err_1)
-        -24*A_err_1.dot(Sigma_star).dot(A_err_1).dot(Sigma_star).dot(B_elpd_2)
-        + 6*B_elpd_2.T.dot(Sigma_star).dot(A_err_1).dot(Sigma_star).dot(B_elpd_2)
-    )
+Q_m2 = 1/tau2**2*(
+    (2*A_err_1 - B_elpd_2).T.dot(Sigma_star).dot(2*A_err_1 - B_elpd_2)
+)
+q_m2 = 2/tau2**2*(
+    (2*A_err_1 - B_elpd_2).T.dot(Sigma_star).dot(B_err_a_1.dot(yhat_ma) - B_err_b_1.dot(yhat_mb))
+)
 
-    # zero for Q_m1
-    ia = 0
-    ib = 2
-    mu_a = 1
-    mu_b = (-(Q_m1[ib,ia]+Q_m1[ia,ib]) + np.sqrt(
-            (Q_m1[ib,ia]+Q_m1[ia,ib])**2 - 4*Q_m1[ia,ia]*Q_m1[ib,ib]
-        ))/(2*Q_m1[ib,ib])
-    mu_cur = np.zeros(n)
-    mu_cur[ia] = mu_a
-    mu_cur[ib] = mu_b
 
-    # zero for Q_m2
-    Q_m2_s = (Q_m2 + Q_m2.T)/2
-    l, S = linalg.eigh(Q_m2_s)
-    print(l)
-    mu_cur2 = np.zeros(n)
-    mu_cur2[0] = 1.0
-    mu_cur = linalg.solve(S.T, mu_cur2)
-    print(mu_cur.dot(Q_m2).dot(mu_cur))
-    print(mu_cur.dot(Q_m3).dot(mu_cur))
+
+Q_m3 = 1/tau2**3*(
+    24*A_err_1.dot(Sigma_star).dot(A_err_1).dot(Sigma_star).dot(A_err_1)
+    -24*A_err_1.dot(Sigma_star).dot(A_err_1).dot(Sigma_star).dot(B_elpd_2)
+    + 6*B_elpd_2.T.dot(Sigma_star).dot(A_err_1).dot(Sigma_star).dot(B_elpd_2)
+)
+
+# zero for Q_m1
+# ia = 0
+# ib = 2
+# mu_a = 1
+# mu_b = (-(Q_m1[ib,ia]+Q_m1[ia,ib]) + np.sqrt(
+#         (Q_m1[ib,ia]+Q_m1[ia,ib])**2 - 4*Q_m1[ia,ia]*Q_m1[ib,ib]
+#     ))/(2*Q_m1[ib,ib])
+# mu_cur = np.zeros(n)
+# mu_cur[ia] = mu_a
+# mu_cur[ib] = mu_b
+
+# zero for Q_m2
+Q_m2_s = (Q_m2 + Q_m2.T)/2
+l, S = linalg.eigh(Q_m2_s)
+print(l)
+mu_cur2 = np.zeros(n)
+mu_cur2[0] = 1.0
+mu_cur = linalg.solve(S.T, mu_cur2)
+print(mu_cur.dot(Q_m2).dot(mu_cur))
+print(mu_cur.dot(Q_m3).dot(mu_cur))
+
+
+mu_rate = np.ones(n)
+mu_base = np.array([1,1,1,0.0])
 
 
 # # temp
@@ -666,3 +697,40 @@ if False:
 #         + b_err_cur.dot(mu_cur)
 #         + mu_cur.dot(A_err_cur).dot(mu_cur)
 #     )
+
+
+##  ===========================================
+# effect of beta -> 0
+##  ===========================================
+
+# q1 = 1/tau2 * (
+#     (
+#         B_err_a_1.dot(X[:,k_bma].dot(beta[k_bma]))
+#         if k_bma.size else np.zeros(n)
+#     )
+#     - (
+#         B_err_b_1.dot(X[:,k_amb].dot(beta[k_amb]))
+#         if k_amb.size else np.zeros(n)
+#     )
+# )
+#
+#
+# # q1+q0 == b_err
+#
+# T = Sigma_star.dot(A_err).dot(Sigma_star)
+# T12 = Sigma_star_12.dot(A_err).dot(Sigma_star_12)
+#
+# m3_2 = 6*q1.T.dot(T).dot(q1)
+# m3_0 = 8*np.trace(np.linalg.matrix_power(T12, 3))
+#
+# m2_2 = q1.T.dot(Sigma_star).dot(q1)
+# m2_0 = 2*np.trace(np.linalg.matrix_power(T12, 2))
+#
+# 2*m2_0/m2_2-3*m3_0/m3_2
+#
+# beta_r = np.linspace(-5, 5)
+# skewness = (m3_2*beta_r**2 + m3_0) / np.sqrt((m2_2*beta_r**2 + m2_0)**3)
+# plt.plot(beta_r, skewness)
+#
+#
+# A_err_2_trace = np.trace(A_err.dot(A_err))

@@ -222,9 +222,9 @@ for probl_i, ax in enumerate(axes):
 
 
     if probl_i == 0:
-        ax.set_ylabel(r'$\mathrm{elpd}(M_a,M_b|y)$', fontsize=fontsize-2)
+        ax.set_ylabel(r'${}^\mathrm{sv}\mathrm{elpd}(M_a,M_b|y)$', fontsize=fontsize-2)
     ax.set_xlabel(
-        r'$\widehat{\mathrm{elpd}}_\mathrm{LOO}(M_a,M_b|y)$',
+        r'${}^\mathrm{sv}\widehat{\mathrm{elpd}}_\mathrm{LOO}(M_a,M_b|y)$',
         fontsize=fontsize-2
     )
 
@@ -250,9 +250,9 @@ for probl_i, ax in enumerate(axes):
             zorder=1, lw=0.8)
 
 for probl_i, probl_name in enumerate([
-    'Clear case',
-    'Models similar',
-    'Outliers'
+    'clear case',
+    'models similar',
+    'outlier'
 ]):
     ax = axes[probl_i]
     ax.set_title(

@@ -221,7 +221,7 @@ if run_moments:
             # progress
             cur_time_min = (time.time() - start_time)/60
             print('{}/{}, elapsed time: {:.2} min'.format(
-                run_i+1, len(n_runs), cur_time_min), flush=True)
+                run_i+1, n_runs, cur_time_min), flush=True)
             run_and_save_run_i(run_i)
     print('done', flush=True)
 
