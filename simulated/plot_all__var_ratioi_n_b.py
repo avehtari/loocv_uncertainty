@@ -7,9 +7,10 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from matplotlib import cm
 import matplotlib.gridspec as gridspec
+from matplotlib.collections import PathCollection
 
-# import seaborn as sns
-# import pandas as pd
+import seaborn as sns
+import pandas as pd
 
 from setup_all import *
 
@@ -25,9 +26,9 @@ n_obs_sel = n_obs_s
 
 # last covariate effect not used in model A
 # beta_t_s = [0.0, 0.05, 0.1, 0.2, 0.5, 1.0]
-# beta_t_sel = [0.0, 0.1, 0.5, 1.0]
-# beta_t_sel = [0.0, 0.2, 1.0]
-beta_t_sel = [0.0, 0.1, 0.2, 0.5, 1.0]
+# beta_t_sel = [0.0, 0.1, 0.2, 0.5, 1.0]
+beta_t_sel = [0.0, 0.2, 1.0]
+
 
 # outlier dev
 # out_dev_s = [0.0, 20.0, 200.0]
@@ -127,13 +128,7 @@ err_y_pneg_p = np.mean((err_pt)<0, axis=-1)
 
 # ratio SE_hat / SE of err(y)
 err_var_p = np.var(err_pt, ddof=1, axis=-1)
-se_hat_ratio_mean_p = np.sqrt(
-    np.mean(loo_var_hat_pt, axis=-1)/err_var_p)
-bb_rng = np.random.RandomState(seed=bb_seed)
-w_bt = bb_rng.dirichlet(np.full(n_trial, bb_alpha), size=bb_n)
-se_hat_ratio_pb = np.sqrt(
-    np.einsum('bt,pt->pb', w_bt, loo_var_hat_pt)/err_var_p[:,None])
-
+se_hat_ratio_pt = np.sqrt(loo_var_hat_pt/err_var_p[:,None])
 
 
 # ============================================================================
@@ -166,59 +161,85 @@ def adjust_lightness(color, amount=0.5):
 
 fontsize = 16
 
-fig = plt.figure(figsize=(7,5))
-ax = fig.gca()
+fig, axes = plt.subplots(
+    len(beta_t_sel), 1, figsize=(7, 10),
+    sharex=True, #sharey=True
+)
 
-data_pb = se_hat_ratio_pb
+data_pt = se_hat_ratio_pt
 
-ax.axhline(1.0, color='gray')
+for b_i, (ax, beta_t) in enumerate(zip(axes, beta_t_sel)):
 
-m_lines = []
-for b_i, beta_t in enumerate(beta_t_sel):
-    color = 'C{}'.format(b_i)
-    label = r'${}$'.format(beta_t)
-    data = np.zeros((len(n_obs_sel), data_pb.shape[-1]))
+    # ax.axhline(1.0, color='red')
+    ax.axhline(1.0, color=adjust_lightness('red', amount=1.3))
+
+    data = np.zeros((len(n_obs_sel), data_pt.shape[-1]))
     for n_i, n_obs in enumerate(n_obs_sel):
         probl_i = params_to_probl_i(n_obs, beta_t)
-        data[n_i] = data_pb[probl_i]
+        data[n_i] = data_pt[probl_i]
 
-    q025 = np.percentile(data, 2.5, axis=-1)
-    q975 = np.percentile(data, 97.5, axis=-1)
-    ax.fill_between(n_obs_sel, q025, q975, alpha=0.2, color=color)
-    median = np.percentile(data, 50, axis=-1)
-    m_line, = ax.plot(n_obs_sel, median, color=color, label=label)
-    m_lines.append(m_line)
+    # sns.violinplot(
+    #     data=pd.DataFrame(data.T),
+    #     scale='width',
+    #     # cut=0,
+    #     ax=ax,
+    #     color=adjust_lightness('C0', amount=1.3),
+    #     # color='C0',
+    #     #saturation=0.6,
+    # )
 
-ax.spines['top'].set_visible(False)
-ax.spines['right'].set_visible(False)
-ax.tick_params(axis='both', which='major', labelsize=fontsize-2)
-ax.tick_params(axis='both', which='minor', labelsize=fontsize-4)
+    sns.boxenplot(
+        data=pd.DataFrame(data.T),
+        ax=ax,
+        color=adjust_lightness('C0', amount=1.3),
+        # showfliers=False, # requires 0.10.0 and pytohn3.6
+        # color='C0',
+        #saturation=0.6,
+    )
+    for l in ax.lines[1:]:
+        l.set_linewidth(1.2)
+        l.set_color('k')
+        l.set_alpha(1)
+    # manual remove of outliers
+    for child in ax.get_children():
+        if not isinstance(child, PathCollection):
+            continue
+        if child.get_array() is not None:
+            continue
+        child.set_visible(False)
 
-ax.set_xscale('log')
+    ax.set_xticklabels(n_obs_sel)
 
-ax.set_xticks(n_obs_sel)
-ax.set_xticklabels(n_obs_sel)
-ax.minorticks_off()
-ax.set_ylim(bottom=0)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.tick_params(axis='both', which='major', labelsize=fontsize-2)
+    ax.tick_params(axis='both', which='minor', labelsize=fontsize-4)
 
-ax.set_ylabel(
-    r'$\widehat{\mathrm{SE}}_\mathrm{LOO}'
+    ax.set_yticks([0.0, 0.5, 1.0, 1.5])
+
+    # ax.set_ylim(top=max(np.percentile(data, 97.5, axis=-1)))
+    ax.set_ylim(top=1.75)
+    ax.set_ylim(bottom=0)
+
+    ax.set_ylabel(r'$\beta_t={}$'.format(beta_t), fontsize=fontsize)
+
+axes[-1].set_xlabel(r'$n$', fontsize=fontsize)
+
+# set ylable labels
+ylabel = (
+    r'${}^\mathrm{sv}\widehat{\mathrm{SE}}_\mathrm{LOO}'
     r'/'
-    r'\mathrm{SE}(\mathrm{err}_\mathrm{LOO})$',
-    fontsize=fontsize
+    r'\mathrm{SE}({}^\mathrm{sv}\mathrm{err}_\mathrm{LOO})$'
 )
-ax.set_xlabel(r'$n$', fontsize=fontsize)
+ax = axes[len(axes)//2]
+ax.text(
+    -0.2, 0.5,
+    ylabel,
+    transform=ax.transAxes,
+    ha='right',
+    va='center',
+    rotation=90,
+    fontsize=fontsize,
+)
+
 fig.tight_layout()
-
-ax.legend(
-    loc='lower right',
-    fontsize=fontsize-2,
-    fancybox=False, shadow=False, framealpha=1.0,
-    title=r'$\beta_t$',
-    title_fontsize=fontsize-2,
-)
-
-# # annotate lines
-# fig.subplots_adjust(right=0.8)
-# for b_i, (beta_t, m_line) in enumerate(zip(beta_t_sel, m_lines)):
-#     m_line.get_data()

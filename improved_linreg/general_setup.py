@@ -33,8 +33,8 @@ N_DIM = 3
 INTERCEPT = True
 BETA_OTHER = 1.0
 BETA_INTERCEPT = 0.0
-N_TRIAL = 2000
-ELPD_TEST_N = 4000
+N_TRIAL = 200
+ELPD_TEST_N = 400
 SEED = 2958319585
 
 # config for BB uncertainty approximation
@@ -288,17 +288,13 @@ class ProblemRun:
         return test_lpd_tl
 
 
-def calc_ls_estim(y_ti, X_tid):
+def calc_ls_estim(y_i, X_id):
     """Calculate classical least-squares linear regression point estimates."""
-    n_trial, n_obs, n_dim = X_tid
-    # loop for each trial
-    beta_hat = np.zeros((n_trial, n_dim))
-    s2_hat = np.zeros((n_trial,))
-    for t in range(n_trial):
-        beta_hat[t] = linalg.lstsq(X_tid[t], y_ti[t])[0]
-        temp = X_tid[t].dot(beta_hat[t])
-        temp -= y_ti[t]
-        s2_hat[t] = temp.T.dot(temp) / (n_obs - n_dim)
+    n_obs, n_dim = X_id.shape
+    beta_hat = linalg.lstsq(X_id, y_i)[0]
+    temp = X_id.dot(beta_hat)
+    temp -= y_i
+    s2_hat = temp.T.dot(temp)/(n_obs - n_dim)
     return beta_hat, s2_hat
 
 
@@ -452,7 +448,7 @@ def calc_analytic_err_params(
         #     assume_a='sym'
         # )
         R, = linalg.qr(X_mi[:,idx_a], mode='r')
-        XXinvX_a = linalg.cho_solve((R[:n_dim,:], False), X_mat[i,idx_a])
+        XXinvX_a = linalg.cho_solve((R[:len(idx_a),:], False), X_mat[i,idx_a])
 
         Dt_a[i,i] = 1.0/(X_mat[i,idx_a].dot(XXinvX_a) + 1)
 
@@ -462,7 +458,7 @@ def calc_analytic_err_params(
         #     assume_a='sym'
         # )
         R, = linalg.qr(X_mi[:,idx_b], mode='r')
-        XXinvX_b = linalg.cho_solve((R[:n_dim,:], False), X_mat[i,idx_b])
+        XXinvX_b = linalg.cho_solve((R[:len(idx_b),:], False), X_mat[i,idx_b])
 
         Dt_b[i,i] = 1.0/(X_mat[i,idx_b].dot(XXinvX_b) + 1)
 
@@ -485,15 +481,15 @@ def calc_analytic_err_params(
     #     linalg.solve(X_mat[:,idx_a].T.dot(X_mat[:,idx_a]), X_mat[:,idx_a].T,
     #     assume_a='sym'))
     R, = linalg.qr(X_mat[:,idx_a], mode='r')
-    XXinvX = linalg.cho_solve((R[:n_dim,:], False), X_mat[:,idx_a].T)
+    XXinvX = linalg.cho_solve((R[:len(idx_a),:], False), X_mat[:,idx_a].T)
     P_a = X_mat[:,idx_a].dot(XXinvX)
 
     # P_b = X_mat[:,idx_b].dot(
     #     linalg.solve(X_mat[:,idx_b].T.dot(X_mat[:,idx_b]), X_mat[:,idx_b].T,
     #     assume_a='sym'))
     R, = linalg.qr(X_mat[:,idx_b], mode='r')
-    XXinvX = linalg.cho_solve((R[:n_dim,:], False), X_mat[:,idx_b].T)
-    P_a = X_mat[:,idx_b].dot(XXinvX)
+    XXinvX = linalg.cho_solve((R[:len(idx_b),:], False), X_mat[:,idx_b].T)
+    P_b = X_mat[:,idx_b].dot(XXinvX)
 
     D_a = np.diag(1.0/(np.diag(P_a) + 1.0))
     D_b = np.diag(1.0/(np.diag(P_b) + 1.0))
@@ -538,7 +534,11 @@ def calc_analytic_err_params(
                 - yhat_ma.dot(C_elpd_a_2).dot(mu_d)
                 + yhat_mb.dot(C_elpd_b_2).dot(mu_d)
                 - mu_d.dot(C_elpd_3).dot(mu_d)
-                - sigma_d.dot(C_elpd_3).dot(sigma_d)
+                - (
+                    sigma_star.dot(C_elpd_3).dot(sigma_star)
+                    if not np.isscalar(sigma_star) else
+                    sigma_star**2*np.sum(C_elpd_3)
+                )
             )
             + c_err_4
         )
@@ -554,9 +554,101 @@ def calc_analytic_err_params(
             1/tau2 * (
                 yhat_ma.dot(C_err_a_1).dot(yhat_ma)
                 - yhat_mb.dot(C_err_b_1).dot(yhat_mb)
-                - sigma_d.dot(C_elpd_3).dot(sigma_d)
+                - (
+                    sigma_star.dot(C_elpd_3).dot(sigma_star)
+                    if not np.isscalar(sigma_star) else
+                    sigma_star**2*np.sum(C_elpd_3)
+                )
             )
             + c_err_4
         )
 
     return A_err, b_err, c_err
+
+
+def moments_from_a_b_c(A_mat, b_vec, c_sca, Sigma_d, mu_d=None):
+
+    if np.isscalar(Sigma_d):
+
+        # shared data variance
+        sigma2_d = Sigma_d
+
+        A2 = A_mat.dot(A_mat)
+        A3 = A2.dot(A_mat)
+        b_vec_A = b_vec.T.dot(A_mat)
+        if mu_d is not None:
+            mu_d_A = mu_d.T.dot(A_mat)
+
+        # mean
+        mean = sigma2_d*np.trace(A_mat)
+        mean += c_sca
+        if mu_d is not None:
+            mean += b_vec.T.dot(mu_d)
+            mean += mu_d_A.dot(mu_d)
+
+        # var
+        var = 2*sigma2_d**2*np.trace(A2)
+        var += sigma2_d*(b_vec.T.dot(b_vec))
+        if mu_d is not None:
+            var += 4*sigma2_d*(mu_d_A.dot(b_vec))
+            var += 4*sigma2_d*(mu_d_A.dot(mu_d_A.T))
+
+        # moment3
+        moment3 = 8*sigma2_d**3*np.trace(A3)
+        moment3 += 6*sigma2_d**2*(b_vec_A.dot(b_vec))
+        if mu_d is not None:
+            moment3 += 24*sigma2_d**2*(b_vec_A.dot(mu_d_A.T))
+            moment3 += 24*sigma2_d**2*(mu_d_A.dot(A_mat.dot(mu_d_A.T)))
+
+        # skew
+        skew = moment3 / np.sqrt(var)**3
+
+    else:
+        if Sigma_d.ndim == 1:
+            # indep
+            Sigma_d_sqrt = np.diag(np.sqrt(Sigma_d))
+            Sigma_d = np.diag(Sigma_d)
+        else:
+            # matrix square root provided
+            Sigma_d_sqrt = Sigma_d
+            Sigma_d = Sigma_d_sqrt.dot(Sigma_d_sqrt)
+
+        if mu_d is not None:
+            mu_d_A = mu_d.T.dot(A_mat)
+            mu_d_A_Sigma = mu_d_A.dot(Sigma_d)
+            mu_d_A_Sigma_A = mu_d_A_Sigma.dot(A_mat)
+
+
+        Sigma_d_sqrt_A_Sigma_d_sqrt = Sigma_d_sqrt.dot(A_mat).dot(Sigma_d_sqrt)
+        Sigma_d_sqrt_A_Sigma_d_sqrt_2 = (
+            Sigma_d_sqrt_A_Sigma_d_sqrt.dot(Sigma_d_sqrt_A_Sigma_d_sqrt))
+        Sigma_d_sqrt_A_Sigma_d_sqrt_3 = (
+            Sigma_d_sqrt_A_Sigma_d_sqrt_2.dot(Sigma_d_sqrt_A_Sigma_d_sqrt))
+
+        b_Sigma = b_vec.T.dot(Sigma_d)
+
+        # mean
+        mean = np.trace(Sigma_d_sqrt_A_Sigma_d_sqrt)
+        mean += c_sca
+        if mu_d is not None:
+            mean += b_vec.T.dot(mu_d)
+            mean += mu_d_A.dot(mu_d)
+
+        # var
+        var = 2*np.trace(Sigma_d_sqrt_A_Sigma_d_sqrt_2)
+        var += b_Sigma.dot(b_vec)
+        if mu_d is not None:
+            var += 4*(b_vec.dot(mu_d_A_Sigma.T))
+            var += 4*(mu_d_A.dot(mu_d_A_Sigma.T))
+
+        # moment3
+        moment3 = 8*np.trace(Sigma_d_sqrt_A_Sigma_d_sqrt_3)
+        moment3 += 6*(b_Sigma.dot(A_mat).dot(b_Sigma.T))
+        if mu_d is not None:
+            moment3 += 24*(b_Sigma.dot(mu_d_A_Sigma_A.T))
+            moment3 += 24*(mu_d_A_Sigma.dot(mu_d_A_Sigma_A.T))
+
+        # skew
+        # skew = moment3 / np.sqrt(var)**3
+
+    return mean, var, moment3
