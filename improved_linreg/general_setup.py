@@ -33,8 +33,8 @@ N_DIM = 3
 INTERCEPT = True
 BETA_OTHER = 1.0
 BETA_INTERCEPT = 0.0
-N_TRIAL = 200
-ELPD_TEST_N = 400
+N_TRIAL = 2000
+ELPD_TEST_N = 4000
 SEED = 2958319585
 
 # config for BB uncertainty approximation

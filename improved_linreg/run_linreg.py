@@ -111,7 +111,7 @@ var_hat_bb_t = np.var(bb_approx_tb, ddof=1, axis=-1)
 cdf_elpd = np.mean(bb_approx_tb < elpd_t[:,None], axis=-1)
 cal_counts_bb = np.histogram(cdf_elpd, cal_limits)[0]
 
-# improved estim
+# improved approx
 print('improved approx', flush=True)
 impr_linreg_rng = np.random.RandomState(seed=impr_linreg_seed)
 impr_approx_tb = np.tile(loo_t[:,None], (1, impr_linreg_eps_n))
