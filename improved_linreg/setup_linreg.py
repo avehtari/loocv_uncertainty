@@ -13,13 +13,13 @@ res_folder_name = 'res_linreg'
 
 # number of obs in one trial
 # n_obs_s = [16, 32, 64, 128, 256, 512, 1024]
-n_obs_s = [16, 32, 64, 128, 256, 512]
+n_obs_s = [16, 32, 64, 128, 256, 512, 1024]
 
 # last covariate effect not used in model A
-beta_t_s = [0.0, 0.05, 0.1, 0.2, 0.5, 1.0]
+beta_t_s = [0.0, 0.1, 0.2, 0.5, 1.0]
 
 # outlier dev
-out_dev_s = [0.0, 5.0, 50.0]
+out_dev_s = [0.0, 20.0]
 
 # tau2
 tau2_s = [None]
@@ -32,7 +32,7 @@ cal_nbins = 7
 bb_n = 2000
 bb_seed = 3438677754
 
-impr_linreg_eps_n = 2000
+impr_linreg_n = 2000
 impr_linreg_seed = 44191238
 
 

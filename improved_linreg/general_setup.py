@@ -410,245 +410,321 @@ def bb_mean_sd_skew(data_pi, seed=BB_MOMENT_SEED):
     return mean_pb, sd_pb, skew_pb
 
 
-def calc_analytic_err_params(
-        X_mat, idx_a, idx_b, beta_ma, beta_mb, tau2, sigma_star, mu_star=None):
-    """Calc quadratic form parameters for the error."""
-    n_obs, n_dim = X_mat.shape
-    # model covariate missing indices
-    idx_ma = np.array(sorted(set(range(n_dim)) - set(idx_a)))
-    idx_mb = np.array(sorted(set(range(n_dim)) - set(idx_b)))
-    # calc yhat s
-    if idx_ma.size:
-        yhat_ma = X_mat[:,idx_ma].dot(beta_ma)
-    else:
-        # effectively zero
-        yhat_ma = np.zeros(n_obs)
-    if idx_mb.size:
-        yhat_mb = X_mat[:,idx_mb].dot(beta_mb)
-    else:
-        # effectively zero
-        yhat_mb = np.zeros(n_obs)
+class AnalyticErr:
 
-    # ---- loo
+    def __init__(self, X_mat, idx_a, idx_b):
+        """Calc quadratic form parameters and moments for the error."""
+        # calc X params
 
-    Pt_a = np.zeros((n_obs, n_obs))
-    Pt_b = np.zeros((n_obs, n_obs))
-    Dt_a = np.zeros((n_obs, n_obs))
-    Dt_b = np.zeros((n_obs, n_obs))
+        n_obs, n_dim = X_mat.shape
+        self.X_mat = X_mat
+        self.n_obs = n_obs
+        self.n_dim = n_dim
+        # model covariate missing indices
+        self.idx_a = idx_a
+        self.idx_b = idx_b
+        self.idx_ma = np.array(sorted(set(range(n_dim)) - set(idx_a)))
+        self.idx_mb = np.array(sorted(set(range(n_dim)) - set(idx_b)))
 
-    X_mi = np.empty((n_obs-1, n_dim))
-    for i in range(n_obs):
-        # X_mi = np.delete(X_mat, i, axis=0)
-        X_mi[:i,:] = X_mat[:i, :]
-        X_mi[i:,:] = X_mat[i+1:, :]
+        # ---- loo
 
-        # XXinvX_a = linalg.solve(
-        #     X_mi[:,idx_a].T.dot(X_mi[:,idx_a]),
-        #     X_mat[i,idx_a],
-        #     assume_a='sym'
-        # )
-        R, = linalg.qr(X_mi[:,idx_a], mode='r')
-        XXinvX_a = linalg.cho_solve((R[:len(idx_a),:], False), X_mat[i,idx_a])
+        Pt_a = np.zeros((n_obs, n_obs))
+        Pt_b = np.zeros((n_obs, n_obs))
+        Dt_a = np.zeros((n_obs, n_obs))
+        Dt_b = np.zeros((n_obs, n_obs))
 
-        Dt_a[i,i] = 1.0/(X_mat[i,idx_a].dot(XXinvX_a) + 1)
+        X_mi = np.empty((n_obs-1, n_dim))
+        for i in range(n_obs):
+            # X_mi = np.delete(X_mat, i, axis=0)
+            X_mi[:i,:] = X_mat[:i, :]
+            X_mi[i:,:] = X_mat[i+1:, :]
 
-        # XXinvX_b = linalg.solve(
-        #     X_mi[:,idx_b].T.dot(X_mi[:,idx_b]),
-        #     X_mat[i,idx_b],
-        #     assume_a='sym'
-        # )
-        R, = linalg.qr(X_mi[:,idx_b], mode='r')
-        XXinvX_b = linalg.cho_solve((R[:len(idx_b),:], False), X_mat[i,idx_b])
+            # XXinvX_a = linalg.solve(
+            #     X_mi[:,idx_a].T.dot(X_mi[:,idx_a]),
+            #     X_mat[i,idx_a],
+            #     assume_a='sym'
+            # )
+            R, = linalg.qr(X_mi[:,idx_a], mode='r')
+            XXinvX_a = linalg.cho_solve((R[:len(idx_a),:], False), X_mat[i,idx_a])
 
-        Dt_b[i,i] = 1.0/(X_mat[i,idx_b].dot(XXinvX_b) + 1)
+            Dt_a[i,i] = 1.0/(X_mat[i,idx_a].dot(XXinvX_a) + 1)
 
-        for j in range(n_obs):
-            if i == j:
-                # diag
-                Pt_a[i,i] = -1.0
-                Pt_b[i,i] = -1.0
-            else:
-                # off-diag
-                Pt_a[i,j] = X_mat[j,idx_a].dot(XXinvX_a)
-                Pt_b[i,j] = X_mat[j,idx_b].dot(XXinvX_b)
+            # XXinvX_b = linalg.solve(
+            #     X_mi[:,idx_b].T.dot(X_mi[:,idx_b]),
+            #     X_mat[i,idx_b],
+            #     assume_a='sym'
+            # )
+            R, = linalg.qr(X_mi[:,idx_b], mode='r')
+            XXinvX_b = linalg.cho_solve((R[:len(idx_b),:], False), X_mat[i,idx_b])
 
-    Pt_Dt_Pt_a = Pt_a.T.dot(Dt_a).dot(Pt_a)
-    Pt_Dt_Pt_b = Pt_b.T.dot(Dt_b).dot(Pt_b)
+            Dt_b[i,i] = 1.0/(X_mat[i,idx_b].dot(XXinvX_b) + 1)
 
-    # ---- elpd
+            for j in range(n_obs):
+                if i == j:
+                    # diag
+                    Pt_a[i,i] = -1.0
+                    Pt_b[i,i] = -1.0
+                else:
+                    # off-diag
+                    Pt_a[i,j] = X_mat[j,idx_a].dot(XXinvX_a)
+                    Pt_b[i,j] = X_mat[j,idx_b].dot(XXinvX_b)
 
-    # P_a = X_mat[:,idx_a].dot(
-    #     linalg.solve(X_mat[:,idx_a].T.dot(X_mat[:,idx_a]), X_mat[:,idx_a].T,
-    #     assume_a='sym'))
-    R, = linalg.qr(X_mat[:,idx_a], mode='r')
-    XXinvX = linalg.cho_solve((R[:len(idx_a),:], False), X_mat[:,idx_a].T)
-    P_a = X_mat[:,idx_a].dot(XXinvX)
+        Pt_Dt_Pt_a = Pt_a.T.dot(Dt_a).dot(Pt_a)
+        Pt_Dt_Pt_b = Pt_b.T.dot(Dt_b).dot(Pt_b)
 
-    # P_b = X_mat[:,idx_b].dot(
-    #     linalg.solve(X_mat[:,idx_b].T.dot(X_mat[:,idx_b]), X_mat[:,idx_b].T,
-    #     assume_a='sym'))
-    R, = linalg.qr(X_mat[:,idx_b], mode='r')
-    XXinvX = linalg.cho_solve((R[:len(idx_b),:], False), X_mat[:,idx_b].T)
-    P_b = X_mat[:,idx_b].dot(XXinvX)
+        # ---- elpd
 
-    D_a = np.diag(1.0/(np.diag(P_a) + 1.0))
-    D_b = np.diag(1.0/(np.diag(P_b) + 1.0))
+        # P_a = X_mat[:,idx_a].dot(
+        #     linalg.solve(X_mat[:,idx_a].T.dot(X_mat[:,idx_a]), X_mat[:,idx_a].T,
+        #     assume_a='sym'))
+        R, = linalg.qr(X_mat[:,idx_a], mode='r')
+        XXinvX = linalg.cho_solve((R[:len(idx_a),:], False), X_mat[:,idx_a].T)
+        P_a = X_mat[:,idx_a].dot(XXinvX)
 
-    # ---- err params
+        # P_b = X_mat[:,idx_b].dot(
+        #     linalg.solve(X_mat[:,idx_b].T.dot(X_mat[:,idx_b]), X_mat[:,idx_b].T,
+        #     assume_a='sym'))
+        R, = linalg.qr(X_mat[:,idx_b], mode='r')
+        XXinvX = linalg.cho_solve((R[:len(idx_b),:], False), X_mat[:,idx_b].T)
+        P_b = X_mat[:,idx_b].dot(XXinvX)
 
-    A_err_1 = 0.5*(
-        - Pt_Dt_Pt_a
-        + P_a.dot(D_a).dot(P_a)
-        + Pt_Dt_Pt_b
-        - P_b.dot(D_b).dot(P_b)
-    )
-    B_err_a_1 = -Pt_Dt_Pt_a + P_a.dot(D_a).dot(P_a - np.eye(n_obs))
-    B_err_b_1 = -Pt_Dt_Pt_b + P_b.dot(D_b).dot(P_b - np.eye(n_obs))
-    C_err_a_1 = 0.5*(
-        -Pt_Dt_Pt_a + (P_a-np.eye(n_obs)).dot(D_a).dot(P_a-np.eye(n_obs)))
-    C_err_b_1 = 0.5*(
-        -Pt_Dt_Pt_b + (P_b-np.eye(n_obs)).dot(D_b).dot(P_b-np.eye(n_obs)))
-    c_err_4 = -0.5*(
-        np.sum(np.log(np.diag(D_a))) + np.sum(np.log(np.diag(Dt_b)))
-        - np.sum(np.log(np.diag(D_b))) - np.sum(np.log(np.diag(Dt_a)))
-    )
+        D_a = np.diag(1.0/(np.diag(P_a) + 1.0))
+        D_b = np.diag(1.0/(np.diag(P_b) + 1.0))
 
-    C_elpd_3 = -0.5*(D_a - D_b)
+        # ---- X params
 
-    if mu_star is not None:
+        self.B_elpd_2 = P_a.dot(D_a) - P_b.dot(D_b)
+        self.C_elpd_a_2 = (P_a - np.eye(n_obs)).dot(D_a)
+        self.C_elpd_b_2 = (P_b - np.eye(n_obs)).dot(D_b)
 
-        B_elpd_2 = P_a.dot(D_a) - P_b.dot(D_b)
-        C_elpd_a_2 = (P_a - np.eye(n_obs)).dot(D_a)
-        C_elpd_b_2 = (P_b - np.eye(n_obs)).dot(D_b)
-
-        A_err = 1/tau2 * A_err_1
-        b_err = 1/tau2 * (
-            B_err_a_1.dot(yhat_ma)
-            - B_err_b_1.dot(yhat_mb)
-            - B_elpd_2.dot(mu_d)
+        self.A_err_1 = 0.5*(
+            - Pt_Dt_Pt_a
+            + P_a.dot(D_a).dot(P_a)
+            + Pt_Dt_Pt_b
+            - P_b.dot(D_b).dot(P_b)
         )
-        c_err =(
-            1/tau2 * (
-                yhat_ma.dot(C_err_a_1).dot(yhat_ma)
-                - yhat_mb.dot(C_err_b_1).dot(yhat_mb)
-                - yhat_ma.dot(C_elpd_a_2).dot(mu_d)
-                + yhat_mb.dot(C_elpd_b_2).dot(mu_d)
-                - mu_d.dot(C_elpd_3).dot(mu_d)
-                - (
-                    sigma_star.dot(C_elpd_3).dot(sigma_star)
-                    if not np.isscalar(sigma_star) else
-                    sigma_star**2*np.sum(C_elpd_3)
-                )
-            )
-            + c_err_4
+        self.B_err_a_1 = -Pt_Dt_Pt_a + P_a.dot(D_a).dot(P_a - np.eye(n_obs))
+        self.B_err_b_1 = -Pt_Dt_Pt_b + P_b.dot(D_b).dot(P_b - np.eye(n_obs))
+        self.C_err_a_1 = 0.5*(
+            -Pt_Dt_Pt_a + (P_a-np.eye(n_obs)).dot(D_a).dot(P_a-np.eye(n_obs)))
+        self.C_err_b_1 = 0.5*(
+            -Pt_Dt_Pt_b + (P_b-np.eye(n_obs)).dot(D_b).dot(P_b-np.eye(n_obs)))
+        self.c_err_4 = -0.5*(
+            np.sum(np.log(np.diag(D_a))) + np.sum(np.log(np.diag(Dt_b)))
+            - np.sum(np.log(np.diag(D_b))) - np.sum(np.log(np.diag(Dt_a)))
         )
 
-    else:
-
-        A_err = 1/tau2 * A_err_1
-        b_err = 1/tau2 * (
-            B_err_a_1.dot(yhat_ma)
-            - B_err_b_1.dot(yhat_mb)
-        )
-        c_err =(
-            1/tau2 * (
-                yhat_ma.dot(C_err_a_1).dot(yhat_ma)
-                - yhat_mb.dot(C_err_b_1).dot(yhat_mb)
-                - (
-                    sigma_star.dot(C_elpd_3).dot(sigma_star)
-                    if not np.isscalar(sigma_star) else
-                    sigma_star**2*np.sum(C_elpd_3)
-                )
-            )
-            + c_err_4
-        )
-
-    return A_err, b_err, c_err
+        self.C_elpd_3 = -0.5*(D_a - D_b)
 
 
-def moments_from_a_b_c(A_mat, b_vec, c_sca, Sigma_d, mu_d=None):
+    def calc_params(self, beta_ma, beta_mb, tau2, sigma_star, mu_star=None):
 
-    if np.isscalar(Sigma_d):
-
-        # shared data variance
-        sigma2_d = Sigma_d
-
-        A2 = A_mat.dot(A_mat)
-        A3 = A2.dot(A_mat)
-        b_vec_A = b_vec.T.dot(A_mat)
-        if mu_d is not None:
-            mu_d_A = mu_d.T.dot(A_mat)
-
-        # mean
-        mean = sigma2_d*np.trace(A_mat)
-        mean += c_sca
-        if mu_d is not None:
-            mean += b_vec.T.dot(mu_d)
-            mean += mu_d_A.dot(mu_d)
-
-        # var
-        var = 2*sigma2_d**2*np.trace(A2)
-        var += sigma2_d*(b_vec.T.dot(b_vec))
-        if mu_d is not None:
-            var += 4*sigma2_d*(mu_d_A.dot(b_vec))
-            var += 4*sigma2_d*(mu_d_A.dot(mu_d_A.T))
-
-        # moment3
-        moment3 = 8*sigma2_d**3*np.trace(A3)
-        moment3 += 6*sigma2_d**2*(b_vec_A.dot(b_vec))
-        if mu_d is not None:
-            moment3 += 24*sigma2_d**2*(b_vec_A.dot(mu_d_A.T))
-            moment3 += 24*sigma2_d**2*(mu_d_A.dot(A_mat.dot(mu_d_A.T)))
-
-        # skew
-        skew = moment3 / np.sqrt(var)**3
-
-    else:
-        if Sigma_d.ndim == 1:
-            # indep
-            Sigma_d_sqrt = np.diag(np.sqrt(Sigma_d))
-            Sigma_d = np.diag(Sigma_d)
+        # calc yhat s
+        if self.idx_ma.size:
+            yhat_ma = self.X_mat[:,self.idx_ma].dot(beta_ma)
         else:
-            # matrix square root provided
-            Sigma_d_sqrt = Sigma_d
-            Sigma_d = Sigma_d_sqrt.dot(Sigma_d_sqrt)
+            # effectively zero
+            yhat_ma = np.zeros(self.n_obs)
+        if self.idx_mb.size:
+            yhat_mb = self.X_mat[:,self.idx_mb].dot(beta_mb)
+        else:
+            # effectively zero
+            yhat_mb = np.zeros(self.n_obs)
 
-        if mu_d is not None:
-            mu_d_A = mu_d.T.dot(A_mat)
-            mu_d_A_Sigma = mu_d_A.dot(Sigma_d)
-            mu_d_A_Sigma_A = mu_d_A_Sigma.dot(A_mat)
+        if mu_star is not None:
+
+            A_err = self.A_err_1 / tau2
+            b_err = (
+                self.B_err_a_1.dot(yhat_ma)
+                - self.B_err_b_1.dot(yhat_mb)
+                - self.B_elpd_2.dot(mu_star)
+            ) / tau2
+            c_err =(
+                (
+                    yhat_ma.dot(self.C_err_a_1).dot(yhat_ma)
+                    - yhat_mb.dot(self.C_err_b_1).dot(yhat_mb)
+                    - yhat_ma.dot(self.C_elpd_a_2).dot(mu_star)
+                    + yhat_mb.dot(self.C_elpd_b_2).dot(mu_star)
+                    - mu_star.dot(self.C_elpd_3).dot(mu_star)
+                    - (
+                        sigma_star.dot(self.C_elpd_3).dot(sigma_star)
+                        if not np.isscalar(sigma_star) else
+                        sigma_star**2*np.sum(self.C_elpd_3)
+                    )
+                ) / tau2
+                + self.c_err_4
+            )
+
+        else:
+
+            A_err = self.A_err_1 / tau2
+            b_err = (
+                self.B_err_a_1.dot(yhat_ma)
+                - self.B_err_b_1.dot(yhat_mb)
+            ) / tau2
+            c_err =(
+                (
+                    yhat_ma.dot(self.C_err_a_1).dot(yhat_ma)
+                    - yhat_mb.dot(self.C_err_b_1).dot(yhat_mb)
+                    - (
+                        sigma_star.dot(self.C_elpd_3).dot(sigma_star)
+                        if not np.isscalar(sigma_star) else
+                        sigma_star**2*np.sum(self.C_elpd_3)
+                    )
+                ) / tau2
+                + self.c_err_4
+            )
+
+        return A_err, b_err, c_err
 
 
-        Sigma_d_sqrt_A_Sigma_d_sqrt = Sigma_d_sqrt.dot(A_mat).dot(Sigma_d_sqrt)
-        Sigma_d_sqrt_A_Sigma_d_sqrt_2 = (
-            Sigma_d_sqrt_A_Sigma_d_sqrt.dot(Sigma_d_sqrt_A_Sigma_d_sqrt))
-        Sigma_d_sqrt_A_Sigma_d_sqrt_3 = (
-            Sigma_d_sqrt_A_Sigma_d_sqrt_2.dot(Sigma_d_sqrt_A_Sigma_d_sqrt))
+    def calc_moments(self, A_mat, b_vec, c_sca, Sigma_d, mu_d=None):
+        if np.isscalar(Sigma_d):
 
-        b_Sigma = b_vec.T.dot(Sigma_d)
+            # shared data variance
+            sigma2_d = Sigma_d
 
-        # mean
-        mean = np.trace(Sigma_d_sqrt_A_Sigma_d_sqrt)
-        mean += c_sca
-        if mu_d is not None:
-            mean += b_vec.T.dot(mu_d)
-            mean += mu_d_A.dot(mu_d)
+            A2 = A_mat.dot(A_mat)
+            A3 = A2.dot(A_mat)
+            b_vec_A = b_vec.T.dot(A_mat)
+            if mu_d is not None:
+                mu_d_A = mu_d.T.dot(A_mat)
 
-        # var
-        var = 2*np.trace(Sigma_d_sqrt_A_Sigma_d_sqrt_2)
-        var += b_Sigma.dot(b_vec)
-        if mu_d is not None:
-            var += 4*(b_vec.dot(mu_d_A_Sigma.T))
-            var += 4*(mu_d_A.dot(mu_d_A_Sigma.T))
+            # mean
+            mean = sigma2_d*np.trace(A_mat)
+            mean += c_sca
+            if mu_d is not None:
+                mean += b_vec.T.dot(mu_d)
+                mean += mu_d_A.dot(mu_d)
 
-        # moment3
-        moment3 = 8*np.trace(Sigma_d_sqrt_A_Sigma_d_sqrt_3)
-        moment3 += 6*(b_Sigma.dot(A_mat).dot(b_Sigma.T))
-        if mu_d is not None:
-            moment3 += 24*(b_Sigma.dot(mu_d_A_Sigma_A.T))
-            moment3 += 24*(mu_d_A_Sigma.dot(mu_d_A_Sigma_A.T))
+            # var
+            var = 2*sigma2_d**2*np.trace(A2)
+            var += sigma2_d*(b_vec.T.dot(b_vec))
+            if mu_d is not None:
+                var += 4*sigma2_d*(mu_d_A.dot(b_vec))
+                var += 4*sigma2_d*(mu_d_A.dot(mu_d_A.T))
 
-        # skew
-        # skew = moment3 / np.sqrt(var)**3
+            # moment3
+            moment3 = 8*sigma2_d**3*np.trace(A3)
+            moment3 += 6*sigma2_d**2*(b_vec_A.dot(b_vec))
+            if mu_d is not None:
+                moment3 += 24*sigma2_d**2*(b_vec_A.dot(mu_d_A.T))
+                moment3 += 24*sigma2_d**2*(mu_d_A.dot(A_mat.dot(mu_d_A.T)))
 
-    return mean, var, moment3
+            # skew
+            # skew = moment3 / np.sqrt(var)**3
+
+        else:
+            if Sigma_d.ndim == 1:
+                # indep
+                Sigma_d_sqrt = np.diag(np.sqrt(Sigma_d))
+                Sigma_d = np.diag(Sigma_d)
+            else:
+                # matrix square root provided
+                Sigma_d_sqrt = Sigma_d
+                Sigma_d = Sigma_d_sqrt.dot(Sigma_d_sqrt)
+
+            if mu_d is not None:
+                mu_d_A = mu_d.T.dot(A_mat)
+                mu_d_A_Sigma = mu_d_A.dot(Sigma_d)
+                mu_d_A_Sigma_A = mu_d_A_Sigma.dot(A_mat)
+
+
+            Sigma_d_sqrt_A_Sigma_d_sqrt = Sigma_d_sqrt.dot(A_mat).dot(Sigma_d_sqrt)
+            Sigma_d_sqrt_A_Sigma_d_sqrt_2 = (
+                Sigma_d_sqrt_A_Sigma_d_sqrt.dot(Sigma_d_sqrt_A_Sigma_d_sqrt))
+            Sigma_d_sqrt_A_Sigma_d_sqrt_3 = (
+                Sigma_d_sqrt_A_Sigma_d_sqrt_2.dot(Sigma_d_sqrt_A_Sigma_d_sqrt))
+
+            b_Sigma = b_vec.T.dot(Sigma_d)
+
+            # mean
+            mean = np.trace(Sigma_d_sqrt_A_Sigma_d_sqrt)
+            mean += c_sca
+            if mu_d is not None:
+                mean += b_vec.T.dot(mu_d)
+                mean += mu_d_A.dot(mu_d)
+
+            # var
+            var = 2*np.trace(Sigma_d_sqrt_A_Sigma_d_sqrt_2)
+            var += b_Sigma.dot(b_vec)
+            if mu_d is not None:
+                var += 4*(b_vec.dot(mu_d_A_Sigma.T))
+                var += 4*(mu_d_A.dot(mu_d_A_Sigma.T))
+
+            # moment3
+            moment3 = 8*np.trace(Sigma_d_sqrt_A_Sigma_d_sqrt_3)
+            moment3 += 6*(b_Sigma.dot(A_mat).dot(b_Sigma.T))
+            if mu_d is not None:
+                moment3 += 24*(b_Sigma.dot(mu_d_A_Sigma_A.T))
+                moment3 += 24*(mu_d_A_Sigma.dot(mu_d_A_Sigma_A.T))
+
+            # skew
+            # skew = moment3 / np.sqrt(var)**3
+
+        return mean, var, moment3
+
+
+    def calc_var(self, A_mat, b_vec, c_sca, Sigma_d, mu_d=None):
+
+        if np.isscalar(Sigma_d):
+
+            # shared data variance
+            sigma2_d = Sigma_d
+
+            A2 = A_mat.dot(A_mat)
+            if mu_d is not None:
+                mu_d_A = mu_d.T.dot(A_mat)
+
+            # var
+            var = 2*sigma2_d**2*np.trace(A2)
+            var += sigma2_d*(b_vec.T.dot(b_vec))
+            if mu_d is not None:
+                var += 4*sigma2_d*(mu_d_A.dot(b_vec))
+                var += 4*sigma2_d*(mu_d_A.dot(mu_d_A.T))
+
+        else:
+            if Sigma_d.ndim == 1:
+                # indep
+                Sigma_d_sqrt = np.diag(np.sqrt(Sigma_d))
+                Sigma_d = np.diag(Sigma_d)
+            else:
+                # matrix square root provided
+                Sigma_d_sqrt = Sigma_d
+                Sigma_d = Sigma_d_sqrt.dot(Sigma_d_sqrt)
+
+            if mu_d is not None:
+                mu_d_A = mu_d.T.dot(A_mat)
+                mu_d_A_Sigma = mu_d_A.dot(Sigma_d)
+                mu_d_A_Sigma_A = mu_d_A_Sigma.dot(A_mat)
+
+
+            Sigma_d_sqrt_A_Sigma_d_sqrt = Sigma_d_sqrt.dot(A_mat).dot(Sigma_d_sqrt)
+            Sigma_d_sqrt_A_Sigma_d_sqrt_2 = (
+                Sigma_d_sqrt_A_Sigma_d_sqrt.dot(Sigma_d_sqrt_A_Sigma_d_sqrt))
+
+            b_Sigma = b_vec.T.dot(Sigma_d)
+
+            # var
+            var = 2*np.trace(Sigma_d_sqrt_A_Sigma_d_sqrt_2)
+            var += b_Sigma.dot(b_vec)
+            if mu_d is not None:
+                var += 4*(b_vec.dot(mu_d_A_Sigma.T))
+                var += 4*(mu_d_A.dot(mu_d_A_Sigma.T))
+
+        return var
+
+
+def lin_reg_fit(y_i, X_id):
+    n_obs, n_dim = X_id.shape
+    Q_mat, R_mat = linalg.qr(X_id, mode='economic')
+    beta_hat = linalg.solve_triangular(R_mat, Q_mat.T.dot(y_i))
+    temp = X_id.dot(beta_hat)
+    temp -= y_i
+    s2_hat = temp.T.dot(temp)/(n_obs - n_dim)
+    R_inv = linalg.solve_triangular(R_mat, np.eye(n_dim), overwrite_b=True)
+    return beta_hat, s2_hat, R_inv
+
+
+def inv_chi2_rng(nu, tau2, rng):
+    return stats.invgamma.rvs(0.5*nu, scale=0.5*nu*tau2, random_state=rng)

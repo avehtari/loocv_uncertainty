@@ -38,6 +38,7 @@ probl_run = ProblemRun(
 probl_args = probl_run.get_args()
 
 n_trial = probl_run.n_trial
+n_dim = probl_run.n_dim
 
 # basic yobs
 X_tid, y_ti = probl_run.make_data()
@@ -114,31 +115,61 @@ cal_counts_bb = np.histogram(cdf_elpd, cal_limits)[0]
 # improved approx
 print('improved approx', flush=True)
 impr_linreg_rng = np.random.RandomState(seed=impr_linreg_seed)
-impr_approx_tb = np.tile(loo_t[:,None], (1, impr_linreg_eps_n))
+impr_approx_ts = np.tile(loo_t[:,None], (1, impr_linreg_n))
 var_hat_impr_t = np.empty((n_trial,))
+impr2_approx_ts = np.tile(loo_t[:,None], (1, impr_linreg_n))
 for t_i in range(n_trial):
-    beta_hat, s2_hat = calc_ls_estim(y_ti[t_i], X_tid[t_i])
-    A_err, b_err, c_err = calc_analytic_err_params(
+    beta_hat, s2_hat, R_inv = lin_reg_fit(y_ti[t_i], X_tid[t_i])
+    analytic_err = AnalyticErr(
         X_tid[t_i],
         idx_a=np.arange(X_tid.shape[-1]-1),
-        idx_b=np.arange(X_tid.shape[-1]),
+        idx_b=np.arange(X_tid.shape[-1])
+    )
+    A_err, b_err, c_err = analytic_err.calc_params(
         beta_ma=beta_hat[[-1]],
         beta_mb=None,
         tau2=s2_hat,
         sigma_star=np.sqrt(s2_hat)
     )
-    _, var_hat, _ = moments_from_a_b_c(A_err, b_err, c_err, Sigma_d=s2_hat)
-    var_hat_impr_t[t_i] = var_hat
-    eps_ib = impr_linreg_rng.randn(n_obs, impr_linreg_eps_n)
-    eps_ib *= np.sqrt(s2_hat)
-    err_hat_b = np.einsum('ib,ij,jb->b', eps_ib, A_err, eps_ib)
-    # err_hat_b += np.einsum('ib,i->b', eps_ib, b_err)
-    err_hat_b += eps_ib.T.dot(b_err)
-    err_hat_b += c_err
-    impr_approx_tb[t_i,:] -= err_hat_b
+    var_hat_impr_t[t_i] = analytic_err.calc_var(
+        A_err, b_err, c_err, Sigma_d=s2_hat)
+    for s_i in range(impr_linreg_n):
+        s2_hat_2 = inv_chi2_rng(n_obs - n_dim, s2_hat, rng=impr_linreg_rng)
+        beta_hat_2 = beta_hat + np.sqrt(s2_hat_2)*R_inv.dot(
+            impr_linreg_rng.randn(n_dim))
+        A_err_2, b_err_2, c_err_2 = analytic_err.calc_params(
+            beta_ma=beta_hat_2[[-1]],
+            beta_mb=None,
+            tau2=s2_hat_2,
+            sigma_star=np.sqrt(s2_hat_2)
+        )
+        eps_is = impr_linreg_rng.randn(n_obs)
+
+        eps_is_1 = eps_is*np.sqrt(s2_hat)
+        # err_hat_1 = np.einsum('ib,ij,jb->b', eps_is_1, A_err, eps_is_1)
+        # err_hat_1 += eps_is_1.T.dot(b_err)
+        # err_hat_1 += c_err
+        err_hat_1 = (
+            eps_is_1.T.dot(A_err).dot(eps_is_1)
+            + eps_is_1.T.dot(b_err)
+            + c_err
+        )
+        impr_approx_ts[t_i, s_i] -= err_hat_1
+
+        eps_is_2 = eps_is*np.sqrt(s2_hat_2)
+        err_hat_2 = (
+            eps_is_2.T.dot(A_err_2).dot(eps_is_2)
+            + eps_is_2.T.dot(b_err_2)
+            + c_err_2
+        )
+        impr2_approx_ts[t_i, s_i] -= err_hat_2
+
+var_hat_impr2_t = np.var(impr2_approx_ts, ddof=1, axis=-1)
 # calibration
-cdf_elpd = np.mean(impr_approx_tb < elpd_t[:,None], axis=-1)
+cdf_elpd = np.mean(impr_approx_ts < elpd_t[:,None], axis=-1)
 cal_counts_impr = np.histogram(cdf_elpd, cal_limits)[0]
+cdf_elpd = np.mean(impr2_approx_ts < elpd_t[:,None], axis=-1)
+cal_counts_impr2 = np.histogram(cdf_elpd, cal_limits)[0]
 
 
 # ============================================================================
@@ -165,15 +196,19 @@ np.savez_compressed(
     '{}/{}.npz'.format(out_folder_name, run_i_str),
     run_i=run_i,
     probl_args=probl_args,
-    loo_ti_A=loo_ti_A,
-    loo_ti_B=loo_ti_B,
-    elpd_t_A=elpd_t_A,
-    elpd_t_B=elpd_t_B,
+    # loo_ti_A=loo_ti_A,
+    # loo_ti_B=loo_ti_B,
+    # elpd_t_A=elpd_t_A,
+    # elpd_t_B=elpd_t_B,
+    loo_t=loo_t,
+    elpd_t=elpd_t,
     var_hat_n_t=var_hat_n_t,
     var_hat_bb_t=var_hat_bb_t,
     var_hat_impr_t=var_hat_impr_t,
+    var_hat_impr2_t=var_hat_impr2_t,
     cal_limits=cal_limits,
     cal_counts_n=cal_counts_n,
     cal_counts_bb=cal_counts_bb,
     cal_counts_impr=cal_counts_impr,
+    cal_counts_impr2=cal_counts_impr2,
 )
