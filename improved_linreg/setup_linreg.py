@@ -12,7 +12,6 @@ res_folder_name = 'res_linreg'
 # grid params
 
 # number of obs in one trial
-# n_obs_s = [16, 32, 64, 128, 256, 512, 1024]
 n_obs_s = [16, 32, 64, 128, 256, 512, 1024]
 
 # last covariate effect not used in model A
