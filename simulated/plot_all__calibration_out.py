@@ -28,7 +28,7 @@ beta_t_sel = [0.0, 0.2, 1.0]
 
 # outlier dev
 # out_dev_s = [0.0, 20.0, 200.0]
-out_dev = 0.0
+out_dev = 20.0
 
 # tau2
 # tau2_s = [None, 1.0]
