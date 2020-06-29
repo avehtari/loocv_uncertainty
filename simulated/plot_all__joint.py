@@ -168,7 +168,7 @@ kde_cmap = truncate_colormap(cm.get_cmap('copper'), 0.3)
 
 fig, axes = plt.subplots(
     len(beta_t_sel), len(n_obs_sel),
-    figsize=(8, 8)
+    figsize=(9, 8)
 )
 for n_obs_i, n_obs in enumerate(n_obs_sel):
     for beta_t_i, beta_t in enumerate(beta_t_sel):
@@ -200,7 +200,7 @@ for n_obs_i, n_obs in enumerate(n_obs_sel):
         # ax.plot(x_arr, y_arr, '.')
         ax.hexbin(
             x_arr, y_arr,
-            gridsize=40,
+            gridsize=45,
             extent=(zoom_xmin, zoom_xmax, zoom_ymin, zoom_ymax),
             cmap=cmap, mincnt=1
         )
@@ -280,4 +280,4 @@ for ax, beta_t in zip(axes[:, 0], beta_t_sel):
     )
 
 fig.tight_layout()
-fig.subplots_adjust(top=0.92, left=0.22)
+fig.subplots_adjust(top=0.92, left=0.22, wspace=0.4)
