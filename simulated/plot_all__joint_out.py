@@ -29,7 +29,7 @@ beta_t_sel = [0.0, 0.2, 1.0]
 
 # outlier dev
 # out_dev_s = [0.0, 20.0, 200.0]
-out_dev = 0.0
+out_dev = 20.0
 
 # tau2
 # tau2_s = [None, 1.0]
@@ -188,7 +188,6 @@ for n_obs_i, n_obs in enumerate(n_obs_sel):
         # zoom_xmin, zoom_xmax = lims+np.array([-1,1])*0.1*(lims[1]-lims[0])
         # lims = np.percentile(y_arr, [0, 100])
         # zoom_ymin, zoom_ymax = lims+np.array([-1,1])*0.1*(lims[1]-lims[0])
-
 
         idxs = (
             (zoom_xmin < x_arr) & (x_arr < zoom_xmax) &
