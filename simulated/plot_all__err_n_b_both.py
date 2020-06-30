@@ -187,13 +187,20 @@ data_pt = err_pt / np.std(err_pt, ddof=1, axis=-1, keepdims=True)
 # )
 ylabel = (
     r'${}^\mathrm{sv}\mathrm{err}_\mathrm{LOO}'
-    r'/'
+    r'\;/\;'
     r'\mathrm{SD}({}^\mathrm{sv}\mathrm{elpd})$'
 )
+# ylabel = (
+#     r'$\frac{'
+#     r'{}^\mathrm{sv}\mathrm{err}_\mathrm{LOO}'
+#     r'}{'
+#     r'\mathrm{SD}({}^\mathrm{sv}\mathrm{elpd})'
+#     r'}$'
+# )
 
 
 fig, axes = plt.subplots(
-    len(beta_t_sel), len(out_dev_sel), figsize=(11, 10),
+    len(beta_t_sel), len(out_dev_sel), figsize=(9, 8),
     sharex=True, sharey='row'
 )
 
@@ -205,10 +212,11 @@ for b_i, beta_t in enumerate(beta_t_sel):
 
         ax = axes[b_i, o_i]
 
-        # ax.axhline(1.0, color='red')
-        # ax.axhline(0.0, color=adjust_lightness('red', amount=1.4), zorder=0)
-        # ax.axhline(0.0, color=adjust_lightness('gray', amount=1.4), zorder=0)
-        ax.axhline(0.0, color='C2', zorder=0)
+        # ax.axhline(0.0, color='red', zorder=1)
+        # ax.axhline(0.0, color=adjust_lightness('red', amount=1.3), zorder=1)
+        ax.axhline(0.0, color=adjust_lightness('gray', amount=1.3), zorder=1)
+        # ax.axhline(0.0, color='C2', zorder=1)
+        # ax.axhline(0.0, color='C1', zorder=1)
 
 
         data = np.zeros((len(n_obs_sel), data_pt.shape[-1]))
@@ -251,7 +259,8 @@ for b_i, beta_t in enumerate(beta_t_sel):
             l_mean, = ax.plot(
                 n_i+np.array([-1,1])*0.21,
                 np.mean(data[n_i])*np.ones(2),
-                color='red',
+                # color='red',
+                color='C1',
                 lw=2,
             )
 
@@ -300,4 +309,4 @@ for o_i, name in enumerate(['no outlier', 'outlier']):
     )
 
 fig.tight_layout()
-fig.subplots_adjust(left=0.14, wspace=0.2)
+fig.subplots_adjust(left=0.14, hspace=0.12)
