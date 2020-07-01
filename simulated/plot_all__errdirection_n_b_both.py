@@ -32,7 +32,7 @@ beta_t_sel = [0.0, 0.2, 1.0]
 
 # outlier dev
 # out_dev_s = [0.0, 20.0, 200.0]
-out_dev = 0.0
+out_dev_sel = [0.0, 20.0]
 
 # tau2
 # tau2_s = [None, 1.0]
@@ -50,21 +50,23 @@ bb_alpha = 1.0
 # ============================================================================
 
 # set grid
-n_obs_sel_grid, beta_t_sel_grid = np.meshgrid(
-    n_obs_sel, beta_t_sel, indexing='ij')
+n_obs_sel_grid, beta_t_sel_grid, out_dev_sel_grid = np.meshgrid(
+    n_obs_sel, beta_t_sel, out_dev_sel, indexing='ij')
 sel_grid_shape = n_obs_sel_grid.shape
 n_probl = n_obs_sel_grid.size
 
 def probl_i_to_params(probl_i):
     n_obs = n_obs_sel_grid.flat[probl_i]
     beta_t = beta_t_sel_grid.flat[probl_i]
-    return n_obs, beta_t
+    out_dev = out_dev_sel_grid.flat[probl_i]
+    return n_obs, beta_t, out_dev
 
-def params_to_probl_i(n_obs, beta_t):
+def params_to_probl_i(n_obs, beta_t, out_dev):
     n_obs_i = n_obs_sel.index(n_obs)
     beta_t_i = beta_t_sel.index(beta_t)
+    out_dev_i = out_dev_sel.index(out_dev)
     probl_i = np.ravel_multi_index(
-        (n_obs_i, beta_t_i), sel_grid_shape)
+        (n_obs_i, beta_t_i, out_dev_i), sel_grid_shape)
     return probl_i
 
 
@@ -74,7 +76,7 @@ elpd_pt_A = np.zeros((n_probl, N_TRIAL))
 elpd_pt_B = np.zeros((n_probl, N_TRIAL))
 
 for probl_i in range(n_probl):
-    n_obs, beta_t = probl_i_to_params(probl_i)
+    n_obs, beta_t, out_dev = probl_i_to_params(probl_i)
     run_i = params_to_run_i(n_obs, beta_t, out_dev, tau2)
     # load results
     res_file = np.load(
@@ -125,10 +127,8 @@ err_y_var_p = np.var(err_pt, ddof=1, axis=-1)
 err_y_skew_p = stats.skew(err_pt, bias=False, axis=-1)
 err_y_pneg_p = np.mean((err_pt)<0, axis=-1)
 
-
-# ratio SE_hat / SE of err(y)
-err_var_p = np.var(err_pt, ddof=1, axis=-1)
-se_hat_ratio_pt = np.sqrt(loo_var_hat_pt/err_var_p[:,None])
+# relative error
+relerr_pt = err_pt / elpd_pt
 
 
 # ============================================================================
@@ -161,79 +161,107 @@ def adjust_lightness(color, amount=0.5):
 
 fontsize = 16
 
-fig, axes = plt.subplots(
-    len(beta_t_sel), 1, figsize=(7, 8),
-    sharex=True, #sharey=True
+data_pt = np.sign(elpd_pt)*err_pt / np.std(err_pt, ddof=1, axis=-1, keepdims=True)
+ylabel = (
+    r'$\mathrm{sign}({}^\mathrm{sv}\mathrm{elpd})\;'
+    r'{}^\mathrm{sv}\mathrm{err}_\mathrm{LOO}'
+    r'\;/\;'
+    r'\mathrm{SD}({}^\mathrm{sv}\mathrm{elpd})$'
 )
 
-data_pt = se_hat_ratio_pt
 
-for b_i, (ax, beta_t) in enumerate(zip(axes, beta_t_sel)):
+fig, axes = plt.subplots(
+    len(beta_t_sel), len(out_dev_sel), figsize=(9, 8),
+    sharex=True, sharey='row'
+)
 
-    # ax.axhline(1.0, color='red')
-    ax.axhline(1.0, color=adjust_lightness('red', amount=1.3))
+for b_i, beta_t in enumerate(beta_t_sel):
 
-    data = np.zeros((len(n_obs_sel), data_pt.shape[-1]))
-    for n_i, n_obs in enumerate(n_obs_sel):
-        probl_i = params_to_probl_i(n_obs, beta_t)
-        data[n_i] = data_pt[probl_i]
+    row_ylims = [np.inf, -np.inf]
 
-    # sns.violinplot(
-    #     data=pd.DataFrame(data.T),
-    #     scale='width',
-    #     # cut=0,
-    #     ax=ax,
-    #     color=adjust_lightness('C0', amount=1.3),
-    #     # color='C0',
-    #     #saturation=0.6,
-    # )
+    for o_i, out_dev in enumerate(out_dev_sel):
 
-    sns.boxenplot(
-        data=pd.DataFrame(data.T),
-        ax=ax,
-        color=adjust_lightness('C0', amount=1.3),
-        # showfliers=False, # requires 0.10.0 and pytohn3.6
-        # color='C0',
-        #saturation=0.6,
-    )
-    for l in ax.lines[1:]:
-        l.set_linewidth(1.2)
-        l.set_color('k')
-        l.set_alpha(1)
-    # manual remove of outliers
-    for child in ax.get_children():
-        if not isinstance(child, PathCollection):
-            continue
-        if child.get_array() is not None:
-            continue
-        child.set_visible(False)
+        ax = axes[b_i, o_i]
 
-    ax.set_xticklabels(n_obs_sel)
+        # ax.axhline(0.0, color='red', zorder=1)
+        # ax.axhline(0.0, color=adjust_lightness('red', amount=1.3), zorder=1)
+        ax.axhline(0.0, color=adjust_lightness('gray', amount=1.3), zorder=1)
+        # ax.axhline(0.0, color='C2', zorder=1)
+        # ax.axhline(0.0, color='C1', zorder=1)
 
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.tick_params(axis='both', which='major', labelsize=fontsize-2)
-    ax.tick_params(axis='both', which='minor', labelsize=fontsize-4)
 
-    ax.set_yticks([0.0, 0.5, 1.0, 1.5])
+        data = np.zeros((len(n_obs_sel), data_pt.shape[-1]))
+        for n_i, n_obs in enumerate(n_obs_sel):
+            probl_i = params_to_probl_i(n_obs, beta_t, out_dev)
+            data[n_i] = data_pt[probl_i]
 
-    # ax.set_ylim(top=max(np.percentile(data, 97.5, axis=-1)))
-    ax.set_ylim(top=1.75)
-    ax.set_ylim(bottom=0)
+        # sns.violinplot(
+        #     data=pd.DataFrame(data.T),
+        #     scale='width',
+        #     # cut=0,
+        #     ax=ax,
+        #     color=adjust_lightness('C0', amount=1.3),
+        #     # color='C0',
+        #     #saturation=0.6,
+        # )
 
+        sns.boxenplot(
+            data=pd.DataFrame(data.T),
+            ax=ax,
+            color=adjust_lightness('C0', amount=1.3),
+            # showfliers=False, # requires 0.10.0 and pytohn3.6
+            # color='C0',
+            #saturation=0.6,
+        )
+        for l in ax.lines[1:]:
+            l.set_linewidth(1.2)
+            l.set_color('k')
+            l.set_alpha(1)
+        # manual remove of outliers
+        for child in ax.get_children():
+            if not isinstance(child, PathCollection):
+                continue
+            if child.get_array() is not None:
+                continue
+            child.set_visible(False)
+
+        # means
+        for n_i in range(len(n_obs_s)):
+            l_mean, = ax.plot(
+                n_i+np.array([-1,1])*0.21,
+                np.mean(data[n_i])*np.ones(2),
+                # color='red',
+                color='C1',
+                lw=2,
+            )
+
+        ax.set_xticklabels(n_obs_sel)
+
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.tick_params(axis='both', which='major', labelsize=fontsize-2)
+        ax.tick_params(axis='both', which='minor', labelsize=fontsize-4)
+
+        # ax.set_yticks([0.0, 0.5, 1.0, 1.5])
+
+        row_ylims[0] = min(row_ylims[0], min(np.percentile(data, 2.5, axis=-1)))
+        row_ylims[1] = max(row_ylims[1], max(np.percentile(data, 97.5, axis=-1)))
+
+    for o_i, out_dev in enumerate(out_dev_sel):
+        ax = axes[b_i, o_i]
+        ax.set_ylim(top=row_ylims[1])
+        ax.set_ylim(bottom=row_ylims[0])
+
+for ax, beta_t in zip(axes[:,0], beta_t_sel):
     ax.set_ylabel(r'$\beta_t={}$'.format(beta_t), fontsize=fontsize)
 
-axes[-1].set_xlabel(r'$n$', fontsize=fontsize)
+for ax in axes[-1,:]:
+    ax.set_xlabel(r'$n$', fontsize=fontsize)
 
 # set ylable labels
-ylabel = (
-    r'${}^\mathrm{sv}\widehat{\mathrm{SE}}_\mathrm{LOO}'
-    r'\;/\;'
-    r'\mathrm{SE}({}^\mathrm{sv}\mathrm{err}_\mathrm{LOO})$'
-)
-ax = axes[len(axes)//2]
+ax = axes[len(axes)//2, 0]
 ax.text(
-    -0.2, 0.5,
+    -0.25, 0.5,
     ylabel,
     transform=ax.transAxes,
     ha='right',
@@ -242,4 +270,14 @@ ax.text(
     fontsize=fontsize,
 )
 
+# outlier title
+for o_i, name in enumerate(['no outlier', 'outlier']):
+    ax = axes[0, o_i]
+    ax.set_title(
+        name,
+        fontsize=fontsize,
+        pad=10,
+    )
+
 fig.tight_layout()
+fig.subplots_adjust(left=0.14, hspace=0.12)

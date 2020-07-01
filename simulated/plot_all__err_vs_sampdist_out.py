@@ -139,6 +139,7 @@ def adjust_lightness(color, amount=0.5):
 # plot joints
 # ============================================================================
 
+
 fontsize = 16
 n_bins = 25
 
@@ -151,14 +152,14 @@ names = [
     r'${}^\mathrm{sv}\widetilde{\mathrm{elpd}}_{\mathrm{LOO}}(y^\mathrm{obs})$',
 ]
 
-fig = plt.figure(figsize=(10, 10))
+fig = plt.figure(figsize=(10.5, 8))
 outer = gridspec.GridSpec(
     len(beta_t_sel), len(n_obs_sel),
-    hspace=0.38,
+    hspace=0.4,
     wspace=0.34,
     top=0.94,
-    bottom=0.03,
-    left=0.2,
+    bottom=0.04,
+    left=0.22,
     right=0.95
 )
 gs_s = np.array([
@@ -268,7 +269,7 @@ for ax, n_obs in zip(axes[0, :], n_obs_sel):
 for beta_t_i, beta_t in enumerate(beta_t_sel):
     ax = axes[beta_t_i*len(datas)+1, 0]
     ax.text(
-        -0.54, 1.1,
+        -0.67, 1.1,
         r'$\beta_t={}$'.format(beta_t),
         transform=ax.transAxes,
         ha='right',

@@ -162,7 +162,7 @@ def adjust_lightness(color, amount=0.5):
 fontsize = 16
 
 fig, axes = plt.subplots(
-    len(beta_t_sel), 1, figsize=(7, 10),
+    len(beta_t_sel), 1, figsize=(7, 8),
     sharex=True, #sharey=True
 )
 
@@ -228,7 +228,7 @@ axes[-1].set_xlabel(r'$n$', fontsize=fontsize)
 # set ylable labels
 ylabel = (
     r'${}^\mathrm{sv}\widehat{\mathrm{SE}}_\mathrm{LOO}'
-    r'/'
+    r'\;/\;'
     r'\mathrm{SE}({}^\mathrm{sv}\mathrm{err}_\mathrm{LOO})$'
 )
 ax = axes[len(axes)//2]
