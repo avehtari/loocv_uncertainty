@@ -305,7 +305,7 @@ fig.tight_layout()
 axes[1, -1].legend(
     loc='center left', bbox_to_anchor=(1, 0.5),
     fontsize=fontsize-2, fancybox=False,
-    title=r'$\beta_t$',
+    title=r'$\beta_\Delta$',
     title_fontsize=fontsize-2,
 )
 

@@ -367,7 +367,7 @@ for ax, n_obs in zip(axes[0, :, 0, 0], n_obs_sel):
 for ax, beta_t in zip(axes[:, 0, 0, 0], beta_t_sel):
     ax.text(
         -0.5, -0.1,
-        r'$\beta_t={}$'.format(beta_t),
+        r'$\beta_\Delta={}$'.format(beta_t),
         transform=ax.transAxes,
         ha='right',
         va='center',

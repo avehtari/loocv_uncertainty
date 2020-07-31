@@ -371,7 +371,7 @@ for probl_i, ax in enumerate(axes[:, 0]):
     ax.text(
         -0.52, 0.5,
         (
-            r'$\beta_t={}$'.format(probl_beta_t_s[probl_i]) +
+            r'$\beta_\Delta={}$'.format(probl_beta_t_s[probl_i]) +
             '\n' +
             r'$n={}$'.format(probl_n_obs_s[probl_i]) +
             '\n' +

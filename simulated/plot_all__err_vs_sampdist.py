@@ -269,7 +269,7 @@ for beta_t_i, beta_t in enumerate(beta_t_sel):
     ax = axes[beta_t_i*len(datas)+1, 0]
     ax.text(
         -0.67, 1.1,
-        r'$\beta_t={}$'.format(beta_t),
+        r'$\beta_\Delta={}$'.format(beta_t),
         transform=ax.transAxes,
         ha='right',
         va='center',

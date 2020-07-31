@@ -285,12 +285,17 @@ def adjust_lightness(color, amount=0.5):
 
 # configs
 
+# probl_names = [
+#     r'unique cov. in $\mathrm{M_B}$',
+#     r'unique cov. in $\mathrm{M_A}$ and $\mathrm{M_B}$'+'\n'
+#         +r'with effect ratio 1:1',
+#     r'unique cov. in $\mathrm{M_A}$ and $\mathrm{M_B}$'+'\n'
+#         +r'with effect ratio 1:2',
+# ]
 probl_names = [
-    r'unique cov. in $\mathrm{M_B}$',
-    r'unique cov. in $\mathrm{M_A}$ and $\mathrm{M_B}$'+'\n'
-        +r'with effect ratio 1:1',
-    r'unique cov. in $\mathrm{M_A}$ and $\mathrm{M_B}$'+'\n'
-        +r'with effect ratio 1:2',
+    'nested',
+    'non-nested\neffect ratio 1:1',
+    'non-nested\neffect ratio 1:2',
 ]
 
 fontsize = 16
@@ -323,9 +328,18 @@ for probl_i in range(n_probl):
         ax.tick_params(axis='both', which='minor', labelsize=fontsize-4)
 
 for ax, name in zip(axes[:, 0], probl_names):
-    ax.set_ylabel(
+    # ax.set_ylabel(
+    #     name,
+    #     fontsize=fontsize,
+    #     rotation=0,
+    #     ha='right',
+    #     va='center',
+    # )
+    ax.text(
+        -0.4, 0.5,
         name,
-        fontsize=fontsize,
+        transform=ax.transAxes,
+        fontsize=fontsize-1,
         rotation=0,
         ha='right',
         va='center',
@@ -336,5 +350,8 @@ for ax, n_obs in zip(axes[0, :], n_obs_s):
 
 for ax in axes[-1, :]:
     ax.set_xlabel(r'$\beta_\mathrm{r}$', fontsize=fontsize-2)
+
+for ax in axes[:, 0]:
+    ax.set_ylabel('skewness', fontsize=fontsize-1)
 
 fig.tight_layout()

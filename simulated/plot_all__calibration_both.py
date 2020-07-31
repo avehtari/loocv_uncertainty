@@ -250,7 +250,7 @@ outer = gridspec.GridSpec(
     wspace=0.3,
     top=0.91,
     bottom=0.09,
-    left=0.18,
+    left=0.19,
     right=0.98
 )
 gs_s = np.array([
@@ -388,7 +388,7 @@ for ax, n_obs in zip(axes[0, :, 0, 0], n_obs_sel):
 for ax, beta_t in zip(axes[:, 0, 0, 0], beta_t_sel):
     ax.text(
         -1.0, -0.1,
-        r'$\beta_t={}$'.format(beta_t),
+        r'$\beta_\Delta={}$'.format(beta_t),
         transform=ax.transAxes,
         ha='right',
         va='center',

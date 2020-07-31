@@ -282,7 +282,7 @@ for b_i, beta_t in enumerate(beta_t_sel):
         ax.set_ylim(bottom=row_ylims[0])
 
 for ax, beta_t in zip(axes[:,0], beta_t_sel):
-    ax.set_ylabel(r'$\beta_t={}$'.format(beta_t), fontsize=fontsize)
+    ax.set_ylabel(r'$\beta_\Delta={}$'.format(beta_t), fontsize=fontsize)
 
 for ax in axes[-1,:]:
     ax.set_xlabel(r'$n$', fontsize=fontsize)

@@ -162,7 +162,7 @@ def adjust_lightness(color, amount=0.5):
 fontsize = 16
 
 fig, axes = plt.subplots(
-    len(beta_t_sel), 1, figsize=(7, 6),
+    len(beta_t_sel), 1, figsize=(7, 5.2),
     sharex=True, #sharey=True
 )
 
@@ -221,7 +221,7 @@ for b_i, (ax, beta_t) in enumerate(zip(axes, beta_t_sel)):
     ax.set_ylim(top=1.75)
     ax.set_ylim(bottom=0)
 
-    ax.set_ylabel(r'$\beta_t={}$'.format(beta_t), fontsize=fontsize)
+    ax.set_ylabel(r'$\beta_\Delta={}$'.format(beta_t), fontsize=fontsize)
 
 axes[-1].set_xlabel(r'$n$', fontsize=fontsize)
 
