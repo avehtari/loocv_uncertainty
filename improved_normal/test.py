@@ -1,8 +1,9 @@
 
-from itertools import permutations
+import itertools
 
 import numpy as np
 from scipy import linalg, stats
+from scipy.special import comb
 
 import matplotlib.pyplot as plt
 
@@ -11,19 +12,21 @@ import matplotlib.pyplot as plt
 # config
 
 seed = 57346234
-n_trial = 40000
+n_trial = 20000
 
 # data params
 n_obs = 16
-# datadist = stats.norm(loc=-1.7, scale=1.23)
-# datadist = stats.skewnorm(3, loc=-1.7, scale=1.23)
-datadist = stats.skewnorm(-3, loc=-1.7, scale=1.23)
+# datadist = stats.norm(loc=-1.7, scale=1.2)
+datadist = stats.skewnorm(3, loc=-1.7, scale=1.2)
+# datadist = stats.skewnorm(-3, loc=-1.7, scale=1.2)
 
-# datadist = stats.nct(df=10, nc=-2, loc=-0.7, scale=1.1)
+# datadist = stats.nct(df=5, nc=0, loc=-0.3, scale=1.1)
+
+# datadist = stats.chi2(df=8, loc=-0.7, scale=1.1)
 
 # model params
-sigma2_m = 0.9
-sigma2_p = 1.6
+sigma2_m = 1.2
+sigma2_p = 2.0
 
 
 # ==============================================================================
@@ -178,10 +181,14 @@ def get_moment_estims(data_ti):
     a2_a1p2 = a2*a1p2
     a3_a1 = a3*a1
     # mup4_hat
+    # mup4_hat = np.zeros(n_trial)
+    # for i1, i2, i3, i4 in itertools.permutations(range(n), 4):
+    #     mup4_hat += data_ti[:, i1]*data_ti[:, i2]*data_ti[:, i3]*data_ti[:, i4]
+    # mup4_hat /= n*(n-1)*(n-2)*(n-3)
     mup4_hat = np.zeros(n_trial)
-    for i1, i2, i3, i4 in permutations(range(n), 4):
+    for i1, i2, i3, i4 in itertools.combinations(range(n), 4):
         mup4_hat += data_ti[:, i1]*data_ti[:, i2]*data_ti[:, i3]*data_ti[:, i4]
-    mup4_hat /= n*(n-1)*(n-2)*(n-3)
+    mup4_hat /= comb(n, 4, exact=True)
     # mup2_s2_hat
     mup2_s2_hat = (
         - n**3*a1p4
@@ -301,23 +308,24 @@ bb_n = 2000
 alpha_bt = rng.dirichlet(np.ones(n_trial), size=bb_n)
 
 # ==============================================================================
-# plot ratio
+# plot BB ratio
 
 datas = [
     np.sqrt(alpha_bt.dot(var_hat_naiv_t)/true_var),
     np.sqrt(alpha_bt.dot(var_hat_impr_t)/true_var)
 ]
 names = ['naive', 'improved']
-# uplim = 3.0
 
 fig, axes = plt.subplots(2, 1, sharex=True, figsize=(4, 3))
 for ax, data, name in zip(axes, datas, names):
     # data_filtered = data[data<uplim]
-    ax.hist(data, bins=30)
+    ax.hist(data, bins=20)
     ax.axvline(1.0, color='C2', label='target ratio')
     # ax.axvline(np.mean(data), color='C1', label='mean ratio')
 
     # ax.set_xticks([0, 1, 2, 3])
+
+    # ax.set_xlim(left=0)
 
     ax.set_yticks([])
     ax.spines['left'].set_visible(False)
@@ -327,12 +335,12 @@ for ax, data, name in zip(axes, datas, names):
 
     # ax.set_title(name)
 
-axes[-1].legend()
+# axes[-1].legend()
 
 axes[-1].set_xlabel(
-    r'$\widehat{\mathrm{SE}}_\mathrm{LOO}'
-    r'\;/\;'
-    r'\mathrm{SE}(\mathrm{err}_\mathrm{LOO})$',
+    r'$\sqrt{\left.\mathrm{E}\left[\widehat{\sigma^2_\mathrm{LOO}}\right]'
+    r'\;\right/\;'
+    r'\sigma^2_\mathrm{LOO}}$',
 )
 
 fig.tight_layout()
@@ -375,37 +383,37 @@ fig.tight_layout()
 
 # ==============================================================================
 # plot BB mean
-
-datas = [
-    var_hat_naiv_t,
-    var_hat_impr_t
-]
-datas_bb = [
-    alpha_bt.dot(var_hat_naiv_t),
-    alpha_bt.dot(var_hat_impr_t)
-]
-names = ['naive', 'improved']
-
-fig, axes = plt.subplots(2, 1, sharex=True, figsize=(4, 3))
-for ax, data, data_bb, name in zip(axes, datas, datas_bb, names):
-    ax.hist(data_bb, bins=20)
-    ax.axvline(true_var, color='C2', lw=2.5, label='target')
-    ax.axvline(np.mean(data), color='C1', ls='--', label='mean')
-
-    # ax.set_xticks([0, 1, 2, 3])
-
-    ax.set_yticks([])
-    ax.spines['left'].set_visible(False)
-
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-
-    # ax.set_title(name)
-
-axes[-1].legend()
-
-axes[-1].set_xlabel(
-    r'$\widehat{\mathrm{Var}}_\mathrm{LOO}$'
-)
-
-fig.tight_layout()
+#
+# datas = [
+#     var_hat_naiv_t,
+#     var_hat_impr_t
+# ]
+# datas_bb = [
+#     alpha_bt.dot(var_hat_naiv_t),
+#     alpha_bt.dot(var_hat_impr_t)
+# ]
+# names = ['naive', 'improved']
+#
+# fig, axes = plt.subplots(2, 1, sharex=True, figsize=(4, 3))
+# for ax, data, data_bb, name in zip(axes, datas, datas_bb, names):
+#     ax.hist(data_bb, bins=20)
+#     ax.axvline(true_var, color='C2', lw=2.5, label='target')
+#     ax.axvline(np.mean(data), color='C1', ls='--', label='mean')
+#
+#     # ax.set_xticks([0, 1, 2, 3])
+#
+#     ax.set_yticks([])
+#     ax.spines['left'].set_visible(False)
+#
+#     ax.spines['top'].set_visible(False)
+#     ax.spines['right'].set_visible(False)
+#
+#     # ax.set_title(name)
+#
+# axes[-1].legend()
+#
+# axes[-1].set_xlabel(
+#     r'$\widehat{\mathrm{Var}}_\mathrm{LOO}$'
+# )
+#
+# fig.tight_layout()
