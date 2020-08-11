@@ -17,22 +17,18 @@ n_trial = 2000
 # data params
 n_obs = 16
 
-# datadist = stats.norm(loc=0, scale=1.2)
+# datadist = stats.norm(loc=0, scale=1.0)
 
-
+# datadist = stats.norm(loc=50, scale=1.0)
+# tai
 # datadist = stats.norm(loc=2, scale=0.05)
-# datadist = stats.skewnorm(8, loc=-2, scale=0.2)
-datadist = stats.skewnorm(8, loc=-2, scale=0.05)
-# datadist = stats.skewnorm(3, loc=-1.7, scale=1.2)
-# datadist = stats.skewnorm(-3, loc=-1.7, scale=1.2)
 
-# datadist = stats.nct(df=5, nc=0, loc=-0.3, scale=1.1)
-# datadist = stats.chi2(df=8, loc=-0.7, scale=1.1)
+datadist = stats.skewnorm(10, loc=-2, scale=0.1)
 
 
 
 # model params
-sigma2_m = 1.2
+sigma2_m = 1.0**2
 sigma2_p = 2.0**2
 
 
@@ -324,39 +320,39 @@ alpha_bt = rng.dirichlet(np.ones(n_trial), size=bb_n)
 # )
 
 
-ppred_tau = 1/(1/sigma2_p + (n_obs-1)/sigma2_m)
-ppred_mu = ppred_tau*(n_obs-1)/sigma2_m * data_ti[:, :-1].mean(axis=-1)
-ppred_sigma2 = sigma2_m + ppred_tau
-loopps = stats.norm.rvs(
-    loc=ppred_mu,
-    scale=np.sqrt(ppred_sigma2)
-)
-
-r_0, r_1 = datadist.interval(0.98)
-# p_0, p_1 = np.percentile(priorps, [1, 99])
-pp_0, pp_1 = np.percentile(priorps, [1, 99])
-lim_0 = min(r_0, pp_0)
-lim_1 = max(r_1, pp_1)
-
-fig, axes = plt.subplots(2, 1, sharex=True, figsize=(4, 3))
-x = np.linspace(lim_0, lim_1, 100)
-
-ax = axes[0]
-ax.plot(x, datadist.pdf(x), label='data')
-
+# ppred_tau = 1/(1/sigma2_p + (n_obs-1)/sigma2_m)
+# ppred_mu = ppred_tau*(n_obs-1)/sigma2_m * data_ti[:, :-1].mean(axis=-1)
+# ppred_sigma2 = sigma2_m + ppred_tau
+# loopps = stats.norm.rvs(
+#     loc=ppred_mu,
+#     scale=np.sqrt(ppred_sigma2)
+# )
+#
+# r_0, r_1 = datadist.interval(0.98)
+# # p_0, p_1 = np.percentile(priorps, [1, 99])
+# pp_0, pp_1 = np.percentile(loopps, [1, 99])
+# lim_0 = min(r_0, pp_0)
+# lim_1 = max(r_1, pp_1)
+#
+# fig, axes = plt.subplots(2, 1, sharex=True, figsize=(4, 3))
+# x = np.linspace(lim_0, lim_1, 100)
+#
+# ax = axes[0]
+# ax.plot(x, datadist.pdf(x), label='data')
+#
+# # ax = axes[1]
+# # ax.hist(
+# #     priorps[(priorps > lim_0) & (priorps < lim_1)],
+# #     label='prior pred',
+# #     bins=25
+# # )
+#
 # ax = axes[1]
 # ax.hist(
-#     priorps[(priorps > lim_0) & (priorps < lim_1)],
-#     label='prior pred',
+#     loopps[(loopps > lim_0) & (loopps < lim_1)],
+#     label='loo post pred',
 #     bins=25
 # )
-
-ax = axes[1]
-ax.hist(
-    loopps[(loopps > lim_0) & (loopps < lim_1)],
-    label='loo post pred',
-    bins=25
-)
 
 
 # ==============================================================================
@@ -366,18 +362,22 @@ datas = [
     np.sqrt(alpha_bt.dot(var_hat_naiv_t)/true_var),
     np.sqrt(alpha_bt.dot(var_hat_impr_t)/true_var)
 ]
+# datas_point = [
+#     np.sqrt(np.mean(var_hat_naiv_t)/true_var),
+#     np.sqrt(np.mean(var_hat_impr_t)/true_var)
+# ]
 datas_point = [
-    np.sqrt(np.mean(var_hat_naiv_t)/true_var),
-    np.sqrt(np.mean(var_hat_impr_t)/true_var)
+    np.sqrt(n_obs*(true_var_i-true_cov_ij)/true_var),
+    1.0
 ]
 names = ['naive', 'improved']
 
 fig, axes = plt.subplots(2, 1, sharex=True, figsize=(4, 3))
 for ax, data, data_point, name in zip(axes, datas, datas_point, names):
     # data_filtered = data[data<uplim]
-    ax.hist(data, bins=20, label='BB estim.')
-    ax.axvline(1.0, color='C2', label='target')
-    ax.axvline(data_point, color='C1', label='point estim.')
+    ax.hist(data, bins=20, label='BB')
+    ax.axvline(1.0, color='k', lw=0.8)
+    ax.axvline(data_point, color='C1', ls='--', label='analytic')
 
     # ax.set_xticks([0, 1, 2, 3])
 
@@ -391,7 +391,7 @@ for ax, data, data_point, name in zip(axes, datas, datas_point, names):
 
     # ax.set_title(name)
 
-# axes[-1].legend()
+axes[0].legend(loc='upper right', fancybox=False, shadow=False, framealpha=1.0)
 
 axes[-1].set_xlabel(
     r'$\sqrt{\left.\mathrm{E}\left[\widehat{\sigma^2_\mathrm{LOO}}\right]'
