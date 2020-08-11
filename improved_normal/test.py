@@ -12,23 +12,36 @@ import matplotlib.pyplot as plt
 # config
 
 seed = 57346234
-n_trial = 2000
+n_trial = 20000
 
 # data params
 n_obs = 16
 
-# datadist = stats.norm(loc=0, scale=1.0)
+# datadist = stats.norm(loc=0, scale=1.2)
+# mu = 0.0,
+# sigma2 = 1.4,
+# skew = 0.0,
+# exkurt = 0.0
 
-# datadist = stats.norm(loc=50, scale=1.0)
+# datadist = stats.norm(loc=50, scale=1.2)
 # tai
-# datadist = stats.norm(loc=2, scale=0.05)
 
-datadist = stats.skewnorm(10, loc=-2, scale=0.1)
+# datadist = stats.norm(loc=2, scale=0.1)
+# mu = 2.0,
+# sigma2 = 0.01,
+# skew = 0.0,
+# exkurt = 0.0
 
+
+datadist = stats.skewnorm(10, loc=-2, scale=0.16)
+# mu = -1.9,
+# sigma2 = 0.0095,
+# skew = 0.96,
+# exkurt = 0.82
 
 
 # model params
-sigma2_m = 1.0**2
+sigma2_m = 1.2**2
 sigma2_p = 2.0**2
 
 
@@ -391,7 +404,9 @@ for ax, data, data_point, name in zip(axes, datas, datas_point, names):
 
     # ax.set_title(name)
 
-axes[0].legend(loc='upper right', fancybox=False, shadow=False, framealpha=1.0)
+# axes[1].legend(
+#     loc='lower left',
+#     fancybox=False, shadow=False, framealpha=1.0)
 
 axes[-1].set_xlabel(
     r'$\sqrt{\left.\mathrm{E}\left[\widehat{\sigma^2_\mathrm{LOO}}\right]'

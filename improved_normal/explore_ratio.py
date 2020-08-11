@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 # params = np.linspace(-10, 10, 21)
 # params_name = 'mu'
 
-params = 2.0**np.linspace(-6, 0, 25)
+params = 2.0**np.linspace(-6, 0, 50)
 params_name = 'sigma_d'
 
 # params = 2.0**np.linspace(-6, 3, 25)
@@ -42,7 +42,7 @@ def get_all_params(param):
     # datadist = stats.chi2(df=8, loc=param, scale=1.0)
 
     # model params
-    sigma2_m = 1.0
+    sigma2_m = 1.2**2
     # sigma2_m = param
 
 
