@@ -17,7 +17,7 @@ n_trial = 20000
 # data params
 n_obs = 16
 
-# datadist = stats.norm(loc=0, scale=1.2)
+datadist = stats.norm(loc=0, scale=1.2)
 # mu = 0.0,
 # sigma2 = 1.4,
 # skew = 0.0,
@@ -33,7 +33,7 @@ n_obs = 16
 # exkurt = 0.0
 
 
-datadist = stats.skewnorm(10, loc=-2, scale=0.16)
+# datadist = stats.skewnorm(10, loc=-2, scale=0.16)
 # mu = -1.9,
 # sigma2 = 0.0095,
 # skew = 0.96,
@@ -385,7 +385,7 @@ datas_point = [
 ]
 names = ['naive', 'unbiased']
 
-fig, axes = plt.subplots(2, 1, sharex=True, figsize=(3, 2.5))
+fig, axes = plt.subplots(2, 1, sharex=True, figsize=(4, 3))
 for ax, data, data_point, name in zip(axes, datas, datas_point, names):
     # data_filtered = data[data<uplim]
     ax.hist(data, bins=20, label='BB')
@@ -404,9 +404,9 @@ for ax, data, data_point, name in zip(axes, datas, datas_point, names):
 
     ax.set_ylabel(name)
 
-axes[1].legend(
-    loc='lower left',
-    fancybox=False, shadow=False, framealpha=1.0)
+# axes[1].legend(
+#     loc='lower left',
+#     fancybox=False, shadow=False, framealpha=1.0)
 
 axes[-1].set_xlabel(
     r'$\sqrt{\left.\mathrm{E}\left[\widehat{\sigma^2_\mathrm{LOO}}\right]'
