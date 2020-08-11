@@ -383,9 +383,9 @@ datas_point = [
     np.sqrt(n_obs*(true_var_i-true_cov_ij)/true_var),
     1.0
 ]
-names = ['naive', 'improved']
+names = ['naive', 'unbiased']
 
-fig, axes = plt.subplots(2, 1, sharex=True, figsize=(4, 3))
+fig, axes = plt.subplots(2, 1, sharex=True, figsize=(3, 2.5))
 for ax, data, data_point, name in zip(axes, datas, datas_point, names):
     # data_filtered = data[data<uplim]
     ax.hist(data, bins=20, label='BB')
@@ -402,11 +402,11 @@ for ax, data, data_point, name in zip(axes, datas, datas_point, names):
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
-    # ax.set_title(name)
+    ax.set_ylabel(name)
 
-# axes[1].legend(
-#     loc='lower left',
-#     fancybox=False, shadow=False, framealpha=1.0)
+axes[1].legend(
+    loc='lower left',
+    fancybox=False, shadow=False, framealpha=1.0)
 
 axes[-1].set_xlabel(
     r'$\sqrt{\left.\mathrm{E}\left[\widehat{\sigma^2_\mathrm{LOO}}\right]'
@@ -415,76 +415,3 @@ axes[-1].set_xlabel(
 )
 
 fig.tight_layout()
-
-
-# ==============================================================================
-# plot mean
-
-# datas = [
-#     var_hat_naiv_t,
-#     var_hat_impr_t
-# ]
-# names = ['naive', 'improved']
-# uplim = 15.0
-#
-# fig, axes = plt.subplots(2, 1, sharex=True, figsize=(5, 4))
-# for ax, data, name in zip(axes, datas, names):
-#     data_filtered = data[data<uplim]
-#     ax.hist(data_filtered, bins=30)
-#     ax.axvline(true_var, color='C2', label='target')
-#     ax.axvline(np.mean(data), color='C1', label='mean')
-#
-#     # ax.set_xticks([0, 1, 2, 3])
-#
-#     ax.set_yticks([])
-#     ax.spines['left'].set_visible(False)
-#
-#     ax.spines['top'].set_visible(False)
-#     ax.spines['right'].set_visible(False)
-#     ax.set_title(name)
-#
-# axes[-1].legend()
-#
-# axes[-1].set_xlabel(
-#     r'$\widehat{\mathrm{Var}}_\mathrm{LOO}$'
-# )
-#
-# fig.tight_layout()
-
-
-# ==============================================================================
-# plot BB mean
-#
-# datas = [
-#     var_hat_naiv_t,
-#     var_hat_impr_t
-# ]
-# datas_bb = [
-#     alpha_bt.dot(var_hat_naiv_t),
-#     alpha_bt.dot(var_hat_impr_t)
-# ]
-# names = ['naive', 'improved']
-#
-# fig, axes = plt.subplots(2, 1, sharex=True, figsize=(4, 3))
-# for ax, data, data_bb, name in zip(axes, datas, datas_bb, names):
-#     ax.hist(data_bb, bins=20)
-#     ax.axvline(true_var, color='C2', lw=2.5, label='target')
-#     ax.axvline(np.mean(data), color='C1', ls='--', label='mean')
-#
-#     # ax.set_xticks([0, 1, 2, 3])
-#
-#     ax.set_yticks([])
-#     ax.spines['left'].set_visible(False)
-#
-#     ax.spines['top'].set_visible(False)
-#     ax.spines['right'].set_visible(False)
-#
-#     # ax.set_title(name)
-#
-# axes[-1].legend()
-#
-# axes[-1].set_xlabel(
-#     r'$\widehat{\mathrm{Var}}_\mathrm{LOO}$'
-# )
-#
-# fig.tight_layout()
