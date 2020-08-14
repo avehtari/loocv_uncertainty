@@ -13,8 +13,8 @@ from problem_setting import *
 # conf
 
 folder_name = 'res_skew_b_n'
-run_moments = False
-distributed = True
+run_moments = True
+distributed = False
 plot = True
 
 # data seed

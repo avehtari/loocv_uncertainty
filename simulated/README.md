@@ -1,0 +1,1 @@
+Script `run_all.py` runs a batch of simulations and saves the results into folder `res_all`. File `run_all.sh` contains the respective array job configurations for running all the required batches. The results can be inspected by corresponding scripts `plot_all__xxx.py`.

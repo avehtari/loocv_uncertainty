@@ -1,0 +1,1 @@
+Scripts `plot_xxx.py` run different experiments, save the results into subfolders `res_xxx`, and plot the results. The Scripts can be run in parallel by adjusting the configurations in the begining of the files.
