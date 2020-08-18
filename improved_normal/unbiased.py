@@ -389,7 +389,7 @@ fig, axes = plt.subplots(2, 1, sharex=True, figsize=(4, 3))
 for ax, data, data_point, name in zip(axes, datas, datas_point, names):
     # data_filtered = data[data<uplim]
     ax.hist(data, bins=20, label='BB')
-    ax.axvline(1.0, color='k', lw=0.8, label='target')
+    ax.axvline(1.0, color='C2', lw=2.0, label='target')
     ax.axvline(data_point, color='C1', ls='--', label='analytic')
 
     # ax.set_xticks([0, 1, 2, 3])
