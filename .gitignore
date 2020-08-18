@@ -3,7 +3,6 @@ __pycache__/
 
 *.rds
 *.RData
-*.pdf
 .ipynb_checkpoints
 *.aux
 *.log
