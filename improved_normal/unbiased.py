@@ -1,3 +1,58 @@
+"""Simulated experiment for the unbiased LOO-CV variance estimator.
+
+Numerical results
+-----------------
+
+1. well-fitting data
+    mu = 0.0,
+    sigma2 = 1.4,
+    skew = 0.0,
+    exkurt = 0.0
+    naive analytic: 0.966125189
+    naive BB mean: 0.9663997725
+    naive BB median: 0.9664015508
+    naive BB 95 % CI: [0.95996186 0.97273841]
+    naive BB 99 % CI: [0.95756668 0.97492683]
+    unbiased analytic: 1.0
+    unbiased BB mean: 1.000294244
+    unbiased BB median: 1.000301568
+    unbiased BB 95 % CI: [0.9934566  1.00704534]
+    unbiased BB 99 % CI: [0.9908942  1.00942793]
+
+2. under-dispersed data
+    mu = 2.0,
+    sigma2 = 0.01,
+    skew = 0.0,
+    exkurt = 0.0
+    naive analytic: 1.160312657
+    naive BB mean: 1.15876797
+    naive BB median: 1.158743842
+    naive BB 95 % CI: [1.15169156 1.16562419]
+    naive BB 99 % CI: [1.14959731 1.16764143]
+    unbiased analytic: 1.0
+    unbiased BB mean: 1.000242305
+    unbiased BB median: 1.00025908
+    unbiased BB 95 % CI: [0.99339451 1.00696045]
+    unbiased BB 99 % CI: [0.99082462 1.00938296]
+
+3. under-dispersed, skewed, heavy-tailed data
+    mu = -1.9,
+    sigma2 = 0.0095,
+    skew = 0.96,
+    exkurt = 0.82
+    naive analytic: 0.8094516078
+    naive BB mean: 0.8098354968
+    naive BB median: 0.8098479447
+    naive BB 95 % CI: [0.80231211 0.81750817]
+    naive BB 99 % CI: [0.80000032 0.82010894]
+    unbiased analytic: 1.0
+    unbiased BB mean: 0.999482842
+    unbiased BB median: 0.999523508
+    unbiased BB 95 % CI: [0.98842999 1.01048438]
+    unbiased BB 99 % CI: [0.98563381 1.01432708]
+
+"""
+
 
 import itertools
 
@@ -17,27 +72,14 @@ n_trial = 20000
 # data params
 n_obs = 16
 
-datadist = stats.norm(loc=0, scale=1.2)
-# mu = 0.0,
-# sigma2 = 1.4,
-# skew = 0.0,
-# exkurt = 0.0
+# data 1
+# datadist = stats.norm(loc=0, scale=1.2)
 
-# datadist = stats.norm(loc=50, scale=1.2)
-# tai
-
+# data 2
 # datadist = stats.norm(loc=2, scale=0.1)
-# mu = 2.0,
-# sigma2 = 0.01,
-# skew = 0.0,
-# exkurt = 0.0
 
-
-# datadist = stats.skewnorm(10, loc=-2, scale=0.16)
-# mu = -1.9,
-# sigma2 = 0.0095,
-# skew = 0.96,
-# exkurt = 0.82
+# data 3
+datadist = stats.skewnorm(10, loc=-2, scale=0.16)
 
 
 # model params
@@ -320,7 +362,7 @@ var_hat_naiv_t = n_obs*np.var(loo_ti, ddof=1, axis=-1)
 plt.rcParams['font.family'] = 'serif'
 plt.rcParams["mathtext.fontset"] = "dejavuserif"
 
-bb_n = 2000
+bb_n = 4000
 alpha_bt = rng.dirichlet(np.ones(n_trial), size=bb_n)
 
 
@@ -415,3 +457,12 @@ axes[-1].set_xlabel(
 )
 
 fig.tight_layout()
+
+
+# print
+for data, data_point, name in zip(datas, datas_point, names):
+    print(f'{name} analytic: {data_point:.10}')
+    print(f'{name} BB mean: {data.mean():.10}')
+    print(f'{name} BB median: {np.median(data):.10}')
+    print(f'{name} BB 95 % CI: {np.percentile(data, [2.5, 97.5])}')
+    print(f'{name} BB 99 % CI: {np.percentile(data, [0.5, 99.5])}')
