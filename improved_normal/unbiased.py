@@ -73,13 +73,13 @@ n_trial = 20000
 n_obs = 16
 
 # data 1
-# datadist = stats.norm(loc=0, scale=1.2)
+datadist = stats.norm(loc=0, scale=1.2)
 
 # data 2
 # datadist = stats.norm(loc=2, scale=0.1)
 
 # data 3
-datadist = stats.skewnorm(10, loc=-2, scale=0.16)
+# datadist = stats.skewnorm(10, loc=-2, scale=0.16)
 
 
 # model params
@@ -408,6 +408,23 @@ alpha_bt = rng.dirichlet(np.ones(n_trial), size=bb_n)
 #     label='loo post pred',
 #     bins=25
 # )
+
+
+# # ==============================================================================
+# # bb var
+# loo_t = loo_ti.sum(axis=-1)
+# temp_bt = loo_t - alpha_bt.dot(loo_t)[:,None]
+# temp_bt = np.square(temp_bt, out=temp_bt)
+# true_var_b = np.einsum('bt,bt->b', alpha_bt, temp_bt)
+# true_var_b /= 1 - np.sum(alpha_bt**2, axis=-1)
+#
+# fig = plt.figure()
+# ax = fig.gca()
+# ax.hist(true_var_b, bins=30, color='C0', label='BB')
+# ax.axvline(true_var, color='C1', label='analytic')
+# ax.axvline(np.percentile(true_var_b, 25), color='C2', label='IQR')
+# ax.axvline(np.percentile(true_var_b, 75), color='C2')
+# ax.legend()
 
 
 # ==============================================================================
