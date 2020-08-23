@@ -191,7 +191,7 @@ for ax, probl_name, bb_median_p, err_p, analytic_p in zip(
         xerr=err_p,
         fmt='.',
         markersize=11,
-        label='BB',
+        label='simulated',
         color='C1',
     )
 
