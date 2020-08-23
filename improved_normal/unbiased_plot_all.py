@@ -27,9 +27,9 @@ sigma2_p = 2.0**2
 # ==============================================================================
 # hard-coded results from `unbiased.py`
 bb_mean_pe = [
-    [0.9663997725, 1.000294244],
-    [1.15876797, 1.000242305],
-    [0.8098354968, 0.999482842],
+    [0.9664053747, 1.00030043],
+    [1.15877344, 1.000248493],
+    [0.8098450276, 0.9994987331],
 ]
 bb_median_pe = [
     [0.9664015508, 1.000301568],
@@ -169,8 +169,8 @@ err_pe = (
 
 # fig, axes = plt.subplots(len(problem_names), 1, figsize=(6, 5))
 fig, axes = plt.subplots(len(problem_names), 1, sharex=True, figsize=(7, 4.5))
-for ax, probl_name, bb_median_p, err_p, analytic_p in zip(
-        axes, problem_names, bb_median_pe, err_pe, analytic_pe):
+for ax, probl_name, bb_mean_p, err_p, analytic_p in zip(
+        axes, problem_names, bb_mean_pe, err_pe, analytic_pe):
 
     l1 = ax.axvline(1.0, lw=1.0, color='C2', label='target')
 
@@ -186,7 +186,7 @@ for ax, probl_name, bb_median_p, err_p, analytic_p in zip(
 
     # bb
     l3 = ax.errorbar(
-        bb_median_p,
+        bb_mean_p,
         x_bb,
         xerr=err_p,
         fmt='.',

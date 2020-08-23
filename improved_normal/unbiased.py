@@ -9,12 +9,12 @@ Numerical results
     skew = 0.0,
     exkurt = 0.0
     naive analytic: 0.966125189
-    naive BB mean: 0.9663997725
+    naive BB mean: 0.9664053747
     naive BB median: 0.9664015508
     naive BB 95 % CI: [0.95996186 0.97273841]
     naive BB 99 % CI: [0.95756668 0.97492683]
     unbiased analytic: 1.0
-    unbiased BB mean: 1.000294244
+    unbiased BB mean: 1.00030043
     unbiased BB median: 1.000301568
     unbiased BB 95 % CI: [0.9934566  1.00704534]
     unbiased BB 99 % CI: [0.9908942  1.00942793]
@@ -25,12 +25,12 @@ Numerical results
     skew = 0.0,
     exkurt = 0.0
     naive analytic: 1.160312657
-    naive BB mean: 1.15876797
+    naive BB mean: 1.15877344
     naive BB median: 1.158743842
     naive BB 95 % CI: [1.15169156 1.16562419]
     naive BB 99 % CI: [1.14959731 1.16764143]
     unbiased analytic: 1.0
-    unbiased BB mean: 1.000242305
+    unbiased BB mean: 1.000248493
     unbiased BB median: 1.00025908
     unbiased BB 95 % CI: [0.99339451 1.00696045]
     unbiased BB 99 % CI: [0.99082462 1.00938296]
@@ -41,15 +41,15 @@ Numerical results
     skew = 0.96,
     exkurt = 0.82
     naive analytic: 0.8094516078
-    naive BB mean: 0.8098354968
+    naive BB mean: 0.8098450276
     naive BB median: 0.8098479447
     naive BB 95 % CI: [0.80231211 0.81750817]
     naive BB 99 % CI: [0.80000032 0.82010894]
     unbiased analytic: 1.0
-    unbiased BB mean: 0.999482842
+    unbiased BB mean: 0.9994987331
     unbiased BB median: 0.999523508
     unbiased BB 95 % CI: [0.98842999 1.01048438]
-    unbiased BB 99 % CI: [0.98563381 1.01432708]
+    unbiased BB 99 % CI: [0.98563382 1.01432708]
 
 """
 
@@ -477,9 +477,13 @@ fig.tight_layout()
 
 
 # print
-for data, data_point, name in zip(datas, datas_point, names):
+for data, data_point, name in zip(
+        [alpha_bt.dot(var_hat_naiv_t), alpha_bt.dot(var_hat_impr_t)],
+        datas_point, names):
     print(f'{name} analytic: {data_point:.10}')
-    print(f'{name} BB mean: {data.mean():.10}')
-    print(f'{name} BB median: {np.median(data):.10}')
-    print(f'{name} BB 95 % CI: {np.percentile(data, [2.5, 97.5])}')
-    print(f'{name} BB 99 % CI: {np.percentile(data, [0.5, 99.5])}')
+    print(f'{name} BB mean: {np.sqrt(np.mean(data)/true_var):.10}')
+    print(f'{name} BB median: {np.sqrt(np.median(data)/true_var):.10}')
+    print(f'{name} BB 95 % CI: '
+        f'{np.sqrt(np.percentile(data, [2.5, 97.5])/true_var)}')
+    print(f'{name} BB 99 % CI: '
+        f'{np.sqrt(np.percentile(data, [0.5, 99.5])/true_var)}')
