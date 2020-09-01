@@ -352,14 +352,16 @@ for probl_i in range(n_probl):
 #     )
 
 axes[-1, 0].set_xlabel(
-    r'$\widehat{\mathrm{elpd}}_\mathrm{LOO}(M_a,M_b|y)$',
+    # r'${}^\mathrm{sv}\widehat{\mathrm{elpd}}_\mathrm{LOO}(M_a,M_b|y)$',
+    r'$\widehat{\mathrm{elpd}}_\mathrm{LOO}$',
     fontsize=fontsize-2
 )
 
 for ax in axes[:, 0]:
     ax.text(
         -0.25, 0.5,
-        r'$\widehat{\mathrm{elpd}}_\mathrm{LOO}$',
+        # r'${}^\mathrm{sv}\mathrm{elpd}(M_a,M_b|y)$',
+        r'$\mathrm{elpd}$',
         transform=ax.transAxes,
         ha='right',
         va='center',
